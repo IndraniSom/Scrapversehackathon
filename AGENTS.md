@@ -65,3 +65,7 @@ Try to find:
 Do not rewrite the code immediately. First list concrete findings with file
 locations, severity, and a reproducible failure scenario. If no issue is found,
 explain what was checked and what remains unverified.
+
+Also make sure no code files should have more than 200 lines of code
+
+and add documentation above every function like a production codebase , where you should specify about the function
