@@ -33,6 +33,11 @@ def validate_staging_directory(
     staging = staging_directory.resolve()
     preparation = roots.preparation_root.resolve()
     demo = roots.demo_root.resolve()
-    if staging.is_relative_to(demo) or not staging.is_relative_to(preparation):
+    canonical_demo = repository_source_roots().demo_root.resolve()
+    if (
+        staging.is_relative_to(canonical_demo)
+        or staging.is_relative_to(demo)
+        or not staging.is_relative_to(preparation)
+    ):
         raise StorageBoundaryError("staging must be inside trusted preparation storage")
     return staging

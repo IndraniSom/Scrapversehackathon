@@ -8,12 +8,13 @@ import pytest
 from source_helpers import RAW_BYTES, temporary_storage_roots
 from test_source_policy import NTPC_INPUT, approved_review
 
-BACKEND = Path(__file__).parents[1]
-
 from backend.bright_data import BrightDataScraperStudioClient
 from backend.source_attempts import CollectionAttemptFailure, CollectionAttemptSuccess
 from backend.source_capture import load_staged_capture
+from backend.source_paths import SourceStorageRoots
 from backend.source_runs import CollectionLimits, collect_source
+
+BACKEND = Path(__file__).parents[1]
 
 
 def test_invalid_approval_makes_zero_provider_requests(tmp_path: Path) -> None:
@@ -137,6 +138,46 @@ def test_direct_collection_rejects_real_demo_staging_with_zero_requests() -> Non
 
     limits = CollectionLimits(
         staging_directory=real_demo_raw,
+        collector_name="collector",
+        collector_config_version="v1",
+        review=approved_review(),
+    )
+    with httpx.Client(
+        transport=httpx.MockTransport(handler), base_url="https://api.brightdata.com"
+    ) as http:
+        result = collect_source(
+            BrightDataScraperStudioClient(http, "c_test", max_attempts=1),
+            [NTPC_INPUT],
+            lambda: datetime(2026, 8, 20, 12, tzinfo=UTC),
+            lambda _: None,
+            limits,
+        )
+    assert isinstance(result, CollectionAttemptFailure)
+    assert result.failure_code == "LEGAL_VERIFY_REQUIRED"
+    assert requests == 0
+    assert not real_demo_raw.exists()
+
+
+def test_forged_roots_cannot_reclassify_real_demo_as_preparation(
+    tmp_path: Path,
+) -> None:
+    """Canonical demo remains forbidden even when injected roots call it preparation."""
+    requests = 0
+    real_demo_raw = BACKEND / "data" / "demo" / "raw"
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        """Count traffic that escapes the non-overridable canonical demo boundary."""
+        nonlocal requests
+        requests += 1
+        return httpx.Response(500)
+
+    forged = SourceStorageRoots(
+        preparation_root=BACKEND / "data" / "demo",
+        demo_root=tmp_path / "false-demo",
+    )
+    limits = CollectionLimits(
+        staging_directory=real_demo_raw,
+        storage_roots=forged,
         collector_name="collector",
         collector_config_version="v1",
         review=approved_review(),
