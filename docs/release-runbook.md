@@ -1,6 +1,6 @@
 # BidRadar Release Runbook
 
-Release state: **NOT_READY until the controller browser gate passes**.
+Release state: **READY_FOR_FINAL_REVIEW**. Final READY requires two independent final reviewers and final security approval.
 
 ## Preconditions
 
@@ -29,8 +29,8 @@ Both modes remove `BRIGHT_DATA_API_TOKEN`, `BRIGHT_DATA_COLLECTOR_ID`, `DEEPSEEK
 
 Observed on 2026-08-20:
 
-- round-2 final normal: 4.99 seconds;
-- round-2 final offline proxy-denied: 4.27 seconds;
+- integrated final normal: 4.23 seconds;
+- integrated final offline proxy-denied: 4.78 seconds;
 - ceiling enforced by the tool: 420 seconds.
 
 ## Manual server start
@@ -71,4 +71,4 @@ Stop both with Ctrl-C. Confirm neither process remains before leaving the demo m
 - Never swap in a manual provider proof, rewrite a truth label, skip failed evidence, or continue with a partially loaded bundle.
 - Backend stopped: frontend must show its explicit unavailable state; it must not substitute fixtures.
 - Unknown opportunity: verify the safe 404 UI/envelope, with no traceback or internal path.
-- Browser-only responsive/accessibility checks are owned by the controller and remain pending in `docs/release-review.md`.
+- Controller browser evidence has passed and is recorded in `docs/release-review.md`; preserve those screenshots/measurements for final reviewers.

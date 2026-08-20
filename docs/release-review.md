@@ -1,6 +1,6 @@
 # BidRadar Release Review
 
-Status: **NOT_READY - browser gate pending**
+Status: **READY_FOR_FINAL_REVIEW**
 
 Reviewed: 2026-08-20, Asia/Kolkata. Frozen contract SHA-256: `80d07b05dc8aca107234e349029d144206b8fb8fbea0c88a08a4f4018d8f2566`.
 
@@ -12,7 +12,7 @@ Reviewed: 2026-08-20, Asia/Kolkata. Frozen contract SHA-256: `80d07b05dc8aca1072
 | IMPORTANT | `tools/check_api_contract.py` | Missing at review start; no standalone release command validates concrete route shape plus representative runtime responses against the frozen contract. Reproduce: required command exits because the file is absent. | Accepted Task 7 tool. |
 | IMPORTANT | `tools/smoke_demo.py` | Missing at review start; no bounded two-process, credentials-absent smoke proves startup, all seven product routes, markers, hashes, transition, and cleanup. Reproduce: required command exits because the file is absent. | Accepted Task 7 tool with process-group cleanup on success and failure. |
 | IMPORTANT | `tools/check_sensitive_patterns.py` | Missing at review start; no release scanner guarantees path/rule-only secret and dangerous-pattern output. Reproduce: required command exits because the file is absent. | Accepted Task 7 tool; matching values must never be printed. |
-| BLOCKING | Controller browser gate | No fresh browser screenshots or interaction measurements exist for 1280px, 390px, 320px, 200% zoom, keyboard order/focus, overflow, 404, or stopped-backend behavior. | Do not fabricate. Controller must complete this gate before release status can become READY. |
+| BLOCKING | Controller browser gate | No fresh browser evidence existed at initial review. | Addressed by the controller after C overflow fix `c3fc02d`; exact evidence is recorded below. |
 
 ## Application review before Task 7 tools
 
@@ -31,27 +31,27 @@ Reviewed: 2026-08-20, Asia/Kolkata. Frozen contract SHA-256: `80d07b05dc8aca1072
 - Repeated uppercase context labels and several state-color semantics remain visual-design Minors.
 - Backend retry/poll caps and some test-helper documentation remain deferred Minors.
 
-These deferred findings are not silently reclassified as release passes. Browser evidence remains the only known blocking Task 7 gate before tool execution.
+These deferred findings are not silently reclassified as fixes. They remain accepted release risks pending final reviewer/security rulings.
 
 ## Task 7 dispositions
 
 | Initial finding | Disposition |
 |---|---|
 | Frozen `app.openapi` can mask concrete drift | Tool addressed. It never calls `app.openapi`; it compares concrete route/method/operation surface and normalized reachable response-schema graphs. Fourteen structural/semantic mutations fail. Executable `not`, `if`/`then`/`else`, `oneOf` exclusivity, and nullable outer siblings remain comparison semantics; only annotation keys and a sibling-free typed-null representation normalize away. |
-| Contract release command absent | Tool addressed, application blocked. Runtime instances/examples still validate, but independently generated success schemas drift from frozen schemas. |
+| Contract release command absent | Addressed. B schema alignment commit `30fa7a0` and A semantic-normalizer regressions now produce a stable checker PASS. |
 | Two-process smoke absent | Addressed. Normal and offline proxy-denied modes build, start, verify, and terminate both groups in bounded time with credentials absent. |
 | Path/rule-only scanner absent | Addressed. Scanner tests prove secret text is absent from formatted output and exact generated/private exclusions do not hide authored paths. Final staged self-scan passes. |
-| Controller browser evidence absent | Open and blocking. No browser claim or screenshot was fabricated. |
+| Controller browser evidence absent | Addressed. Controller screenshots, measurements, focus checks, error-state checks, and the documented 640px zoom-equivalent ruling passed. |
 
 ### Returned application finding
 
-IMPORTANT - `backend/src/backend` generated response schemas: `getLiveness` and `getReadiness` normalize exactly, but `listOpportunities`, `getAssessment`, `getAmendmentImpact`, and `getSourceProof` do not match their frozen reachable response graphs bidirectionally. Reproduction: `(cd backend && uv run python ../tools/check_api_contract.py)` exits nonzero with `operation response schema graph drift`. Observed substantive examples include generated opportunity URL constraints missing frozen HTTPS/URI constraints, assessment rule graph differences including an extra unsupported response branch, and a VERIFIED-only source-proof response model versus the frozen VERIFIED/UNAVAILABLE union. This finding belongs to B; A did not edit application contracts/models.
+RESOLVED - B commit `30fa7a0` aligned independently generated reachable response schemas with the frozen contract. The current committed checker passes all six operations; A did not edit B models/routes.
 
 ## Fresh release evidence
 
 | Gate | Result |
 |---|---|
-| Backend tests | PASS - 401 tests in 4.10 seconds |
+| Backend tests | PASS - 413 tests |
 | Ruff | PASS |
 | pip-audit | PASS - no known vulnerabilities; local unpublished package skipped |
 | Frontend tests | PASS - 42 tests across 4 files |
@@ -60,24 +60,25 @@ IMPORTANT - `backend/src/backend` generated response schemas: `getLiveness` and 
 | pnpm audit | PASS - no known vulnerabilities at high severity |
 | Code-file policy | PASS - zero files at 200+ lines |
 | Contract checker TDD mutations | PASS - six structural, five dot-guard/conditional/exclusive-union, and three nullable-sibling mutations rejected |
-| Contract checker current workspace | PASS with concurrent uncommitted B alignment; controller must rerun after B commits before treating this as release evidence |
+| Contract checker committed integration | PASS after B alignment `30fa7a0` and A normalizer hardening |
 | Required/enum mutation probes | PASS - missing authority and unknown source rejected |
-| Sensitive scanner | PASS - 177 tracked paths considered, path/rule-only output |
+| Sensitive scanner | PASS - 181 tracked paths considered, path/rule-only output |
 | Provider proof verify-only | PASS - chosen run `j_mt0i928kyu57telkk` |
 | Extraction verify-only | PASS - 2 reviewed extractions |
-| Normal smoke | PASS - round-2 final 4.99 seconds, four credentials absent |
-| Offline proxy-denied smoke | PASS - round-2 final 4.27 seconds, four credentials absent and both proxy cases overridden |
+| Normal smoke | PASS - integrated final 4.23 seconds, four credentials absent |
+| Offline proxy-denied smoke | PASS - integrated final 4.78 seconds, four credentials absent and both proxy cases overridden |
 | Seven-minute automated ceiling | PASS - both rehearsals under 420 seconds |
 
-## Remaining STOP-RELEASE browser gate
+## Browser evidence - PASS
 
-Controller must start the integrated application and record actual evidence for:
+Screenshots are stored in ignored controller evidence at `.superpowers/sdd/2026-08-20-required-fixes/browser-evidence/`: desktop and mobile-390 register/assessment/amendment, mobile-320 expanded source proof, and mobile-390 404/backend-unavailable states.
 
-- `/`, detail, amendment, 404, and stopped-backend failure;
-- 1280px, 390px, and 320px widths;
-- 200% zoom and no page-level horizontal overflow;
-- keyboard-only order, visible focus, native disclosure operation, and 44px primary target size;
-- text/icon status differentiation and safe error copy;
-- screenshots tied to the tested commit.
+- 1280px: register, assessment, and amendment report page overflow false.
+- 390px: all three routes report overflow false. Expanded source proof reports overflow false and `scrollWidth=390` after C fix `c3fc02d`.
+- 320px expanded proof: page overflow false, `scrollWidth=320`; only the table scrolls internally; primary opportunity link height is 49.6px.
+- 640 CSS px, used as the ledger-approved layout equivalent of 1280px at 200% zoom because the in-app Browser lacks native zoom control: all three routes report overflow false.
+- Focus: skip link, brand link, and native summary each show a solid 3px outline. Brand target is 44px; summary is 48.8px. Landmarks, headings, status text plus icons, and native details are present; no focus trap was observed.
+- Loading was observed. The 404 state is explicit. Stopped-backend state is explicit and substitutes no fixture. Empty, schema-failure, and unavailable-provider states remain covered by reviewed component tests.
+- Controller TCP check: six backend curls passed and the server shut down cleanly.
 
-Until B commits the owned alignment and every browser item passes, final verdict remains **NOT_READY**. The current workspace checker pass is transient integration evidence, not yet committed B release evidence.
+All implementation/browser gates are ready for the two final independent reviewers and final security review. This is **READY_FOR_FINAL_REVIEW**, not final READY.

@@ -1,6 +1,6 @@
 # BidRadar Release Security Review
 
-Review date: 2026-08-20. Status: **application/tool checks passed; controller browser gate pending**.
+Review date: 2026-08-20. Status: **READY_FOR_FINAL_REVIEW**; final READY requires two final reviewers and final security approval.
 
 ## Runtime boundary
 
@@ -35,11 +35,11 @@ Fresh results on 2026-08-20:
 
 - pip-audit: no known vulnerabilities; the unpublished local `backend` package was the only skipped item;
 - pnpm audit at high severity: no known vulnerabilities;
-- tracked sensitive scan: pass across 177 paths after Task 7 files were staged;
+- tracked sensitive scan: pass across 181 paths in the final integrated tree;
 - dangerous runtime routes/patterns: none found;
 - Task 7 TDD harness: 8 passed, including fourteen schema mutations, scanner redaction/exclusion behavior, structured payload mutations, and real process-group cleanup;
 - Ruff, ESLint, TypeScript, Python/React tests, production build, line gate, and diff checks: pass.
-- Contract checker implementation/mutation tests pass, but its real application gate correctly fails on generated response-schema drift in four API operations. Release remains blocked pending a B-owned fix.
+- Contract checker implementation/mutation tests and committed integrated application gate pass after B alignment `30fa7a0`.
 
 ## Process safety
 
@@ -51,5 +51,6 @@ Fresh results on 2026-08-20:
 
 - Automated collection and retention remain tied to the dated NTPC human review; approval withdrawal requires removing/replacing the proof artifact.
 - Official PDF excerpts are bounded public evidence, not permission to mirror documents.
-- Browser-responsive, keyboard, focus, zoom, and overflow evidence remains pending and blocks READY.
+- Browser-responsive, keyboard, focus, zoom-equivalent, overflow, 404, and backend-unavailable evidence passed and is recorded in `docs/release-review.md`.
 - Previously deferred dependency-policy/backend/frontend visual Minors remain listed in `docs/release-review.md`.
+- Final reviewer/security approval remains pending; this document does not self-promote the release to final READY.
