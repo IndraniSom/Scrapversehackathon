@@ -1,6 +1,10 @@
 """Thin read-only routes over the startup-validated immutable bundle."""
 
+from typing import Literal
+from urllib.parse import unquote_to_bytes
+
 from fastapi import APIRouter, Request
+from pydantic import TypeAdapter, ValidationError
 
 from backend.contracts.api import ApiEnvelope, HealthResponse, success
 from backend.contracts.artifacts import DemoBundle
@@ -16,7 +20,14 @@ class DemoUnavailable(RuntimeError):
     """Signal that startup-validated immutable data is unavailable."""
 
 
+class ContractViolation(ValueError):
+    """Signal malformed raw route bytes or an invalid shared OpportunityId."""
+
+
 router = APIRouter()
+OPPORTUNITY_PREFIX = b"/api/v1/opportunities/"
+AMENDMENT_SUFFIX = b"/amendment-impact"
+OPPORTUNITY_ID_ADAPTER = TypeAdapter(OpportunityId)
 
 
 def _bundle(request: Request) -> DemoBundle:
@@ -59,27 +70,40 @@ def _selected(request: Request, opportunity_id: str) -> DemoBundle:
 
 
 @router.get(
-    "/api/v1/opportunities/{opportunity_id:path}/amendment-impact",
-    response_model=ApiEnvelope[AmendmentImpactView],
-    operation_id="getAmendmentImpact",
+    "/api/v1/opportunities/{remainder:path}",
+    response_model=ApiEnvelope[AssessmentView] | ApiEnvelope[AmendmentImpactView],
+    operation_id="dispatchOpportunityRead",
 )
-def get_amendment_impact(
-    request: Request, opportunity_id: OpportunityId
-) -> ApiEnvelope[AmendmentImpactView]:
-    """Return the authority-gated single-rule amendment impact view."""
-    return success(_selected(request, opportunity_id).impact)
+def dispatch_opportunity_read(
+    request: Request, remainder: str
+) -> ApiEnvelope[AssessmentView] | ApiEnvelope[AmendmentImpactView]:
+    """Dispatch detail versus impact from the raw literal suffix boundary."""
+    del remainder
+    opportunity_id, operation = _raw_operation(request)
+    bundle = _selected(request, opportunity_id)
+    if operation == "impact":
+        return success(bundle.impact)
+    return success(bundle.assessment)
 
 
-@router.get(
-    "/api/v1/opportunities/{opportunity_id:path}",
-    response_model=ApiEnvelope[AssessmentView],
-    operation_id="getAssessment",
-)
-def get_assessment(
-    request: Request, opportunity_id: OpportunityId
-) -> ApiEnvelope[AssessmentView]:
-    """Return the recomputation-verified before/after assessment view."""
-    return success(_selected(request, opportunity_id).assessment)
+def _raw_operation(
+    request: Request,
+) -> tuple[str, Literal["assessment", "impact"]]:
+    """Decode one raw ID while distinguishing encoded slashes from literal suffix."""
+    raw_path = request.scope.get("raw_path")
+    if not isinstance(raw_path, bytes) or not raw_path.startswith(OPPORTUNITY_PREFIX):
+        raise ContractViolation
+    raw_remainder = raw_path[len(OPPORTUNITY_PREFIX) :]
+    operation: Literal["assessment", "impact"] = "assessment"
+    if raw_remainder.endswith(AMENDMENT_SUFFIX):
+        raw_remainder = raw_remainder[: -len(AMENDMENT_SUFFIX)]
+        operation = "impact"
+    try:
+        decoded = unquote_to_bytes(raw_remainder).decode("utf-8")
+        opportunity_id = OPPORTUNITY_ID_ADAPTER.validate_python(decoded)
+    except (UnicodeDecodeError, ValidationError) as error:
+        raise ContractViolation from error
+    return opportunity_id, operation
 
 
 @router.get(

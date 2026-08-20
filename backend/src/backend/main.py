@@ -14,7 +14,12 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from backend.artifacts import load_demo_bundle
 from backend.config import Settings
 from backend.contracts.api import ErrorCode, failure
-from backend.routes import DemoUnavailable, OpportunityNotFound, router
+from backend.routes import (
+    ContractViolation,
+    DemoUnavailable,
+    OpportunityNotFound,
+    router,
+)
 
 CONTRACT_PATH = Path(__file__).resolve().parents[3] / "contracts" / "api-v1.openapi.json"
 CONTRACT_SHA256 = "80d07b05dc8aca107234e349029d144206b8fb8fbea0c88a08a4f4018d8f2566"
@@ -66,6 +71,17 @@ def _load_frozen_contract() -> dict[str, object]:
 
 def _install_handlers(app: FastAPI) -> None:
     """Install safe UUID error envelopes without internal paths or stack details."""
+
+    @app.exception_handler(ContractViolation)
+    async def raw_contract_violation(
+        _request: Request, _error: ContractViolation
+    ) -> JSONResponse:
+        """Map raw-path decoding or OpportunityId failure to the safe 422 branch."""
+        return _error_response(
+            422,
+            "CONTRACT_VALIDATION_FAILED",
+            "Request did not match the API contract.",
+        )
 
     @app.exception_handler(RequestValidationError)
     async def contract_validation_failed(

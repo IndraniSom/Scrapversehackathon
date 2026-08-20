@@ -17,7 +17,15 @@ def get_paths(routes: list[object]) -> set[str]:
         methods = getattr(route, "methods", set())
         path = getattr(route, "path", None)
         if isinstance(methods, set) and "GET" in methods and isinstance(path, str):
-            paths.add(path.replace("{opportunity_id:path}", "{opportunity_id}"))
+            if path == "/api/v1/opportunities/{remainder:path}":
+                paths.update(
+                    {
+                        "/api/v1/opportunities/{opportunity_id}",
+                        "/api/v1/opportunities/{opportunity_id}/amendment-impact",
+                    }
+                )
+            else:
+                paths.add(path)
     return paths
 
 

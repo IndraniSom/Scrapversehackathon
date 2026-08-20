@@ -50,6 +50,23 @@ def test_both_typed_routes_retain_contract_valid_hostile_id(
         assert amendment.json()["data"]["changed_rule_id"] == "turnover-average"
 
 
+@pytest.mark.parametrize("identifier", ["foo/amendment-impact", "/amendment-impact"])
+def test_detail_route_distinguishes_encoded_slash_from_operation_suffix(
+    tmp_path: Path, identifier: str
+) -> None:
+    """An encoded slash before suffix-shaped text remains part of the detail ID."""
+    encoded = quote(identifier, safe="")
+    with client_for(copied_demo(tmp_path)) as client:
+        original = client.app.state.bundle.manifest.opportunity_id
+        client.app.state.bundle.manifest.opportunity_id = identifier
+        try:
+            response = client.get(f"/api/v1/opportunities/{encoded}")
+        finally:
+            client.app.state.bundle.manifest.opportunity_id = original
+    assert response.status_code == 200
+    assert "base_assessment" in response.json()["data"]
+
+
 async def call_asgi_path(app: AsgiApp, path: str) -> tuple[int, dict[str, object]]:
     """Call the ASGI router with an exact decoded path, bypassing URL dot cleanup."""
     messages: list[AsgiMessage] = []
