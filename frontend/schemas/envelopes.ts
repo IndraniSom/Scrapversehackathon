@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { dataModeSchema, dateTimeSchema, requestIdSchema, sha256Schema } from "./common";
-import { opportunitySummarySchema } from "./opportunities";
+import { recordedOpportunitySummarySchema } from "./opportunities";
 
 const unavailableSourceProofSchema = z.strictObject({
   status: z.literal("UNAVAILABLE"),
@@ -30,9 +30,13 @@ const verifiedSourceProofSchema = z.strictObject({
   completed_at: dateTimeSchema,
   raw_snapshot_sha256: sha256Schema,
   raw_record: z.record(z.string(), z.unknown()),
-  normalized_record: opportunitySummarySchema,
+  normalized_record: recordedOpportunitySummarySchema,
   terminal_state: z.literal("SUCCESS"),
   failure_code: z.null(),
+}).superRefine((value, context) => {
+  if (value.normalized_record.snapshot_sha256 !== value.raw_snapshot_sha256) {
+    context.addIssue({ code: "custom", message: "normalized snapshot must match raw snapshot", path: ["normalized_record", "snapshot_sha256"] });
+  }
 });
 
 export const sourceProofSchema = z.discriminatedUnion("status", [

@@ -33,7 +33,7 @@ describe("frozen response schemas", () => {
       "CPPP", "CPPP", "WEST_BENGAL", "WEST_BENGAL", "NTPC", "NTPC", "ODISHA",
     ]);
     expect(assessmentEnvelopeSchema.parse(assessment).data.base_assessment.recommendation).toBe("NO_BID");
-    expect(amendmentImpactEnvelopeSchema.parse(amendment).data.amended_recommendation).toBe("BID");
+    expect(amendmentImpactEnvelopeSchema.parse(amendment).data.amended_recommendation).toBe("REVIEW");
     expect(sourceProofEnvelopeSchema.parse(sourceProof).data.status).toBe("UNAVAILABLE");
 
   });
@@ -43,8 +43,8 @@ describe("typed API boundary", () => {
   test("returns validated values from all four endpoints", async () => {
     await expect(getOpportunities({ fetcher: respondingWith(opportunities) })).resolves.toMatchObject({ data: { total: 7 } });
     await expect(getSourceProof({ fetcher: respondingWith(sourceProof) })).resolves.toMatchObject({ data: { status: "UNAVAILABLE" } });
-    await expect(getAssessment("wb-hci-063", { fetcher: respondingWith(assessment) })).resolves.toMatchObject({ data: { opportunity: { id: "wb-hci-063" } } });
-    await expect(getAmendmentImpact("wb-hci-063", { fetcher: respondingWith(amendment) })).resolves.toMatchObject({ data: { authority_change_applied: true } });
+    await expect(getAssessment("ocac-pond-monitoring-26001", { fetcher: respondingWith(assessment) })).resolves.toMatchObject({ data: { opportunity: { id: "ocac-pond-monitoring-26001" } } });
+    await expect(getAmendmentImpact("ocac-pond-monitoring-26001", { fetcher: respondingWith(amendment) })).resolves.toMatchObject({ data: { amended_recommendation: "REVIEW", authority_change_applied: true } });
   });
 
   test.each([".", ".."])("rejects literal dot segment %s in opportunity summary responses", async (opportunityId) => {
@@ -93,11 +93,10 @@ describe("typed API boundary", () => {
     await expect(getOpportunities({ fetcher: respondingWith(empty) })).resolves.toMatchObject({ data: { items: [], total: 0 } });
   });
 
-  test("does not impose item-count equality absent from the frozen contract", async () => {
-    const partial = cloneFixture(opportunities);
-    const data = objectProperty(partial, "data");
-    data.items = arrayProperty(data, "items").slice(0, 5);
-    await expect(getOpportunities({ fetcher: respondingWith(partial) })).resolves.toMatchObject({ data: { total: 7 } });
+  test.each([6, 8])("rejects declared total %s when seven items are returned", async (declaredTotal) => {
+    const inconsistent = cloneFixture(opportunities);
+    objectProperty(inconsistent, "data").total = declaredTotal;
+    await expect(getOpportunities({ fetcher: respondingWith(inconsistent) })).rejects.toMatchObject({ kind: "schema" });
   });
 
   test.each([

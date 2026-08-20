@@ -51,36 +51,46 @@ describe("server-rendered routes", () => {
     expect(screen.getByRole("group", { name: /source proof details/i })).toBeInTheDocument();
   });
 
-  test("shows profile, evidence provenance, and official links on the detail view", async () => {
+  test("shows the truthful NO_BID to REVIEW assessment and unknown certification reasons", async () => {
     installFixtureApi();
-    render(await OpportunityPage({ params: Promise.resolve({ opportunityId: "wb-hci-063" }), searchParams: Promise.resolve({}) }));
-    expect(screen.getByRole("heading", { name: /hyperconverged infrastructure/i })).toBeVisible();
-    expect(screen.getByRole("region", { name: /base tender recommendation/i })).toBeVisible();
-    expect(screen.getByText("Example Systems Private Limited")).toBeVisible();
-    expect(screen.getByText("CIN-U00000WB2026PTC000001")).toBeVisible();
+    render(await OpportunityPage({ params: Promise.resolve({ opportunityId: "ocac-pond-monitoring-26001" }), searchParams: Promise.resolve({}) }));
+    expect(screen.getByRole("heading", { name: /AI-enabled IoT-based Pond Monitoring/i })).toBeVisible();
+    const baseDecision = screen.getByRole("region", { name: /base tender recommendation/i });
+    expect(baseDecision).toHaveTextContent("NO_BID");
+    expect(baseDecision).toHaveTextContent("Failed hard rules1");
+    expect(baseDecision).toHaveTextContent("Unknown applicable rules3");
+    const amendedDecision = screen.getByRole("region", { name: /after amendment recommendation/i });
+    expect(amendedDecision).toHaveTextContent("REVIEW");
+    expect(amendedDecision).toHaveTextContent("Failed hard rules0");
+    expect(amendedDecision).toHaveTextContent("Unknown applicable rules3");
+    expect(screen.getByText("Example Digital Systems Private Limited")).toBeVisible();
+    expect(screen.getByText("CIN-U72900OD2026PTC000001")).toBeVisible();
     expect(screen.getAllByText("EVIDENCE_VERIFIED").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("HUMAN_CONFIRMED").length).toBeGreaterThan(0);
-    expect(screen.getAllByText("manual-review").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("HUMAN_EDITED").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("deepseek-v4-flash").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("UNKNOWN")).toHaveLength(7);
+    const unknownReasons = screen.getAllByText("The authority clause does not state an explicit certification validity anchor.");
+    expect(unknownReasons).toHaveLength(6);
+    for (const reason of unknownReasons) expect(reason).toBeVisible();
     expect(screen.getAllByRole("link", { name: /open official/i }).length).toBeGreaterThan(0);
-    expect(screen.getByRole("link", { name: /review amendment impact/i })).toHaveAttribute("href", "/opportunities/wb-hci-063/amendment");
-    expect(screen.getByText(/meets the amended INR 1 crore threshold/i)).toBeVisible();
+    expect(screen.getByRole("link", { name: /review amendment impact/i })).toHaveAttribute("href", "/opportunities/ocac-pond-monitoring-26001/amendment");
     expect(screen.getByText(/decision support only/i)).toBeVisible();
   });
 
   test("shows the authority-backed document and recommendation transition", async () => {
     installFixtureApi();
-    render(await AmendmentPage({ params: Promise.resolve({ opportunityId: "wb-hci-063" }), searchParams: Promise.resolve({}) }));
+    render(await AmendmentPage({ params: Promise.resolve({ opportunityId: "ocac-pond-monitoring-26001" }), searchParams: Promise.resolve({}) }));
     const transition = screen.getByRole("region", { name: /recommendation transition/i });
     expect(within(transition).getByText("NO_BID")).toBeVisible();
-    expect(within(transition).getByText("BID")).toBeVisible();
+    expect(within(transition).getByText("REVIEW")).toBeVisible();
     expect(screen.getByText("AUTHORITY")).toBeVisible();
     expect(screen.getByText("ACCEPTED")).toBeVisible();
     expect(screen.getAllByText(/effective change/i).length).toBeGreaterThan(0);
     const lineage = screen.getByRole("region", { name: /document lineage/i });
-    expect(within(lineage).getByText("dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd")).toBeVisible();
-    expect(within(lineage).getByText("9999999999999999999999999999999999999999999999999999999999999999")).toBeVisible();
-    expect(within(screen.getByRole("region", { name: "Eligibility Criteria" })).getAllByText(/INR 2 crore/)[0]).toBeVisible();
-    expect(within(screen.getByRole("region", { name: "Corrigendum" })).getAllByText(/INR 1 crore/)[0]).toBeVisible();
+    expect(within(lineage).getByText("f1bc41678cd71b0d20cd2432cf579b840af7a52152b72d8c55a5ee129b927afd")).toBeVisible();
+    expect(within(lineage).getByText("ccbe30fa4f886087bb09d94cf1073fca97e66789957ba2da63c09a5e7fa657a1")).toBeVisible();
+    expect(within(screen.getByRole("region", { name: "5.1. Pre-Qualification Criteria" })).getAllByText(/Rs\. 12 Crores/)[0]).toBeVisible();
+    expect(within(screen.getByRole("region", { name: "Revised Pre-Qualification Criteria" })).getAllByText(/Rs\. 6 Crores/)[0]).toBeVisible();
   });
 
   test("renders explicit backend and schema failures through the real API layer", async () => {

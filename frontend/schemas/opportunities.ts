@@ -19,12 +19,20 @@ export const opportunitySummarySchema = z.strictObject({
   snapshot_sha256: sha256Schema,
 });
 
+export const recordedOpportunitySummarySchema = opportunitySummarySchema.extend({
+  data_mode: z.literal("RECORDED_BRIGHT_DATA_SNAPSHOT"),
+});
+
 export const opportunityListEnvelopeSchema = z.strictObject({
   request_id: requestIdSchema,
   data: z.strictObject({
     items: z.array(opportunitySummarySchema),
     total: z.number().int().min(0),
     generated_at: dateTimeSchema,
+  }).superRefine((value, context) => {
+    if (value.total !== value.items.length) {
+      context.addIssue({ code: "custom", message: "total must equal items length", path: ["total"] });
+    }
   }),
 });
 

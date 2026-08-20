@@ -1,6 +1,6 @@
 import "next/dist/compiled/server-only";
 
-import type { ZodType } from "zod";
+import { z, type ZodType } from "zod";
 
 import { amendmentImpactEnvelopeSchema, assessmentEnvelopeSchema, type AmendmentImpactEnvelope, type AssessmentEnvelope } from "../schemas/assessment";
 import { sourceProofEnvelopeSchema, type SourceProofEnvelope } from "../schemas/envelopes";
@@ -27,7 +27,23 @@ export class ApiFailure extends Error {
   }
 }
 
-const apiBaseUrl = process.env.BIDRADAR_API_BASE_URL?.replace(/\/$/, "") || "http://127.0.0.1:8000";
+const loopbackApiOriginSchema = z.string().transform((value, context) => {
+  const match = /^http:\/\/(?:localhost|127\.0\.0\.1):([0-9]{1,5})$/i.exec(value);
+  const port = match ? Number(match[1]) : 0;
+  if (match === null || port < 1 || port > 65_535) {
+    context.addIssue({ code: "custom", message: "BIDRADAR_API_BASE_URL must be an HTTP loopback origin with an explicit valid port" });
+    return z.NEVER;
+  }
+  return new URL(value).origin;
+});
+
+const serverEnvironmentSchema = z.strictObject({
+  BIDRADAR_API_BASE_URL: loopbackApiOriginSchema,
+});
+
+const apiBaseUrl = serverEnvironmentSchema.parse({
+  BIDRADAR_API_BASE_URL: process.env.BIDRADAR_API_BASE_URL ?? "http://127.0.0.1:8000",
+}).BIDRADAR_API_BASE_URL;
 
 /** Fetches one endpoint and rejects every unvalidated or unsuccessful response. */
 async function request<T>(path: string, schema: ZodType<T>, options: RequestOptions = {}): Promise<T> {

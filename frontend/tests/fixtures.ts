@@ -44,3 +44,31 @@ export function arrayProperty(value: unknown, key: string): unknown[] {
   if (!Array.isArray(candidate)) throw new TypeError(`Expected fixture array at ${key}`);
   return candidate;
 }
+
+/** Builds a closed VERIFIED proof with recorded mode and linked snapshot hashes. */
+export function verifiedProofFixture(): unknown {
+  const opportunities = readFixture("opportunities.manual.json");
+  const normalized = cloneFixture(arrayProperty(objectProperty(opportunities, "data"), "items")[0]);
+  const normalizedRecord = objectValue(normalized);
+  const snapshotHash = "7777777777777777777777777777777777777777777777777777777777777777";
+  normalizedRecord.data_mode = "RECORDED_BRIGHT_DATA_SNAPSHOT";
+  normalizedRecord.snapshot_sha256 = snapshotHash;
+  return {
+    request_id: "55555555-5555-4555-8555-555555555555",
+    data: {
+      status: "VERIFIED",
+      data_mode: "RECORDED_BRIGHT_DATA_SNAPSHOT",
+      reason_code: null,
+      collector_name: "bright-data-collector",
+      collector_config_version: "collector-v7",
+      provider_run_id: "provider-run-2042",
+      started_at: "2026-08-20T07:58:00Z",
+      completed_at: "2026-08-20T08:00:00Z",
+      raw_snapshot_sha256: snapshotHash,
+      raw_record: { raw_tender_id: "CPPP-2026-001", capture_sequence: 42 },
+      normalized_record: normalizedRecord,
+      terminal_state: "SUCCESS",
+      failure_code: null,
+    },
+  };
+}
