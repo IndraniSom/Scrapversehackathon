@@ -1,36 +1,33 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# BidRadar frontend
 
-## Getting Started
+BidRadar is a read-only procurement decision-support interface. It renders an opportunity register, evidence-backed eligibility assessment, and authority-traced amendment impact from the frozen API v1 contract.
 
-First, run the development server:
+## Runtime
+
+The app requires the BidRadar backend at request time. It never replaces failed backend reads with contract examples.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
+cp .env.example .env.local
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Set `BIDRADAR_API_BASE_URL` when the API is not available at `http://127.0.0.1:8000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Routes:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `/` - validated opportunity register and source-proof state
+- `/opportunities/[opportunityId]` - company profile and rule assessment
+- `/opportunities/[opportunityId]/amendment` - document, authority, clause, and recommendation transition
 
-## Learn More
+All pages are Server Components. API payloads are parsed through closed Zod schemas before rendering. Expected transport and schema failures render explicit safe states; 404 responses use the Next.js not-found boundary.
 
-To learn more about Next.js, take a look at the following resources:
+## Validation
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```bash
+pnpm test
+pnpm lint
+pnpm typecheck
+pnpm build
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The test suite reads the four frozen `MANUAL_FIXTURE` contract examples as test inputs only. Runtime pages always fetch the configured backend dynamically.
