@@ -3,6 +3,7 @@ import { z } from "zod";
 import { dateTimeSchema, evidenceSpanSchema, evaluationSchema, type EvidenceSpan, type Evaluation } from "./common";
 
 const moneySchema = z.string().regex(/^[0-9]+(?:\.[0-9]{1,2})?$/);
+const nonBlankStringSchema = z.string().min(1).refine((value) => value.trim().length > 0, "value must contain a non-whitespace character");
 
 export const rulePredicateSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("TURNOVER_AVERAGE"), required_financial_years: z.array(z.string().regex(/^[0-9]{4}-[0-9]{2}$/)).min(1).refine((years) => new Set(years).size === years.length, "financial years must be unique"), minimum_average_inr: moneySchema, audited_only: z.literal(true), legal_entity_scope: z.literal("BIDDER_ONLY") }),
@@ -18,8 +19,8 @@ const applicabilityFields = {
 };
 
 const applicabilitySchema = z.discriminatedUnion("operator", [
-  z.strictObject({ ...applicabilityFields, operator: z.literal("EQUALS"), expected_value: z.string() }),
-  z.strictObject({ ...applicabilityFields, operator: z.literal("IN"), expected_value: z.array(z.string()).min(1).refine((values) => new Set(values).size === values.length, "IN values must be unique") }),
+  z.strictObject({ ...applicabilityFields, operator: z.literal("EQUALS"), expected_value: nonBlankStringSchema }),
+  z.strictObject({ ...applicabilityFields, operator: z.literal("IN"), expected_value: z.array(nonBlankStringSchema).min(1).refine((values) => new Set(values).size === values.length, "IN values must be unique") }),
   z.strictObject({ ...applicabilityFields, operator: z.literal("EXISTS"), expected_value: z.null() }),
 ]);
 

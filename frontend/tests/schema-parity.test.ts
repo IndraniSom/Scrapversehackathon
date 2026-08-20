@@ -53,13 +53,30 @@ describe("final contract schema parity", () => {
   test.each([
     ["EQUALS", true],
     ["EQUALS", ["STARTUP"]],
+    ["EQUALS", ""],
+    ["EQUALS", "   "],
     ["IN", "STARTUP"],
     ["IN", []],
     ["IN", ["STARTUP", "STARTUP"]],
+    ["IN", [""]],
+    ["IN", ["   "]],
+    ["IN", ["STARTUP", "   "]],
     ["EXISTS", "present"],
   ])("rejects mismatched %s applicability value", async (operator, expectedValue) => {
     const body = assessmentWithApplicability(operator, expectedValue);
     await expect(getAssessment("ocac-pond-monitoring-26001", { fetcher: respondingWith(body) })).rejects.toMatchObject({ kind: "schema" });
+  });
+
+  test.each([
+    ["EQUALS", " STARTUP "],
+    ["IN", [" STARTUP ", " MSME "]],
+  ])("preserves valid padded %s applicability values", async (operator, expectedValue) => {
+    const body = assessmentWithApplicability(operator, expectedValue);
+    const parsed = await getAssessment("ocac-pond-monitoring-26001", { fetcher: respondingWith(body) });
+    const baseAssessment = objectProperty(parsed.data, "base_assessment");
+    const requirements = objectProperty(baseAssessment, "requirements");
+    const turnover = objectValue(arrayProperty(requirements, "children")[0]);
+    expect(objectProperty(turnover, "applicability").expected_value).toEqual(expectedValue);
   });
 
   test("accepts an internally consistent VERIFIED proof", async () => {
