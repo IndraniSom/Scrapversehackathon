@@ -1,6 +1,6 @@
 # BidRadar Release Security Review
 
-Review date: 2026-08-20. Status: **READY_FOR_FINAL_REVIEW**; final READY requires two final reviewers and final security approval.
+Review date: 2026-08-20. Status: **NOT_READY - downstream final-fix consumption, human rehearsal, and final security review pending**.
 
 ## Runtime boundary
 
@@ -51,6 +51,7 @@ Fresh results on 2026-08-20:
 
 - Automated collection and retention remain tied to the dated NTPC human review; approval withdrawal requires removing/replacing the proof artifact.
 - Official PDF excerpts are bounded public evidence, not permission to mirror documents.
-- Browser-responsive, keyboard, focus, zoom-equivalent, overflow, 404, and backend-unavailable evidence passed and is recorded in `docs/release-review.md`.
+- Prior browser-responsive/accessibility evidence passed; affected REVIEW outcome screens require controller recheck after B/C consumption.
 - Previously deferred dependency-policy/backend/frontend visual Minors remain listed in `docs/release-review.md`.
-- Final reviewer/security approval remains pending; this document does not self-promote the release to final READY.
+- Two final reviewers and final security approval remain pending; this document does not self-promote the release.
+- Revised contract consumption is pending; security must revalidate backend cross-field enforcement and frontend Zod parity before approval.

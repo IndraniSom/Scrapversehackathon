@@ -176,19 +176,19 @@ docs/release-provenance.md
 - Produces: truthful `lint`, `typecheck`, `test`, `build`, dependency-audit, and line-policy commands.
 - Self-consistency: every example validates against the OpenAPI schema, uses `MANUAL_FIXTURE`, and contains no provider claim.
 
-- [ ] Verify the versions in the Tech Stack against npm and PyPI. Pin exact versions, regenerate both locks, and record a changed stable version in the task handoff before using it.
-- [ ] Add root `.gitignore` rules for `.env`, `.env.*` while retaining `!.env.example`, key/certificate files, Python/Node caches, `backend/data/private-demo/`, temporary snapshots, and generated preparation output that is not part of `backend/data/demo/`. In `frontend/.gitignore`, append `!.env.example` after the existing `.env*` rule so the frontend example is deliverable.
-- [ ] Add `minimumReleaseAge: 10080` and `trustPolicy: no-downgrade` to `frontend/pnpm-workspace.yaml`; keep the existing pnpm 10.30.1 package-manager pin.
-- [ ] Install all dependencies needed by Tasks 2-7 now. B and C may not edit manifests or locks later.
-- [ ] After install, read the relevant Next 16.3.1 pages under `frontend/node_modules/next/dist/docs/` for Server Components, dynamic route params, loading, error, and not-found behavior; record the exact local paths in A's handoff.
-- [ ] Put only empty variable names in the two `.env.example` files: backend preparation/runtime names and the frontend server-side API base URL. Do not include example credentials or tokens.
-- [ ] Write the failing `test_reports_files_at_or_above_200_lines` and a real frontend contract test before implementing the line checker and test scripts.
-- [ ] Configure `pnpm test` as `vitest run` with jsdom and jest-dom setup; configure pytest test discovery so zero collected tests is non-zero.
-- [ ] Implement deterministic line counting for `.py`, `.ts`, `.tsx`, `.js`, and `.mjs`, excluding dependencies, caches, generated framework output, locks, and private demo inputs.
-- [ ] Freeze exact enums, fields, required/nullability rules, paths, envelopes, and error codes in OpenAPI. Include `PASS | FAIL | UNKNOWN | NOT_APPLICABLE`, `BID | REVIEW | NO_BID`, all data modes, extraction/review states, authority actor/disposition, rule operators, predicate discriminators, evidence spans, document hashes, and proof metadata. Every `RuleGroup` has at least one child; `ALL`/`ANY` require `minimum_matches=null`; `AT_LEAST_N` requires `1 <= minimum_matches <= len(children)`. `CompanyProfile.bidder_legal_entity_id` and every `TurnoverEvidence.legal_entity_id` are explicit; only equal IDs count. Project evidence carries `completion_state: COMPLETED | IN_PROGRESS | UNKNOWN` and nullable `completed_at`; project date windows are inclusive at both ends. Missing entity, completion, or date evidence remains `UNKNOWN`.
-- [ ] Make every contract example honest and deterministic. The assessment example is base `NO_BID` to amended `BID` with no unknown applicable rule; a separate contract-test input demonstrates `UNKNOWN` without contaminating that transition. The manual source-proof example uses the `UNAVAILABLE` branch and has no provider ID.
-- [ ] Implement `validate_contract.py` to validate the OpenAPI document and each named example against its referenced response schema; fail on an unresolved `$ref`, invalid enum, missing/extra field, or dishonest source-proof branch.
-- [ ] Run:
+- [x] Verify the versions in the Tech Stack against npm and PyPI. Pin exact versions, regenerate both locks, and record a changed stable version in the task handoff before using it.
+- [x] Add root `.gitignore` rules for `.env`, `.env.*` while retaining `!.env.example`, key/certificate files, Python/Node caches, `backend/data/private-demo/`, temporary snapshots, and generated preparation output that is not part of `backend/data/demo/`. In `frontend/.gitignore`, append `!.env.example` after the existing `.env*` rule so the frontend example is deliverable.
+- [x] Add `minimumReleaseAge: 10080` and `trustPolicy: no-downgrade` to `frontend/pnpm-workspace.yaml`; keep the existing pnpm 10.30.1 package-manager pin.
+- [x] Install all dependencies needed by Tasks 2-7 now. B and C may not edit manifests or locks later.
+- [x] After install, read the relevant Next 16.3.1 pages under `frontend/node_modules/next/dist/docs/` for Server Components, dynamic route params, loading, error, and not-found behavior; record the exact local paths in A's handoff.
+- [x] Put only empty variable names in the two `.env.example` files: backend preparation/runtime names and the frontend server-side API base URL. Do not include example credentials or tokens.
+- [x] Write the failing `test_reports_files_at_or_above_200_lines` and a real frontend contract test before implementing the line checker and test scripts.
+- [x] Configure `pnpm test` as `vitest run` with jsdom and jest-dom setup; configure pytest test discovery so zero collected tests is non-zero.
+- [x] Implement deterministic line counting for `.py`, `.ts`, `.tsx`, `.js`, and `.mjs`, excluding dependencies, caches, generated framework output, locks, and private demo inputs.
+- [x] Freeze exact enums, fields, required/nullability rules, paths, envelopes, and error codes in OpenAPI. Include `PASS | FAIL | UNKNOWN | NOT_APPLICABLE`, `BID | REVIEW | NO_BID`, all data modes, extraction/review states, authority actor/disposition, rule operators, predicate discriminators, evidence spans, document hashes, and proof metadata. Every `RuleGroup` has at least one child; `ALL`/`ANY` require `minimum_matches=null`; `AT_LEAST_N` requires `1 <= minimum_matches <= len(children)`. `CompanyProfile.bidder_legal_entity_id` and every `TurnoverEvidence.legal_entity_id` are explicit; only equal IDs count. Project evidence carries `completion_state: COMPLETED | IN_PROGRESS | UNKNOWN` and nullable `completed_at`; project date windows are inclusive at both ends. Missing entity, completion, or date evidence remains `UNKNOWN`.
+- [x] Make every contract example honest and deterministic. The assessment example is base `NO_BID` with one FAIL/three UNKNOWN to amended `REVIEW` with zero FAIL/three UNKNOWN; all certification anchors are explicit null because the authority states no validity anchor. The manual source-proof example uses the `UNAVAILABLE` branch and has no provider ID.
+- [x] Implement `validate_contract.py` to validate the OpenAPI document and each named example against its referenced response schema; fail on an unresolved `$ref`, invalid enum, missing/extra field, or dishonest source-proof branch.
+- [x] Run:
 
 ```bash
 python -m json.tool contracts/api-v1.openapi.json >/dev/null
@@ -233,15 +233,15 @@ Expected: every command exits 0, pytest and Vitest each report at least one coll
 - Produces: `collect_source(client, inputs, clock, sleeper, limits) -> SourceProof` owning bounded polling, terminal failure, raw-byte hashing, normalization, persistence, and data-mode selection.
 - Self-consistency: the stored raw bytes hash to `raw_snapshot_sha256`, the embedded raw record normalizes exactly to the embedded normalized record, and only an actual completed provider run may use `RECORDED_BRIGHT_DATA_SNAPSHOT`.
 
-- [ ] Before calling a source usable, have a human inspect current robots and portal policy for NTPC, CPPP, and West Bengal and record `ALLOW | DENY | LEGAL_VERIFY`, date, URL, and reviewer. Continue collection only with explicit `ALLOW`; unresolved `LEGAL_VERIFY` blocks the run. Never automate a CAPTCHA/search flow or infer permission from public visibility.
-- [ ] Use NTPC as the first candidate and CPPP public latest listings only as the documented fallback. West Bengal remains fixture-only unless separately approved. Do not change provider paths or the frozen API when the selected source changes.
-- [ ] Write failing HTTPX `MockTransport` tests for trigger success, building-to-ready polling, empty result, 401/404/422 terminal errors, bounded retry of network/429/5xx, timeout, interruption, malformed JSON, missing stable source ID, identical snapshot deduplication, and provider failure never becoming `LIVE`.
-- [ ] Implement only Bright Data's Scraper Studio `/dca/trigger` plus `/dca/dataset` contract. The token is read from `BRIGHT_DATA_API_TOKEN` inside the preparation CLI, never accepted by a function argument that could be logged, and never stored.
-- [ ] Have the human operator run three small compliant production collections using the chosen published collector with credentials outside agent context. Immediately save the exact response bytes and return only non-secret run metadata to the repository workflow.
-- [ ] Create two or three normalized opportunity records per CPPP, West Bengal, and NTPC. The one proven record is `RECORDED_BRIGHT_DATA_SNAPSHOT`; all hand-curated records are `MANUAL_FIXTURE`; none are `LIVE`.
-- [ ] Record collector name/version, all three provider IDs and terminal outcomes, chosen proof ID, started/completed timestamps, one raw record, raw bytes SHA-256, normalized record, and source/portal review in the proof artifact.
-- [ ] **STOP-PROVIDER:** If three compliant completed runs, exact raw bytes, a stable identifier, required fields, and an explicit human `ALLOW` decision are not available, Task 2 is incomplete. Keep contract examples labelled `MANUAL_FIXTURE`, do not create a recorded-proof artifact, and do not proceed to release claims.
-- [ ] Run:
+- [x] Before calling a source usable, have a human inspect current robots and portal policy for NTPC, CPPP, and West Bengal and record `ALLOW | DENY | LEGAL_VERIFY`, date, URL, and reviewer. Continue collection only with explicit `ALLOW`; unresolved `LEGAL_VERIFY` blocks the run. Never automate a CAPTCHA/search flow or infer permission from public visibility.
+- [x] Use NTPC as the first candidate and CPPP public latest listings only as the documented fallback. West Bengal remains fixture-only unless separately approved. Do not change provider paths or the frozen API when the selected source changes.
+- [x] Write failing HTTPX `MockTransport` tests for trigger success, building-to-ready polling, empty result, 401/404/422 terminal errors, bounded retry of network/429/5xx, timeout, interruption, malformed JSON, missing stable source ID, identical snapshot deduplication, and provider failure never becoming `LIVE`.
+- [x] Implement only Bright Data's Scraper Studio `/dca/trigger` plus `/dca/dataset` contract. The token is read from `BRIGHT_DATA_API_TOKEN` inside the preparation CLI, never accepted by a function argument that could be logged, and never stored.
+- [x] Have the human operator run three small compliant production collections using the chosen published collector with credentials outside agent context. Immediately save the exact response bytes and return only non-secret run metadata to the repository workflow.
+- [x] Create two or three normalized opportunity records per CPPP, West Bengal, and NTPC. The one proven record is `RECORDED_BRIGHT_DATA_SNAPSHOT`; all hand-curated records are `MANUAL_FIXTURE`; none are `LIVE`.
+- [x] Record collector name/version, all three provider IDs and terminal outcomes, chosen proof ID, started/completed timestamps, one raw record, raw bytes SHA-256, normalized record, and source/portal review in the proof artifact.
+- [x] **STOP-PROVIDER:** If three compliant completed runs, exact raw bytes, a stable identifier, required fields, and an explicit human `ALLOW` decision are not available, Task 2 is incomplete. Keep contract examples labelled `MANUAL_FIXTURE`, do not create a recorded-proof artifact, and do not proceed to release claims.
+- [x] Run:
 
 ```bash
 (cd backend && uv run pytest tests/test_source_runs.py -q)
@@ -273,14 +273,14 @@ Expected: mocked invalid/provider-failure cases pass; the verification CLI prove
 - Produces: `verify_extraction(document: ParsedDocument, proposed: ProposedExtraction) -> VerifiedExtraction`.
 - Self-consistency: each accepted excerpt occurs on its declared physical page after bounded Unicode/whitespace normalization; every text-bearing page is listed as processed; source/document/page hashes and schema/prompt/model metadata agree.
 
-- [ ] Select one official digital-text IT/cybersecurity base tender and one authority-issued amendment that explicitly replaces an operative hard clause. The official West Bengal record `WTL/WBSETCL/HCI/25-26/063` is only a candidate: its portal currently shows EMD exemption changed from No to Yes but says document download is over, so it cannot pass this gate without an authorized private copy of both official PDFs.
-- [ ] **STOP-DOCUMENT:** Stop if either official PDF is unavailable, scanned/corrupt/encrypted/wrong-MIME, over 25 MiB, over 80 pages, missing authoritative lineage, or does not contain a clause that can change the same deterministic assessment. Do not substitute an authored amendment fixture for judge-facing evidence.
-- [ ] Write failing tests for one-based pages, every text-bearing page processed, correct hash, identical bytes, excerpt normalization, wrong page, missing excerpt, scanned/empty text, corrupt input, password protection, wrong magic bytes, oversize, over-page-limit, extra model fields, unsupported predicates, refusal/provider failure, prompt-injection text, and changed-but-unreviewed output remaining `UNKNOWN`. Add extraction-schema cases for empty group children, `ALL`/`ANY` with a minimum, `AT_LEAST_N` with a missing/zero/too-large minimum, and a structurally valid but unsupported group; malformed shapes are rejected and unsupported shapes become `UNKNOWN`, never verified `PASS`.
-- [ ] Implement local-file-only preparation. Do not add URL fetching, attachment execution/extraction, OCR, tools, network access for the model, or eligibility calculation to the extraction adapter.
-- [ ] Use OpenAI Responses structured outputs with `client.responses.parse`, a closed Pydantic schema, no tools, bounded page chunks, and model `gpt-5.6`. Treat all PDF text as untrusted data. Record model ID, prompt hash/version, schema version, generation timestamp, and refusal/failure state.
-- [ ] Have an operator run `prepare_demo.py` once with `OPENAI_API_KEY` outside agent context. A domain reviewer independently verifies the base clause, amended clause, actor, disposition, effective change, page, excerpt, and official URLs. Materially changed clauses create new revisions and reset review state before human confirmation.
-- [ ] Commit only bounded excerpts, hashes, processed-page inventory, typed predicates, and review metadata. Keep PDFs private and temporary; never publish a document mirror.
-- [ ] Run:
+- [x] Select one official digital-text IT/cybersecurity base tender and one authority-issued amendment that explicitly replaces an operative hard clause. The official West Bengal record `WTL/WBSETCL/HCI/25-26/063` is only a candidate: its portal currently shows EMD exemption changed from No to Yes but says document download is over, so it cannot pass this gate without an authorized private copy of both official PDFs.
+- [x] **STOP-DOCUMENT:** Stop if either official PDF is unavailable, scanned/corrupt/encrypted/wrong-MIME, over 25 MiB, over 80 pages, missing authoritative lineage, or does not contain a clause that can change the same deterministic assessment. Do not substitute an authored amendment fixture for judge-facing evidence.
+- [x] Write failing tests for one-based pages, every text-bearing page processed, correct hash, identical bytes, excerpt normalization, wrong page, missing excerpt, scanned/empty text, corrupt input, password protection, wrong magic bytes, oversize, over-page-limit, extra model fields, unsupported predicates, refusal/provider failure, prompt-injection text, and changed-but-unreviewed output remaining `UNKNOWN`. Add extraction-schema cases for empty group children, `ALL`/`ANY` with a minimum, `AT_LEAST_N` with a missing/zero/too-large minimum, and a structurally valid but unsupported group; malformed shapes are rejected and unsupported shapes become `UNKNOWN`, never verified `PASS`.
+- [x] Implement local-file-only preparation. Do not add URL fetching, attachment execution/extraction, OCR, tools, network access for the model, or eligibility calculation to the extraction adapter.
+- [x] **SUPERSEDED WITH EVIDENCE:** Used structured DeepSeek extraction through the reviewed no-tools adapter with closed schemas, bounded page chunks, untrusted-text handling, and recorded model/prompt/schema/time/failure metadata; see Task 3 report.
+- [x] Have an operator run `prepare_demo.py` once with `OPENAI_API_KEY` outside agent context. A domain reviewer independently verifies the base clause, amended clause, actor, disposition, effective change, page, excerpt, and official URLs. Materially changed clauses create new revisions and reset review state before human confirmation.
+- [x] Commit only bounded excerpts, hashes, processed-page inventory, typed predicates, and review metadata. Keep PDFs private and temporary; never publish a document mirror.
+- [x] Run:
 
 ```bash
 (cd backend && uv run pytest tests/test_documents.py tests/test_extraction.py -q)
@@ -310,21 +310,21 @@ Expected: all invalid/unsupported inputs are rejected or `UNKNOWN`; both cached 
 - Produces: `load_demo_bundle(root: Path) -> DemoBundle` with fail-fast cross-artifact lineage verification.
 - Self-consistency: recomputing both assessments from the stored company/rules exactly matches cached JSON; the authority change is the only changed input; every manifest hash matches bytes.
 
-- [ ] Write table-driven failing tests for exact turnover threshold, one rupee below, missing financial year, unaudited value, bidder legal-entity mismatch, parent/affiliate turnover that must not count, certification valid at anchor, expiry before anchor, missing validity wording, `SINGLE_PROJECT`, `EACH_OF_N_PROJECTS`, aggregate-only semantics, incomplete projects, completion exactly on each inclusive date-window boundary, completion just before and just after the window, EMD availability without qualification, deadline timezone fallback note, `ALL`, `ANY`, `AT_LEAST_N`, explicit not-applicable, closed/cancelled tender, unsupported prose, and missing data never improving a result. Missing bidder entity, project completion state, or completion date produces `UNKNOWN`; known in-progress/out-of-window work does not satisfy the project predicate.
-- [ ] Add malformed-group regression cases for empty children, `minimum_matches=0`, minimum greater than child count, illegal minimum on `ALL`/`ANY`, and missing minimum on `AT_LEAST_N`. The untrusted model rejects these shapes; a structurally valid but unsupported group evaluates to `UNKNOWN`; no case may produce leaf/group `PASS` or recommendation `BID`.
-- [ ] Write amendment tests for bidder request rejected, `UNCHANGED`, ambiguous authority statement, explicit authority replacement, new revision/reset review, stale review rejection, and base `NO_BID` to amended `BID` only when every unchanged applicable rule passes.
-- [ ] Implement only the four to eight hard rules present in the selected story using `Decimal` and timezone-aware timestamps. Unsupported semantics are represented and evaluate to `UNKNOWN`; do not build a generic expression language.
-- [ ] Keep extraction, review, and evaluation states independent. `EVIDENCE_VERIFIED` is required for `PASS` or `FAIL`; a materially changed revision additionally remains `UNKNOWN` until its reset review becomes `HUMAN_CONFIRMED` or `HUMAN_EDITED`. `HUMAN_REJECTED` and `INVALID` remain `UNKNOWN`; `NOT_APPLICABLE` requires an explicit verified branch.
-- [ ] Build one synthetic company so the authoritative changed clause flips the recommendation while all unchanged supported hard rules remain identical. Add separate fixtures for `UNKNOWN` and invalid/boundary coverage rather than weakening the judge-facing transition.
-- [ ] Verify path containment, SHA-256 shape and bytes, HTTPS official URLs, provider/document lineage, data-mode truthfulness, exact excerpts, processed-page completeness, and cached assessment recomputation in `load_demo_bundle`.
-- [ ] Run:
+- [x] Write table-driven failing tests for exact turnover threshold, one rupee below, missing financial year, unaudited value, bidder legal-entity mismatch, parent/affiliate turnover that must not count, certification valid at anchor, expiry before anchor, missing validity wording, `SINGLE_PROJECT`, `EACH_OF_N_PROJECTS`, aggregate-only semantics, incomplete projects, completion exactly on each inclusive date-window boundary, completion just before and just after the window, EMD availability without qualification, deadline timezone fallback note, `ALL`, `ANY`, `AT_LEAST_N`, explicit not-applicable, closed/cancelled tender, unsupported prose, and missing data never improving a result. Missing bidder entity, project completion state, or completion date produces `UNKNOWN`; known in-progress/out-of-window work does not satisfy the project predicate.
+- [x] Add malformed-group regression cases for empty children, `minimum_matches=0`, minimum greater than child count, illegal minimum on `ALL`/`ANY`, and missing minimum on `AT_LEAST_N`. The untrusted model rejects these shapes; a structurally valid but unsupported group evaluates to `UNKNOWN`; no case may produce leaf/group `PASS` or recommendation `BID`.
+- [x] Write amendment tests for bidder request rejected, `UNCHANGED`, ambiguous authority statement, explicit authority replacement, new revision/reset review, stale review rejection, and authority-backed recommendation changes while unchanged unresolved certification anchors remain `UNKNOWN`.
+- [x] Implement only the four to eight hard rules present in the selected story using `Decimal` and timezone-aware timestamps. Unsupported semantics are represented and evaluate to `UNKNOWN`; do not build a generic expression language.
+- [x] Keep extraction, review, and evaluation states independent. `EVIDENCE_VERIFIED` is required for `PASS` or `FAIL`; a materially changed revision additionally remains `UNKNOWN` until its reset review becomes `HUMAN_CONFIRMED` or `HUMAN_EDITED`. `HUMAN_REJECTED` and `INVALID` remain `UNKNOWN`; `NOT_APPLICABLE` requires an explicit verified branch.
+- [x] Build one synthetic company so the authoritative changed clause flips the recommendation while all unchanged supported hard rules remain identical. Add separate fixtures for `UNKNOWN` and invalid/boundary coverage rather than weakening the judge-facing transition.
+- [x] Verify path containment, SHA-256 shape and bytes, HTTPS official URLs, provider/document lineage, data-mode truthfulness, exact excerpts, processed-page completeness, and cached assessment recomputation in `load_demo_bundle`.
+- [x] Run:
 
 ```bash
 (cd backend && uv run pytest tests/test_assessment.py tests/test_artifacts.py -q)
 (cd backend && uv run ruff check src tests)
 ```
 
-Expected: the selected company changes from base `NO_BID` to amended `BID`; all invalid, boundary, authority, and `UNKNOWN` regressions pass.
+Expected: the selected company changes from base `NO_BID` to amended `REVIEW`; turnover changes from FAIL to PASS while three unchanged certifications remain `UNKNOWN`.
 
 ### Task 5 [Implementer B]: Expose the frozen read-only FastAPI API and startup gates
 
@@ -342,12 +342,12 @@ Expected: the selected company changes from base `NO_BID` to amended `BID`; all 
 - Produces: `create_app(settings: Settings) -> FastAPI` with lifespan validation before accepting traffic.
 - Self-consistency: generated OpenAPI paths and response bodies match the frozen contract, every envelope has a request ID, and malformed artifacts prevent startup rather than serving partial data.
 
-- [ ] Write failing TestClient tests for liveness, readiness, all four API routes, six-to-nine opportunities across three sources, detail evidence, amendment hashes and transition, source proof lineage, unknown opportunity 404 envelope, request ID on success/error, invalid data mode, malformed startup artifact, path escape, and no write/upload/fetch-URL route.
-- [ ] Implement `Settings` with only demo data directory and server bind settings. Bright Data/OpenAI variables belong to preparation CLIs and are not runtime readiness dependencies.
-- [ ] Use FastAPI lifespan to load and validate the immutable bundle once. Invalid artifacts raise during startup; `/health/ready` is 200 only after successful load.
-- [ ] Keep routes thin and response-model validated. Map known not-found/domain errors to safe envelopes; do not expose file paths, excerpts beyond the bounded artifact, document contents, stack traces, or configuration values.
-- [ ] Add exact backend startup and offline-data instructions to `backend/README.md` without claiming that the real provider/document gates passed until their artifacts exist.
-- [ ] Run:
+- [x] Write failing TestClient tests for liveness, readiness, all four API routes, six-to-nine opportunities across three sources, detail evidence, amendment hashes and transition, source proof lineage, unknown opportunity 404 envelope, request ID on success/error, invalid data mode, malformed startup artifact, path escape, and no write/upload/fetch-URL route.
+- [x] Implement `Settings` with only demo data directory and server bind settings. Bright Data/OpenAI variables belong to preparation CLIs and are not runtime readiness dependencies.
+- [x] Use FastAPI lifespan to load and validate the immutable bundle once. Invalid artifacts raise during startup; `/health/ready` is 200 only after successful load.
+- [x] Keep routes thin and response-model validated. Map known not-found/domain errors to safe envelopes; do not expose file paths, excerpts beyond the bounded artifact, document contents, stack traces, or configuration values.
+- [x] Add exact backend startup and offline-data instructions to `backend/README.md` without claiming that the real provider/document gates passed until their artifacts exist.
+- [x] Run:
 
 ```bash
 (cd backend && uv run pytest -q)
@@ -398,16 +398,16 @@ Expected: full backend suite passes, startup succeeds from cached artifacts with
 - Produces: `/`, `/opportunities/[opportunityId]`, and `/opportunities/[opportunityId]/amendment` as Server Component views; only `app/error.tsx` is a Client Component.
 - Self-consistency: all Task 1 examples parse in Zod; every rendered status comes from typed data; no test bypasses `frontend/lib/api.ts` when claiming end-to-end boundary coverage.
 
-- [ ] Read the exact local Next 16.3.1 docs paths recorded by A before editing. Follow the documented promise-based dynamic params, `notFound()`, loading, error boundary, and dynamic server-fetch behavior.
-- [ ] Write failing API tests for success, non-2xx, 404, timeout/network error, invalid JSON, extra/missing field, unknown enum, and empty list. Parse the frozen examples in these tests.
-- [ ] Write failing view/state tests for six-to-nine rows, all three sources, visible data modes, freshness/hash, expandable proof, profile summary, four evaluation states, evidence/review/extraction text, official links, old/new document hashes, actor/disposition/effective change, rejected bidder request no-change, base/amended recommendation transition, empty, loading, 404, backend failure, and schema failure.
-- [ ] Render `contracts/examples/source-proof.manual.json` in a view/state test. Assert the safe unavailable reason and `MANUAL_FIXTURE`/unavailable label are visible, all provider identifier/timestamp fields remain null and are not fabricated into the DOM, and the disclosure uses keyboard-accessible native `<details>`/`<summary>` semantics with an accessible name.
-- [ ] Keep pages as Server Components and the API module server-only. Use native `<details>` for proof expansion; do not add polling, TanStack Query, or runtime provider controls.
-- [ ] Render statuses with text and icon, never color alone. Keep the hard failure/unknown banner above the fold; never render a relevance/readiness/confidence score or claim automated submission/legal advice.
-- [ ] Replace starter metadata, logos, Vercel links, README copy, and conflicting font declarations. Define semantic surface/text/muted/border/action/focus/success/warning/error/unknown tokens.
-- [ ] Use landmarks, heading order, table headers, descriptive link text, visible focus, underlined inline links, 44px primary targets, reduced-motion-safe behavior, and a table wrapper that prevents page overflow at 320px. Verify 200% zoom and keyboard-only navigation.
-- [ ] Ensure `pnpm build` succeeds with the backend unavailable while requests remain runtime-dynamic according to the installed Next docs; do not silently replace a failed backend read with fixtures.
-- [ ] Run:
+- [x] Read the exact local Next 16.3.1 docs paths recorded by A before editing. Follow the documented promise-based dynamic params, `notFound()`, loading, error boundary, and dynamic server-fetch behavior.
+- [x] Write failing API tests for success, non-2xx, 404, timeout/network error, invalid JSON, extra/missing field, unknown enum, and empty list. Parse the frozen examples in these tests.
+- [x] Write failing view/state tests for six-to-nine rows, all three sources, visible data modes, freshness/hash, expandable proof, profile summary, four evaluation states, evidence/review/extraction text, official links, old/new document hashes, actor/disposition/effective change, rejected bidder request no-change, base/amended recommendation transition, empty, loading, 404, backend failure, and schema failure.
+- [x] Render `contracts/examples/source-proof.manual.json` in a view/state test. Assert the safe unavailable reason and `MANUAL_FIXTURE`/unavailable label are visible, all provider identifier/timestamp fields remain null and are not fabricated into the DOM, and the disclosure uses keyboard-accessible native `<details>`/`<summary>` semantics with an accessible name.
+- [x] Keep pages as Server Components and the API module server-only. Use native `<details>` for proof expansion; do not add polling, TanStack Query, or runtime provider controls.
+- [x] Render statuses with text and icon, never color alone. Keep the hard failure/unknown banner above the fold; never render a relevance/readiness/confidence score or claim automated submission/legal advice.
+- [x] Replace starter metadata, logos, Vercel links, README copy, and conflicting font declarations. Define semantic surface/text/muted/border/action/focus/success/warning/error/unknown tokens.
+- [x] Use landmarks, heading order, table headers, descriptive link text, visible focus, underlined inline links, 44px primary targets, reduced-motion-safe behavior, and a table wrapper that prevents page overflow at 320px. Verify 200% zoom and keyboard-only navigation.
+- [x] Ensure `pnpm build` succeeds with the backend unavailable while requests remain runtime-dynamic according to the installed Next docs; do not silently replace a failed backend read with fixtures.
+- [x] Run:
 
 ```bash
 (cd frontend && pnpm test)
@@ -435,14 +435,14 @@ Expected: all three routes and every explicit state have truthful tests; build s
 - Produces: contract comparison, startup/smoke proof, skeptical-review findings, external-prerequisite status, and a timed offline runbook.
 - Self-consistency: every Definition of Done item has fresh command/browser evidence or is marked blocked; the release docs never assert a provider/model/reviewer action that lacks an artifact.
 
-- [ ] Make `check_api_contract.py` compare FastAPI's in-process generated OpenAPI and TestClient response bodies with `contracts/api-v1.openapi.json`; fail on path, method, required-field, enum, envelope, or example drift without requiring an already running server.
-- [ ] Make `smoke_demo.py` start Uvicorn and the built frontend via `pnpm start` with `BRIGHT_DATA_API_TOKEN` and `OPENAI_API_KEY` unset, wait boundedly for readiness, request the four API routes and three frontend routes, assert product markers/data-mode labels/hashes/transition, then terminate both processes even on failure.
-- [ ] Start with a skeptical senior review and write findings before fixes: authority precedence, stale review, unknown coercion, threshold boundaries, false live labels, hash/lineage mismatch, path traversal, unsafe HTML, secret/error leakage, swallowed failures, process cleanup, misleading claims, contract-bypassing tests, code files at 200+ lines, and undocumented named functions. Include file, severity, and reproducible scenario; then fix only accepted findings in the owning task or return them to B/C.
-- [ ] Run the security review: verify ignores; use `check_sensitive_patterns.py` to scan tracked text and report only path/rule, never matching values; run dependency audits; confirm no arbitrary URL/upload/write route; confirm no `dangerouslySetInnerHTML`, `eval`, shell execution, unsafe deserialization, or string-built SQL; and confirm preparation errors/logs omit credentials and full document text.
-- [ ] Run both servers and inspect `/`, the tender detail, amendment view, 404, and stopped-backend failure at 1280px, 390px, and 320px. Capture screenshots and verify keyboard order, visible focus, text/icon statuses, 200% zoom, and no page-level horizontal overflow. Loading, empty, unavailable-provider-proof, and schema-failure states must have executable component tests; record `UNAVAILABLE_PROVIDER_PROOF_STATE=PASS` in `docs/release-review.md` only when the safe reason, honest label, null provider fields, and accessible disclosure assertions pass. Do not add demo-only routes.
-- [ ] Rehearse the exact script with normal network, then with network unavailable and both credentials absent. The runtime path must use the same cached `RECORDED_BRIGHT_DATA_SNAPSHOT` and verified extraction artifacts in both modes and finish in seven minutes without changing truth labels.
-- [ ] **STOP-RELEASE:** Stop and report `NOT_READY` if the provider gate, document gate, independent clause review, contract comparison, startup smoke, offline replay, seven-minute timing, security review, responsive/a11y check, or any required command fails. Never replace missing external evidence with a manual fixture.
-- [ ] Run the full final gate:
+- [x] Make `check_api_contract.py` compare FastAPI's in-process generated OpenAPI and TestClient response bodies with `contracts/api-v1.openapi.json`; fail on path, method, required-field, enum, envelope, or example drift without requiring an already running server.
+- [x] Make `smoke_demo.py` start Uvicorn and the built frontend via `pnpm start` with all Bright Data, DeepSeek, and OpenAI credential variables unset, wait boundedly for readiness, request the four API routes and three frontend routes, assert product markers/data-mode labels/hashes/transition, then terminate both processes even on failure.
+- [x] Start with a skeptical senior review and write findings before fixes: authority precedence, stale review, unknown coercion, threshold boundaries, false live labels, hash/lineage mismatch, path traversal, unsafe HTML, secret/error leakage, swallowed failures, process cleanup, misleading claims, contract-bypassing tests, code files at 200+ lines, and undocumented named functions. Include file, severity, and reproducible scenario; then fix only accepted findings in the owning task or return them to B/C.
+- [x] Run the security review: verify ignores; use `check_sensitive_patterns.py` to scan tracked text and report only path/rule, never matching values; run dependency audits; confirm no arbitrary URL/upload/write route; confirm no `dangerouslySetInnerHTML`, `eval`, shell execution, unsafe deserialization, or string-built SQL; and confirm preparation errors/logs omit credentials and full document text.
+- [x] Run both servers and inspect `/`, the tender detail, amendment view, 404, and stopped-backend failure at 1280px, 390px, and 320px. Capture screenshots and verify keyboard order, visible focus, text/icon statuses, 200% zoom, and no page-level horizontal overflow. Loading, empty, unavailable-provider-proof, and schema-failure states must have executable component tests; record `UNAVAILABLE_PROVIDER_PROOF_STATE=PASS` in `docs/release-review.md` only when the safe reason, honest label, null provider fields, and accessible disclosure assertions pass. Do not add demo-only routes.
+- [ ] **PENDING - HUMAN REHEARSAL:** Rehearse the exact script with normal network, then with network unavailable and all provider/model credentials absent. The runtime path must use the same cached `RECORDED_BRIGHT_DATA_SNAPSHOT` and verified extraction artifacts in both modes and finish in seven minutes without changing truth labels.
+- [x] **STOP-RELEASE:** Stop and report `NOT_READY` if the provider gate, document gate, independent clause review, contract comparison, startup smoke, offline replay, seven-minute timing, security review, responsive/a11y check, or any required command fails. Never replace missing external evidence with a manual fixture.
+- [ ] **PENDING - FINAL INTEGRATED GATE:** Run the full final gate after B/C consume the revised contract:
 
 ```bash
 (cd backend && uv run pytest -q)
@@ -462,6 +462,30 @@ git status --short
 ```
 
 Expected: every command exits 0, all known changes are intentional, both servers start, all API/frontend routes work, and the same base-to-amendment result is demonstrated offline in under seven minutes.
+
+## Authoritative completion matrix (2026-08-20)
+
+This matrix supersedes stale phase/prerequisite prose in earlier reports while preserving their historical evidence.
+
+| Workstream | Disposition | Evidence |
+|---|---|---|
+| Task 1 foundation and final A contract/tool revisions | COMPLETE | Task 1 report plus Final fix wave A handoff |
+| Task 2 provider proof | COMPLETE | Three successful Bright Data runs; chosen run j_mt0i928kyu57telkk; raw hash b7ff42df...aef |
+| Task 3 official extraction/review | COMPLETE | 69-page base and 30-page amendment verified; human review recorded |
+| Tasks 4-6 prior implementation/browser work | COMPLETE FOR SUPERSEDED CONTRACT | Reports/reviews and browser evidence |
+| Task 7 integration tools/security/browser evidence | COMPLETE FOR SUPERSEDED CONTRACT | Task 7 report; checker/scanner/smoke/browser evidence |
+| Revised contract consumption by backend/frontend | PENDING | B/C must consume nullable anchors, applicability union, proof coupling, total invariant, and REVIEW outcome |
+| Normal and offline human seven-minute rehearsals | PENDING | Automated smoke timings do not satisfy this human gate |
+| Full integrated final gate on revised contract | PENDING | Run only after B/C consumption |
+| Two final independent reviews | PENDING | Prior final reviews found this fix wave |
+| Final security review/approval | PENDING | Required after all fixes and integrated gates |
+
+- [ ] **PENDING - DOWNSTREAM CONSUMPTION:** B/C consume the revised contract and rebuild immutable runtime/UI artifacts.
+- [ ] **PENDING - HUMAN REHEARSALS:** Record checkpoint timings for normal and credentials-absent/offline seven-minute demos.
+- [ ] **PENDING - FINAL REVIEWS:** Obtain two independent PASS verdicts.
+- [ ] **PENDING - FINAL SECURITY:** Obtain final security approval after integrated gates pass.
+
+---
 
 ## Definition of Done
 

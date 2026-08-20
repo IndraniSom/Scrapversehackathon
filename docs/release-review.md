@@ -1,8 +1,8 @@
 # BidRadar Release Review
 
-Status: **READY_FOR_FINAL_REVIEW**
+Status: **NOT_READY - FINAL FIX WAVE IN PROGRESS**
 
-Reviewed: 2026-08-20, Asia/Kolkata. Frozen contract SHA-256: `80d07b05dc8aca107234e349029d144206b8fb8fbea0c88a08a4f4018d8f2566`.
+Reviewed: 2026-08-20, Asia/Kolkata. Frozen contract SHA-256: `7256e33df529de365bdc1263a188a17a8d3d3c4035c905d067ded286e7333a3e`.
 
 ## Skeptical findings recorded before integration fixes
 
@@ -17,7 +17,7 @@ Reviewed: 2026-08-20, Asia/Kolkata. Frozen contract SHA-256: `80d07b05dc8aca1072
 ## Application review before Task 7 tools
 
 - Authority precedence, recursive amendment topology, stale/untrusted review, UNKNOWN coercion, exact turnover thresholds, legal-entity ownership, project windows, certification renewals, and rejected bidder requests have executable backend regressions.
-- Current immutable bundle is OCAC/ODISHA and recomputes `NO_BID` to `BID` with zero applicable UNKNOWN in both versions. Base and amendment hashes are `f1bc41678cd71b0d20cd2432cf579b840af7a52152b72d8c55a5ee129b927afd` and `ccbe30fa4f886087bb09d94cf1073fca97e66789957ba2da63c09a5e7fa657a1`.
+- Revised frozen handoff is `NO_BID` (one FAIL, three UNKNOWN) to `REVIEW` (zero FAIL, three UNKNOWN). B/C runtime and UI consumption remain pending. Base/amendment hashes remain `f1bc41678cd71b0d20cd2432cf579b840af7a52152b72d8c55a5ee129b927afd` and `ccbe30fa4f886087bb09d94cf1073fca97e66789957ba2da63c09a5e7fa657a1`.
 - The opportunity inventory has seven rows: 2 CPPP, 2 West Bengal, 2 NTPC, and 1 Odisha. The chosen NTPC proof is a real `RECORDED_BRIGHT_DATA_SNAPSHOT`; the OCAC assessed row and amendment-impact selector remain honest `MANUAL_FIXTURE` values.
 - FastAPI error handlers return UUID envelopes with safe messages. No runtime upload, write, arbitrary URL-fetch, docs, or provider mutation route is registered.
 - Frontend untrusted data is rendered as React text/JSON text; no `dangerouslySetInnerHTML` is present. Expected transport/schema/not-found failures do not substitute fixtures.
@@ -47,7 +47,7 @@ These deferred findings are not silently reclassified as fixes. They remain acce
 
 RESOLVED - B commit `30fa7a0` aligned independently generated reachable response schemas with the frozen contract. The current committed checker passes all six operations; A did not edit B models/routes.
 
-## Fresh release evidence
+## Pre-final-fix release evidence - rerun required after consumption
 
 | Gate | Result |
 |---|---|
@@ -81,4 +81,13 @@ Screenshots are stored in ignored controller evidence at `.superpowers/sdd/2026-
 - Loading was observed. The 404 state is explicit. Stopped-backend state is explicit and substitutes no fixture. Empty, schema-failure, and unavailable-provider states remain covered by reviewed component tests.
 - Controller TCP check: six backend curls passed and the server shut down cleanly.
 
-All implementation/browser gates are ready for the two final independent reviewers and final security review. This is **READY_FOR_FINAL_REVIEW**, not final READY.
+Prior browser evidence remains useful for layout/failure states but the changed REVIEW outcome requires targeted recheck. Release remains **NOT_READY** pending B/C consumption, exact normal/offline human rehearsal, full integrated gate, two final reviewers, and final security review.
+
+## Final fix wave A handoff
+
+- Frozen contract hash: `7256e33df529de365bdc1263a188a17a8d3d3c4035c905d067ded286e7333a3e`.
+- Truthful frozen outcome: base `NO_BID` with one FAIL/three UNKNOWN; amended `REVIEW` with zero FAIL/three UNKNOWN.
+- ISO 9001, ISO 27001, and CMMI predicates carry required `valid_at: null`; evidence is preserved and no authority validity anchor is invented.
+- Applicability is a closed operator-discriminated union; verified nested opportunities are recorded-mode constrained; proof hash equality and opportunity total equality are runtime validator invariants.
+- Contract and smoke internals now live in focused `contract_schema.py` and `smoke_assertions.py` modules with named errors.
+- A-focused gates pass. Backend/frontend runtime consumption and all integrated release evidence must be regenerated before review can resume.

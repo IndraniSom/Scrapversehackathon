@@ -170,6 +170,7 @@
       "OpportunityList": {
         "type": "object",
         "additionalProperties": false,
+        "description": "The declared total must equal the number of items; runtime validators enforce this cross-field invariant.",
         "required": ["items", "total", "generated_at"],
         "properties": {
           "items": { "type": "array", "items": { "$ref": "#/components/schemas/OpportunitySummary" } },
@@ -273,16 +274,46 @@
           "emd_exemptions": { "type": "array", "items": { "$ref": "#/components/schemas/EmdExemptionEvidence" } }
         }
       },
-      "ApplicabilityCondition": {
+      "ApplicabilityEquals": {
         "type": "object",
         "additionalProperties": false,
         "required": ["field", "operator", "expected_value", "evidence"],
         "properties": {
           "field": { "type": "string", "minLength": 1 },
-          "operator": { "type": "string", "enum": ["EQUALS", "IN", "EXISTS"] },
-          "expected_value": { "type": ["string", "boolean", "array", "null"], "items": { "type": "string" } },
+          "operator": { "const": "EQUALS" },
+          "expected_value": { "type": "string" },
           "evidence": { "$ref": "#/components/schemas/EvidenceSpan" }
         }
+      },
+      "ApplicabilityIn": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["field", "operator", "expected_value", "evidence"],
+        "properties": {
+          "field": { "type": "string", "minLength": 1 },
+          "operator": { "const": "IN" },
+          "expected_value": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string" } },
+          "evidence": { "$ref": "#/components/schemas/EvidenceSpan" }
+        }
+      },
+      "ApplicabilityExists": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["field", "operator", "expected_value", "evidence"],
+        "properties": {
+          "field": { "type": "string", "minLength": 1 },
+          "operator": { "const": "EXISTS" },
+          "expected_value": { "type": "null" },
+          "evidence": { "$ref": "#/components/schemas/EvidenceSpan" }
+        }
+      },
+      "ApplicabilityCondition": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/ApplicabilityEquals" },
+          { "$ref": "#/components/schemas/ApplicabilityIn" },
+          { "$ref": "#/components/schemas/ApplicabilityExists" }
+        ],
+        "discriminator": { "propertyName": "operator" }
       },
       "TurnoverAveragePredicate": {
         "type": "object",
@@ -303,7 +334,7 @@
         "properties": {
           "kind": { "const": "CERTIFICATION" },
           "certificate_name": { "type": "string", "minLength": 1 },
-          "valid_at": { "type": "string", "format": "date-time" }
+          "valid_at": { "type": ["string", "null"], "format": "date-time", "description": "Null means the authority did not state an explicit validity anchor and evaluation must remain UNKNOWN." }
         }
       },
       "ProjectExperiencePredicate": {
@@ -548,6 +579,7 @@
       "VerifiedSourceProof": {
         "type": "object",
         "additionalProperties": false,
+        "description": "A verified proof requires the nested recorded opportunity snapshot_sha256 to equal raw_snapshot_sha256; runtime validators enforce hash equality.",
         "required": ["status", "data_mode", "reason_code", "collector_name", "collector_config_version", "provider_run_id", "started_at", "completed_at", "raw_snapshot_sha256", "raw_record", "normalized_record", "terminal_state", "failure_code"],
         "properties": {
           "status": { "const": "VERIFIED" },
@@ -560,10 +592,21 @@
           "completed_at": { "type": "string", "format": "date-time" },
           "raw_snapshot_sha256": { "$ref": "#/components/schemas/Sha256" },
           "raw_record": { "type": "object" },
-          "normalized_record": { "$ref": "#/components/schemas/OpportunitySummary" },
+          "normalized_record": { "$ref": "#/components/schemas/RecordedOpportunitySummary" },
           "terminal_state": { "const": "SUCCESS" },
           "failure_code": { "type": "null" }
         }
+      },
+      "RecordedOpportunitySummary": {
+        "allOf": [
+          { "$ref": "#/components/schemas/OpportunitySummary" },
+          {
+            "type": "object",
+            "required": ["data_mode"],
+            "properties": { "data_mode": { "const": "RECORDED_BRIGHT_DATA_SNAPSHOT" } }
+          }
+        ],
+        "description": "A provider-proven normalized opportunity; its snapshot hash must equal the enclosing proof raw hash."
       },
       "UnavailableSourceProof": {
         "type": "object",

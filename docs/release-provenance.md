@@ -1,6 +1,6 @@
 # BidRadar Release Provenance
 
-Frozen API SHA-256: `80d07b05dc8aca107234e349029d144206b8fb8fbea0c88a08a4f4018d8f2566`.
+Frozen API SHA-256: `7256e33df529de365bdc1263a188a17a8d3d3c4035c905d067ded286e7333a3e`.
 
 ## Opportunity inventory
 
@@ -29,13 +29,18 @@ All 69 base and 30 amendment pages are listed as processed. The base turnover cl
 
 ## Deterministic decision
 
+Revised frozen handoff below is pending B artifact rebuild; the digest table that follows records the superseded pre-final-fix bundle for lineage only.
+
 - Synthetic company artifact SHA-256: `f4c7e4522417a951207bbbe9374a3b174939aa34002e64079685c9e7190af030`.
-- Base: `NO_BID`, one failed hard rule, zero applicable UNKNOWN, ₹12 crore turnover threshold.
-- Amended: `BID`, zero failed hard rules, zero applicable UNKNOWN, ₹6 crore turnover threshold.
+- Base: `NO_BID`, one failed hard rule, three UNKNOWN certification rules, ₹12 crore turnover threshold.
+- Amended: `REVIEW`, zero failed hard rules, three UNKNOWN certification rules, ₹6 crore turnover threshold.
+- The authority clause names ISO 9001, ISO 27001, and CMMI DEV Level 3 but states no explicit validity anchor; all three remain UNKNOWN in both versions.
 - Actor/disposition: `AUTHORITY` / `ACCEPTED`; replacement targets `ocac-pond-monitoring-rfp-v1`.
-- ISO 9001, ISO 27001, and CMMI DEV Level 3 requirements remain unchanged; turnover is the only changed rule.
+- ISO 9001, ISO 27001, and CMMI DEV Level 3 requirements/evidence remain unchanged and UNKNOWN; turnover is the only changed rule.
 
 ## Immutable bundle digests
+
+**SUPERSEDED / REBUILD PENDING:** These digests identify the last BID bundle and must be replaced after backend consumption of contract hash `7256e33df529de365bdc1263a188a17a8d3d3c4035c905d067ded286e7333a3e`.
 
 | Manifest key | Path | SHA-256 |
 |---|---|---|

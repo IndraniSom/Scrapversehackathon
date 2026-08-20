@@ -104,23 +104,21 @@ def _validate_named_stories(name: str, instance: object) -> None:
     if not isinstance(instance, dict) or not isinstance(instance.get("data"), dict):
         raise ContractValidationError(f"{name}: missing response data object")
     data = instance["data"]
+    if name == "opportunities.manual.json":
+        items = data.get("items")
+        if not isinstance(items, list) or data.get("total") != len(items):
+            raise ContractValidationError(f"{name}: total must equal items length")
     if name == "assessment.manual.json":
         base = data.get("base_assessment")
         amended = data.get("amended_assessment")
-        if not isinstance(base, dict) or base.get("recommendation") != "NO_BID":
-            raise ContractValidationError(f"{name}: base recommendation must be NO_BID")
-        if not isinstance(amended, dict) or amended.get("recommendation") != "BID":
-            raise ContractValidationError(f"{name}: amended recommendation must be BID")
-        for label, assessment in (("base", base), ("amended", amended)):
-            if assessment.get("unknown_applicable_rule_count") != 0:
-                raise ContractValidationError(
-                    f"{name}: {label} unknown_applicable_rule_count must be zero"
-                )
-        if any(
-            key == "evaluation" and value == "UNKNOWN"
-            for key, value in _iter_key_values(data)
-        ):
-            raise ContractValidationError(f"{name}: transition contains UNKNOWN evaluation")
+        if not isinstance(base, dict) or not isinstance(amended, dict):
+            raise ContractValidationError(f"{name}: assessments must be objects")
+        story = (base.get("recommendation"), base.get("failed_hard_rule_count"), base.get("unknown_applicable_rule_count"), amended.get("recommendation"), amended.get("failed_hard_rule_count"), amended.get("unknown_applicable_rule_count"))
+        if story != ("NO_BID", 1, 3, "REVIEW", 0, 3):
+            raise ContractValidationError(f"{name}: expected NO_BID to REVIEW with three UNKNOWN certifications")
+        values = _iter_key_values(data)
+        if sum(key == "valid_at" and value is None for key, value in values) != 6 or sum(key == "evaluation" and value == "UNKNOWN" for key, value in values) != 7:
+            raise ContractValidationError(f"{name}: certification anchors/results must be UNKNOWN")
     if name == "amendment-impact.manual.json":
         statement = data.get("authority_statement")
         if (
@@ -131,7 +129,7 @@ def _validate_named_stories(name: str, instance: object) -> None:
             or not statement.get("replaces_document_id")
             or data.get("authority_change_applied") is not True
             or data.get("base_recommendation") != "NO_BID"
-            or data.get("amended_recommendation") != "BID"
+            or data.get("amended_recommendation") != "REVIEW"
         ):
             raise ContractValidationError(f"{name}: invalid authority-backed transition")
     if name == "source-proof.manual.json":
@@ -139,6 +137,10 @@ def _validate_named_stories(name: str, instance: object) -> None:
             raise ContractValidationError(f"{name}: source proof must be UNAVAILABLE")
         if data.get("provider_run_id") is not None:
             raise ContractValidationError(f"{name}: provider_run_id must be null")
+    if data.get("status") == "VERIFIED":
+        normalized = data.get("normalized_record")
+        if not isinstance(normalized, dict) or normalized.get("data_mode") != "RECORDED_BRIGHT_DATA_SNAPSHOT" or normalized.get("snapshot_sha256") != data.get("raw_snapshot_sha256"):
+            raise ContractValidationError(f"{name}: verified normalized record must match recorded proof hash")
 
 
 def validate_contract_document(
@@ -164,7 +166,8 @@ def validate_contract_document(
             if errors:
                 raise ContractValidationError(f"{name}: {errors[0].message}")
             _validate_group_invariants(instance, name)
-            _validate_manual_honesty(name, instance)
+            if name.endswith(".manual.json"):
+                _validate_manual_honesty(name, instance)
             _validate_named_stories(name, instance)
     except ContractValidationError:
         raise

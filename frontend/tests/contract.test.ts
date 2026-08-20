@@ -45,7 +45,7 @@ describe("frozen API examples", () => {
     });
   });
 
-  test("keeps the deterministic assessment transition free of unknown applicable rules", () => {
+  test("keeps unsupported certification anchors unknown in the four-rule transition", () => {
     const example = readExample("assessment.manual.json");
 
     expect(example).toMatchObject({
@@ -53,15 +53,19 @@ describe("frozen API examples", () => {
         opportunity: { data_mode: "MANUAL_FIXTURE" },
         base_assessment: {
           recommendation: "NO_BID",
-          unknown_applicable_rule_count: 0,
+          unknown_applicable_rule_count: 3,
+          failed_hard_rule_count: 1,
         },
         amended_assessment: {
-          recommendation: "BID",
-          unknown_applicable_rule_count: 0,
+          recommendation: "REVIEW",
+          unknown_applicable_rule_count: 3,
+          failed_hard_rule_count: 0,
         },
       },
     });
-    expect(JSON.stringify(example)).not.toContain('"evaluation":"UNKNOWN"');
+    const serialized = JSON.stringify(example);
+    expect(serialized.match(/"valid_at":null/g)).toHaveLength(6);
+    expect(serialized.match(/"evaluation":"UNKNOWN"/g)).toHaveLength(7);
   });
 
   test("keeps unavailable source proof manual and free of provider claims", () => {

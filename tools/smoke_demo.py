@@ -9,22 +9,24 @@ import subprocess
 import time
 import urllib.error
 import urllib.request
-from collections import Counter
 from collections.abc import Mapping, Sequence
 from pathlib import Path
 
 from jsonschema import Draft202012Validator, FormatChecker
+from smoke_assertions import (
+    AMENDMENT_SHA256,
+    BASE_SHA256,
+    OPPORTUNITY_ID,
+    RAW_SHA256,
+    SmokeAssertionError,
+    verify_api_payloads,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
-OPPORTUNITY_ID = "ocac-pond-monitoring-26001"
-RAW_SHA256 = "b7ff42dfef9c3a12cd043ee0a23394158d9f9800a12407938a07dccd1ee11aef"
-BASE_SHA256 = "f1bc41678cd71b0d20cd2432cf579b840af7a52152b72d8c55a5ee129b927afd"
-AMENDMENT_SHA256 = "ccbe30fa4f886087bb09d94cf1073fca97e66789957ba2da63c09a5e7fa657a1"
 MAX_SECONDS = 420.0
 CONTRACT = json.loads((ROOT / "contracts/api-v1.openapi.json").read_text())
 
-class SmokeError(RuntimeError):
-    """Report one bounded smoke failure without exposing process output or secrets."""
+SmokeError = SmokeAssertionError
 
 def runtime_environment(source: Mapping[str, str], offline: bool) -> dict[str, str]:
     """Return a child environment with provider/model credentials always absent."""
@@ -102,44 +104,6 @@ def _json_data(url: str, label: str, schema_name: str) -> dict[str, object]:
     value = payload.get("data") if isinstance(payload, dict) else None
     if not isinstance(value, dict): raise SmokeError(f"{label} has an invalid envelope")
     return value
-def _object(value: object, label: str) -> dict[str, object]:
-    """Return one nested object or fail its structured smoke assertion."""
-    if not isinstance(value, dict): raise SmokeError(f"{label} is not an object")
-    return value
-
-def verify_api_payloads(opportunities: dict[str, object], proof: dict[str, object], detail: dict[str, object], impact: dict[str, object]) -> None:
-    """Assert exact modes, proof correlation, transition, hashes, and authority lineage."""
-    items = opportunities.get("items")
-    rows = [_object(item, "opportunity row") for item in items] if isinstance(items, list) else []
-    recorded = [item for item in rows if item.get("data_mode") == "RECORDED_BRIGHT_DATA_SNAPSHOT"]
-    recorded_row = recorded[0] if len(recorded) == 1 else {}
-    normalized = _object(proof.get("normalized_record"), "proof normalized record")
-    selected = _object(detail.get("opportunity"), "assessed opportunity")
-    base = _object(detail.get("base_assessment"), "base assessment")
-    amended = _object(detail.get("amended_assessment"), "amended assessment")
-    base_document = _object(base.get("document"), "base document")
-    amended_document = _object(amended.get("document"), "amended document")
-    impact_base = _object(impact.get("base_document"), "impact base document")
-    impact_amendment = _object(impact.get("amendment_document"), "impact amendment document")
-    statement = _object(impact.get("authority_statement"), "authority statement")
-    valid = (
-        opportunities.get("total") == 7 and len(rows) == 7
-        and Counter(str(item.get("source")) for item in rows) == Counter({"CPPP": 2, "WEST_BENGAL": 2, "NTPC": 2, "ODISHA": 1})
-        and Counter(str(item.get("data_mode")) for item in rows) == Counter({"MANUAL_FIXTURE": 6, "RECORDED_BRIGHT_DATA_SNAPSHOT": 1})
-        and recorded_row == normalized and recorded_row.get("snapshot_sha256") == RAW_SHA256
-        and proof.get("status") == "VERIFIED" and proof.get("data_mode") == "RECORDED_BRIGHT_DATA_SNAPSHOT"
-        and proof.get("provider_run_id") == "j_mt0i928kyu57telkk" and proof.get("raw_snapshot_sha256") == RAW_SHA256
-        and selected.get("id") == OPPORTUNITY_ID and base.get("recommendation") == "NO_BID"
-        and amended.get("recommendation") == "BID" and base.get("unknown_applicable_rule_count") == 0
-        and amended.get("unknown_applicable_rule_count") == 0 and base_document.get("sha256") == BASE_SHA256
-        and amended_document.get("sha256") == AMENDMENT_SHA256 and impact.get("opportunity_id") == OPPORTUNITY_ID
-        and impact.get("base_recommendation") == "NO_BID"
-        and impact.get("amended_recommendation") == "BID" and impact.get("authority_change_applied") is True
-        and impact_base.get("sha256") == BASE_SHA256 and impact_amendment.get("sha256") == AMENDMENT_SHA256
-        and statement.get("actor") == "AUTHORITY" and statement.get("disposition") == "ACCEPTED"
-        and statement.get("effective_change") is True and statement.get("replaces_document_id") == base_document.get("id")
-    )
-    if not valid: raise SmokeError("structured API truth or lineage drift")
 def _verify_api(base_url: str) -> None:
     """Verify four API routes, exact provenance, hashes, inventory, and transition."""
     opportunities = _json_data(f"{base_url}/api/v1/opportunities", "opportunities", "OpportunityListEnvelope")
@@ -152,7 +116,7 @@ def _verify_frontend(base_url: str) -> None:
     """Verify all three rendered routes expose their exact integration markers."""
     routes = (
         ("/", ("Opportunity register", "ODISHA", OPPORTUNITY_ID, RAW_SHA256)),
-        (f"/opportunities/{OPPORTUNITY_ID}", ("Odisha Computer Application Centre", "NO_BID", "BID", BASE_SHA256)),
+        (f"/opportunities/{OPPORTUNITY_ID}", ("Odisha Computer Application Centre", "NO_BID", "REVIEW", BASE_SHA256)),
         (f"/opportunities/{OPPORTUNITY_ID}/amendment", ("Amendment impact", "AUTHORITY", "ACCEPTED", BASE_SHA256, AMENDMENT_SHA256)),
     )
     for path, markers in routes:
