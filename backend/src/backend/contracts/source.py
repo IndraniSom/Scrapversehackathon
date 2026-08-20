@@ -21,6 +21,7 @@ from backend.contracts.scalars import (
     Sha256,
 )
 from backend.contracts.scalars import MetadataText as ScalarMetadataText
+from backend.contracts.schema_hooks import verified_source_proof_json_schema
 
 MetadataText = ScalarMetadataText
 
@@ -118,6 +119,10 @@ class OpportunitySummary(RawOpportunity):
 class VerifiedSourceProof(ClosedModel):
     """Prove one completed provider run and its content-addressed normalization."""
 
+    model_config = ConfigDict(
+        extra="forbid", json_schema_extra=verified_source_proof_json_schema
+    )
+
     status: Literal["VERIFIED"]
     data_mode: Literal["RECORDED_BRIGHT_DATA_SNAPSHOT"]
     reason_code: None
@@ -133,10 +138,14 @@ class VerifiedSourceProof(ClosedModel):
     failure_code: None
 
     @model_validator(mode="after")
-    def validate_chronology(self) -> "VerifiedSourceProof":
-        """Reject a provider run that completes before it starts."""
+    def validate_verified_lineage(self) -> "VerifiedSourceProof":
+        """Reject invalid chronology or contradictory nested opportunity lineage."""
         if self.completed_at < self.started_at:
             raise ValueError("completed_at precedes started_at")
+        if self.normalized_record.data_mode != "RECORDED_BRIGHT_DATA_SNAPSHOT":
+            raise ValueError("verified normalized record must use recorded data mode")
+        if self.normalized_record.snapshot_sha256 != self.raw_snapshot_sha256:
+            raise ValueError("normalized snapshot hash differs from verified raw hash")
         return self
 
 

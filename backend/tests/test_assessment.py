@@ -6,7 +6,8 @@ import pytest
 from assessment_helpers import AS_OF, certification_leaf, company, group, turnover_leaf
 from pydantic import ValidationError
 
-from backend.contracts.evaluation import ApplicabilityCondition, UnsupportedRuleLeaf
+from backend.contracts.applicability import ApplicabilityEquals
+from backend.contracts.evaluation import UnsupportedRuleLeaf
 from backend.eligibility import evaluate, recommendation_for
 
 
@@ -84,7 +85,7 @@ def test_explicit_verified_false_applicability_is_not_applicable() -> None:
     """A verified condition known false is the only path to NOT_APPLICABLE."""
     leaf = turnover_leaf().model_copy(
         update={
-            "applicability": ApplicabilityCondition(
+            "applicability": ApplicabilityEquals(
                 field="bidder_legal_entity_id",
                 operator="EQUALS",
                 expected_value="OTHER-ENTITY",

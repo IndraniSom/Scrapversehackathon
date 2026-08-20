@@ -41,6 +41,26 @@ def test_public_assessment_schema_excludes_internal_unsupported_branch() -> None
     ]["uniqueItems"] is True
 
 
+def test_public_applicability_schema_is_operator_discriminated() -> None:
+    """Each applicability operator exposes only its frozen expected-value shape."""
+    definitions = AssessmentView.model_json_schema()["$defs"]
+    condition = definitions["ApplicabilityCondition"]
+    assert condition["discriminator"]["propertyName"] == "operator"
+    assert len(condition["oneOf"]) == 3
+    equals = definitions["ApplicabilityEquals"]["properties"]["expected_value"]
+    in_values = definitions["ApplicabilityIn"]["properties"]["expected_value"]
+    exists = definitions["ApplicabilityExists"]["properties"]["expected_value"]
+    assert equals["type"] == "string"
+    assert in_values | {} == {
+        "items": {"type": "string"},
+        "minItems": 1,
+        "title": "Expected Value",
+        "type": "array",
+        "uniqueItems": True,
+    }
+    assert exists["type"] == "null"
+
+
 def test_public_assessment_runtime_rejects_internal_unsupported_leaf() -> None:
     """Response validation rejects unsupported internal fixtures hidden from schema."""
     bundle = load_demo_bundle(Path(__file__).parents[1] / "data" / "demo")

@@ -1,44 +1,27 @@
 """Closed deterministic company, predicate, rule, and result contracts."""
 
 from datetime import date
-from typing import Annotated, Literal
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema, model_validator
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from backend.contracts.applicability import (
+    ApplicabilityCondition,
+    EvidenceSpan,
+)
 from backend.contracts.predicates import RulePredicate
 from backend.contracts.rules import DecimalString, FinancialYear
 from backend.contracts.schema_hooks import (
     rule_group_json_schema,
     rule_leaf_json_schema,
 )
-from backend.contracts.source import HttpsUrl, MetadataText, NonEmpty, Sha256
+from backend.contracts.source import MetadataText, NonEmpty
 
 
 class ClosedEvaluationModel(BaseModel):
     """Reject undeclared assessment fields at every persisted boundary."""
 
     model_config = ConfigDict(extra="forbid")
-
-
-class EvidenceSpan(ClosedEvaluationModel):
-    """Carry one bounded reviewed clause with complete document provenance."""
-
-    source_url: HttpsUrl
-    source_snapshot_sha256: Sha256
-    document_sha256: Sha256
-    document_version_id: NonEmpty
-    physical_page_number: int = Field(ge=1)
-    printed_page_label: str | None
-    section_heading: NonEmpty
-    excerpt: str = Field(min_length=1, max_length=1200)
-    normalized_page_text_sha256: Sha256
-    extraction_model: NonEmpty
-    extraction_prompt_version: NonEmpty
-    extraction_schema_version: NonEmpty
-    extraction_state: Literal["PROPOSED", "EVIDENCE_VERIFIED", "INVALID"]
-    review_state: Literal[
-        "UNREVIEWED", "HUMAN_CONFIRMED", "HUMAN_REJECTED", "HUMAN_EDITED"
-    ]
 
 
 class TurnoverEvidence(ClosedEvaluationModel):
@@ -91,23 +74,6 @@ class CompanyProfile(ClosedEvaluationModel):
     certifications: list[CertificationEvidence]
     projects: list[ProjectEvidence]
     emd_exemptions: list[EmdExemptionEvidence]
-
-
-class ApplicabilityCondition(ClosedEvaluationModel):
-    """Represent one narrow verified condition controlling rule applicability."""
-
-    field: NonEmpty
-    operator: Literal["EQUALS", "IN", "EXISTS"]
-    expected_value: Annotated[
-        str | bool | list[str] | None,
-        WithJsonSchema(
-            {
-                "type": ["string", "boolean", "array", "null"],
-                "items": {"type": "string"},
-            }
-        ),
-    ]
-    evidence: EvidenceSpan
 
 
 class RuleLeaf(ClosedEvaluationModel):

@@ -6,6 +6,7 @@ import pytest
 from assessment_helpers import AS_OF, certification_leaf, company, group
 
 from backend.contracts.evaluation import CertificationEvidence
+from backend.contracts.rules import CertificationPredicate
 from backend.eligibility import evaluate
 
 
@@ -53,3 +54,17 @@ def test_certification_evaluates_all_case_insensitive_matches(
     bidder = company().model_copy(update={"certifications": records})
     result = evaluate(group(certification_leaf()), bidder, AS_OF)
     assert result.children[0].evaluation == expected
+
+
+def test_certification_without_authority_anchor_stays_unknown() -> None:
+    """Complete bidder validity cannot replace a missing authority anchor."""
+    leaf = certification_leaf()
+    predicate = CertificationPredicate(
+        kind="CERTIFICATION", certificate_name="ISO 27001", valid_at=None
+    )
+    result = evaluate(
+        group(leaf.model_copy(update={"predicate": predicate})), company(), AS_OF
+    )
+    assert result.children[0].evaluation == "UNKNOWN"
+    assert result.children[0].requirement_value is None
+    assert "anchor" in result.children[0].explanation.lower()

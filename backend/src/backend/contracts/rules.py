@@ -64,11 +64,16 @@ class TurnoverAveragePredicate(ClosedRuleModel):
 
 
 class CertificationPredicate(ClosedRuleModel):
-    """Represent a named certification that must be valid at an aware instant."""
+    """Represent a named certification and any explicit authority validity anchor."""
 
     kind: Literal["CERTIFICATION"]
     certificate_name: NonEmpty
-    valid_at: AwareDatetime
+    valid_at: AwareDatetime | None = Field(
+        description=(
+            "Null means the authority did not state an explicit validity anchor "
+            "and evaluation must remain UNKNOWN."
+        )
+    )
 
 
 class UnsupportedPredicate(ClosedRuleModel):

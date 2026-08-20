@@ -140,6 +140,7 @@ def _transition_reason(applied: bool) -> str:
     if not applied:
         return "No effective authority replacement was applied; base rules remain in force."
     return (
-        "The authority lowered the verified turnover threshold; the same bidder "
-        "evidence now passes while every unchanged certification remains satisfied."
+        "The authority lowered the verified turnover threshold, removing the hard "
+        "failure; three unchanged certifications remain UNKNOWN because no explicit "
+        "validity anchor is stated."
     )

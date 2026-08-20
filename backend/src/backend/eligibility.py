@@ -5,7 +5,6 @@ from decimal import Decimal
 from typing import Literal
 
 from backend.contracts.evaluation import (
-    ApplicabilityCondition,
     CompanyProfile,
     EvidenceSpan,
     RuleGroup,
@@ -19,6 +18,7 @@ from backend.contracts.predicates import (
     ProjectExperiencePredicate,
 )
 from backend.contracts.rules import CertificationPredicate, TurnoverAveragePredicate
+from backend.eligibility_applicability import evaluate_applicability
 from backend.eligibility_groups import combine_results, group_explanation
 from backend.eligibility_projects import evaluate_projects
 
@@ -62,7 +62,7 @@ def _evaluate_node(
     """Evaluate one recursive group, supported leaf, or unsupported leaf."""
     if isinstance(node, RuleGroup):
         return evaluate(node, company, as_of)
-    applicable = _applicable(node.applicability, company)
+    applicable = evaluate_applicability(node.applicability, company)
     if applicable is False:
         return _leaf_result(node, "NOT_APPLICABLE", "Verified applicability condition is false.")
     if applicable is None:
@@ -115,9 +115,19 @@ def _turnover(
 
 def _certification(
     predicate: CertificationPredicate, company: CompanyProfile
-) -> tuple[Evaluation, str | None, str, str]:
+) -> tuple[Evaluation, str | None, str | None, str]:
     """Evaluate a named certificate on the predicate's explicit local date."""
-    matches = [item for item in company.certifications if item.name.casefold() == predicate.certificate_name.casefold()]
+    if predicate.valid_at is None:
+        return (
+            "UNKNOWN",
+            None,
+            None,
+            "Explicit certification validity anchor is missing.",
+        )
+    matches = [
+        item for item in company.certifications
+        if item.name.casefold() == predicate.certificate_name.casefold()
+    ]
     requirement = f"valid at {predicate.valid_at.isoformat()}"
     if not matches:
         return "UNKNOWN", None, requirement, "Certification evidence is missing."
@@ -146,11 +156,18 @@ def _emd(
     requirement = f"EMD INR {predicate.amount_inr}"
     if not predicate.exemption_available or not predicate.qualification_field:
         return "UNKNOWN", None, requirement, "EMD payment or qualification evidence is unavailable."
-    rows = [item for item in company.emd_exemptions if item.scheme.casefold() == predicate.qualification_field.casefold()]
-    if not rows or rows[0].qualified is None:
+    rows = [
+        item for item in company.emd_exemptions
+        if item.scheme.casefold() == predicate.qualification_field.casefold()
+    ]
+    if not rows or any(item.qualified is None for item in rows):
         return "UNKNOWN", None, requirement, "Exemption availability does not prove bidder qualification."
-    state: Evaluation = "PASS" if rows[0].qualified else "FAIL"
-    return state, str(rows[0].qualified).lower(), requirement, "Named EMD exemption qualification was verified."
+    values = {item.qualified for item in rows}
+    if len(values) != 1:
+        return "UNKNOWN", None, requirement, "Matching EMD qualification evidence conflicts."
+    qualified = values.pop()
+    state: Evaluation = "PASS" if qualified else "FAIL"
+    return state, str(qualified).lower(), requirement, "Named EMD exemption qualification was verified."
 
 
 def _deadline(
@@ -160,22 +177,6 @@ def _deadline(
     state: Evaluation = "PASS" if as_of <= predicate.closes_at else "FAIL"
     note = " using an explicit timezone fallback" if predicate.timezone_assumed else ""
     return state, as_of.isoformat(), predicate.closes_at.isoformat(), f"Deadline compared in {predicate.timezone}{note}."
-
-
-def _applicable(condition: ApplicabilityCondition | None, company: CompanyProfile) -> bool | None:
-    """Evaluate the one supported verified company applicability field."""
-    if condition is None:
-        return True
-    if not _trusted([condition.evidence]) or condition.field != "bidder_legal_entity_id":
-        return None
-    actual = company.bidder_legal_entity_id
-    if actual is None:
-        return None
-    if condition.operator == "EXISTS":
-        return True
-    if condition.operator == "EQUALS":
-        return actual == condition.expected_value
-    return isinstance(condition.expected_value, list) and actual in condition.expected_value
 
 
 def _trusted(evidence: list[EvidenceSpan]) -> bool:

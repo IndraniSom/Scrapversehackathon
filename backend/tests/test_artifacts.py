@@ -49,14 +49,16 @@ def update_manifest_hash(root: Path, key: str) -> None:
     rewrite_json(manifest_path, manifest)
 
 
-def test_bundle_recomputes_exact_no_bid_to_bid_story(tmp_path: Path) -> None:
-    """A generated bundle reloads with exact cached and recomputed assessments."""
+def test_bundle_recomputes_truthful_no_bid_to_review_story(tmp_path: Path) -> None:
+    """Missing certificate anchors remain unknown across the authority change."""
     bundle = load_demo_bundle(seeded_demo(tmp_path))
     assert bundle.assessment.base_assessment.recommendation == "NO_BID"
-    assert bundle.assessment.amended_assessment.recommendation == "BID"
+    assert bundle.assessment.amended_assessment.recommendation == "REVIEW"
     assert bundle.impact.authority_change_applied is True
-    assert bundle.assessment.base_assessment.unknown_applicable_rule_count == 0
-    assert bundle.assessment.amended_assessment.unknown_applicable_rule_count == 0
+    assert bundle.assessment.base_assessment.failed_hard_rule_count == 1
+    assert bundle.assessment.amended_assessment.failed_hard_rule_count == 0
+    assert bundle.assessment.base_assessment.unknown_applicable_rule_count == 3
+    assert bundle.assessment.amended_assessment.unknown_applicable_rule_count == 3
     assert len(bundle.manifest.files) == 8
 
 

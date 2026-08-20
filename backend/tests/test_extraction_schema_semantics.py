@@ -9,7 +9,7 @@ from backend.contracts.extraction import ProposedExtraction
 from backend.contracts.rules import ProposedRuleLeaf
 
 
-def certification_leaf(valid_at: datetime) -> dict[str, object]:
+def certification_leaf(valid_at: datetime | None) -> dict[str, object]:
     """Build one literal certification leaf at the proposed-rule boundary."""
     return {
         "node_type": "LEAF",
@@ -54,6 +54,17 @@ def test_certification_leaf_accepts_aware_and_rejects_naive_valid_at() -> None:
         ProposedRuleLeaf.model_validate(
             certification_leaf(datetime(2026, 8, 30, 12))  # noqa: DTZ001
         )
+
+
+def test_certification_leaf_requires_nullable_validity_anchor() -> None:
+    """An absent authority anchor is explicit null, never an omitted field."""
+    nullable = certification_leaf(None)
+    assert ProposedRuleLeaf.model_validate(nullable).predicate.valid_at is None
+    predicate = nullable["predicate"]
+    assert isinstance(predicate, dict)
+    del predicate["valid_at"]
+    with pytest.raises(ValidationError):
+        ProposedRuleLeaf.model_validate(nullable)
 
 
 def test_certification_leaf_rejects_blank_certificate_name() -> None:

@@ -62,7 +62,7 @@ def test_opportunities_route_returns_seven_rows_and_four_sources(tmp_path: Path)
 
 
 def test_assessment_route_returns_reviewed_evidence_and_transition(tmp_path: Path) -> None:
-    """The assessed OCAC route exposes exact document and deterministic outcomes."""
+    """The OCAC route exposes the truthful failure-to-review transition."""
     with client_for(copied_demo(tmp_path)) as client:
         response = client.get("/api/v1/opportunities/ocac-pond-monitoring-26001")
         assert response.status_code == 200
@@ -71,7 +71,9 @@ def test_assessment_route_returns_reviewed_evidence_and_transition(tmp_path: Pat
         data = payload["data"]
         assert data["opportunity"]["source"] == "ODISHA"
         assert data["base_assessment"]["recommendation"] == "NO_BID"
-        assert data["amended_assessment"]["recommendation"] == "BID"
+        assert data["amended_assessment"]["recommendation"] == "REVIEW"
+        assert data["base_assessment"]["unknown_applicable_rule_count"] == 3
+        assert data["amended_assessment"]["unknown_applicable_rule_count"] == 3
         evidence = data["base_assessment"]["requirements"]["children"][0]["evidence"][0]
         assert evidence["document_version_id"] == "ocac-pond-monitoring-rfp-v1"
         assert evidence["physical_page_number"] == 19
@@ -93,7 +95,7 @@ def test_amendment_route_returns_hashes_authority_and_manual_mode(tmp_path: Path
         assert data["authority_statement"]["actor"] == "AUTHORITY"
         assert (data["base_recommendation"], data["amended_recommendation"]) == (
             "NO_BID",
-            "BID",
+            "REVIEW",
         )
 
 

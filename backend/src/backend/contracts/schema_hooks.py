@@ -124,3 +124,29 @@ def amendment_impact_json_schema(schema: dict[str, object]) -> None:
             },
         },
     ]
+
+
+def verified_source_proof_json_schema(schema: dict[str, object]) -> None:
+    """Expose the frozen recorded nested opportunity constraint for VERIFIED proof."""
+    schema["description"] = (
+        "A verified proof requires the nested recorded opportunity snapshot_sha256 "
+        "to equal raw_snapshot_sha256; runtime validators enforce hash equality."
+    )
+    properties = schema.get("properties")
+    normalized = (
+        properties.get("normalized_record") if isinstance(properties, dict) else None
+    )
+    if not isinstance(normalized, dict):
+        return
+    reference = dict(normalized)
+    normalized.clear()
+    normalized["allOf"] = [
+        reference,
+        {
+            "properties": {
+                "data_mode": {"const": "RECORDED_BRIGHT_DATA_SNAPSHOT"}
+            },
+            "required": ["data_mode"],
+            "type": "object",
+        },
+    ]
