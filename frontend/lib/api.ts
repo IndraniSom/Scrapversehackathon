@@ -33,25 +33,25 @@ const apiBaseUrl = process.env.BIDRADAR_API_BASE_URL?.replace(/\/$/, "") || "htt
 async function request<T>(path: string, schema: ZodType<T>, options: RequestOptions = {}): Promise<T> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? 8_000);
-  let response: Response;
   try {
-    response = await (options.fetcher ?? fetch)(`${apiBaseUrl}${path}`, { cache: "no-store", signal: controller.signal });
-  } catch {
+    const response = await (options.fetcher ?? fetch)(`${apiBaseUrl}${path}`, { cache: "no-store", signal: controller.signal });
+    if (response.status === 404) throw new ApiFailure("not-found", 404);
+    if (!response.ok) throw new ApiFailure("transport", response.status);
+    let payload: unknown;
+    try {
+      payload = await response.json();
+    } catch {
+      throw new ApiFailure(controller.signal.aborted ? "transport" : "schema", response.status);
+    }
+    const parsed = schema.safeParse(payload);
+    if (!parsed.success) throw new ApiFailure("schema", response.status);
+    return parsed.data;
+  } catch (error) {
+    if (error instanceof ApiFailure) throw error;
     throw new ApiFailure("transport");
   } finally {
     clearTimeout(timeout);
   }
-  if (response.status === 404) throw new ApiFailure("not-found", 404);
-  if (!response.ok) throw new ApiFailure("transport", response.status);
-  let payload: unknown;
-  try {
-    payload = await response.json();
-  } catch {
-    throw new ApiFailure("schema", response.status);
-  }
-  const parsed = schema.safeParse(payload);
-  if (!parsed.success) throw new ApiFailure("schema", response.status);
-  return parsed.data;
 }
 
 /** Returns the validated opportunity list from the runtime backend. */

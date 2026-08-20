@@ -11,6 +11,7 @@ import { StatusBadge } from "../components/status-badge";
 import { amendmentImpactEnvelopeSchema } from "../schemas/assessment";
 import { sourceProofEnvelopeSchema } from "../schemas/envelopes";
 import type { Evaluation } from "../schemas/common";
+import { opportunityListEnvelopeSchema } from "../schemas/opportunities";
 import { cloneFixture, objectProperty, readFixture } from "./fixtures";
 
 const sourceProof = sourceProofEnvelopeSchema.parse(readFixture("source-proof.manual.json"));
@@ -39,6 +40,37 @@ describe("honest view states", () => {
     expect(screen.queryByText(/provider_run_id/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/collector_name/i)).not.toBeInTheDocument();
     expect(document.body).not.toHaveTextContent("null");
+  });
+
+  test("discloses every verified source-proof field and raw-to-normalized linkage", () => {
+    const normalized = opportunityListEnvelopeSchema.parse(readFixture("opportunities.manual.json")).data.items[0];
+    const verified = sourceProofEnvelopeSchema.parse({
+      request_id: "55555555-5555-4555-8555-555555555555",
+      data: {
+        status: "VERIFIED",
+        data_mode: "RECORDED_BRIGHT_DATA_SNAPSHOT",
+        reason_code: null,
+        collector_name: "bright-data-collector",
+        collector_config_version: "collector-v7",
+        provider_run_id: "provider-run-2042",
+        started_at: "2026-08-20T07:58:00Z",
+        completed_at: "2026-08-20T08:00:00Z",
+        raw_snapshot_sha256: "7777777777777777777777777777777777777777777777777777777777777777",
+        raw_record: { raw_tender_id: "CPPP-2026-001", capture_sequence: 42 },
+        normalized_record: normalized,
+        terminal_state: "SUCCESS",
+        failure_code: null,
+      },
+    });
+    render(<SourceProofPanel proof={verified.data} />);
+    fireEvent.click(screen.getByText("Source proof details"));
+    expect(screen.getByText("collector-v7")).toBeVisible();
+    expect(screen.getByText("2026-08-20T07:58:00Z")).toBeVisible();
+    expect(screen.getByText("2026-08-20T08:00:00Z")).toBeVisible();
+    expect(screen.getByText("SUCCESS")).toBeVisible();
+    expect(screen.getByText(/"raw_tender_id": "CPPP-2026-001"/)).toBeVisible();
+    expect(screen.getByText(/"title": "Cloud operations support services"/)).toBeVisible();
+    expect(screen.getByText(/raw snapshot .* was normalized as opportunity cppp-cloud-001/i)).toBeVisible();
   });
 
   test("shows a rejected bidder request as no effective recommendation change", () => {

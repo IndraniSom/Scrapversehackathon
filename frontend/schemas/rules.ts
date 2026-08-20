@@ -5,7 +5,7 @@ import { dateTimeSchema, evidenceSpanSchema, evaluationSchema, type EvidenceSpan
 const moneySchema = z.string().regex(/^[0-9]+(?:\.[0-9]{1,2})?$/);
 
 export const rulePredicateSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("TURNOVER_AVERAGE"), required_financial_years: z.array(z.string().regex(/^[0-9]{4}-[0-9]{2}$/)).min(1), minimum_average_inr: moneySchema, audited_only: z.literal(true), legal_entity_scope: z.literal("BIDDER_ONLY") }),
+  z.strictObject({ kind: z.literal("TURNOVER_AVERAGE"), required_financial_years: z.array(z.string().regex(/^[0-9]{4}-[0-9]{2}$/)).min(1).refine((years) => new Set(years).size === years.length, "financial years must be unique"), minimum_average_inr: moneySchema, audited_only: z.literal(true), legal_entity_scope: z.literal("BIDDER_ONLY") }),
   z.strictObject({ kind: z.literal("CERTIFICATION"), certificate_name: z.string().min(1), valid_at: dateTimeSchema }),
   z.strictObject({ kind: z.literal("PROJECT_EXPERIENCE"), value_basis: z.enum(["SINGLE_PROJECT", "EACH_OF_N_PROJECTS", "AGGREGATE_PROJECTS"]), required_count: z.number().int().min(1), minimum_value_inr: moneySchema, completion_requirement: z.literal("COMPLETED"), completed_from: z.iso.date().nullable(), completed_through: z.iso.date().nullable(), date_window_inclusive: z.literal(true) }),
   z.strictObject({ kind: z.literal("EMD"), amount_inr: moneySchema, exemption_available: z.boolean(), qualification_field: z.string().nullable() }),

@@ -30,12 +30,25 @@ export function SourceProofPanel({ proof }: { proof: SourceProof }) {
           ) : (
             <>
               <div><dt>Collector</dt><dd>{proof.collector_name}</dd></div>
+              <div><dt>Collector configuration</dt><dd><code>{proof.collector_config_version}</code></dd></div>
               <div><dt>Provider run</dt><dd><code>{proof.provider_run_id}</code></dd></div>
+              <div><dt>Started</dt><dd>{proof.started_at}</dd></div>
               <div><dt>Completed</dt><dd>{proof.completed_at}</dd></div>
+              <div><dt>Terminal state</dt><dd><code>{proof.terminal_state}</code></dd></div>
               <div><dt>Raw snapshot</dt><dd><code>{proof.raw_snapshot_sha256}</code></dd></div>
+              <div><dt>Normalized opportunity</dt><dd><code>{proof.normalized_record.id}</code></dd></div>
             </>
           )}
         </dl>
+        {!unavailable && (
+          <div className="proof-records">
+            <p>Raw snapshot {proof.raw_snapshot_sha256} was normalized as opportunity {proof.normalized_record.id}.</p>
+            <h3>Raw provider record</h3>
+            <pre>{JSON.stringify(proof.raw_record, null, 2)}</pre>
+            <h3>Normalized opportunity record</h3>
+            <pre>{JSON.stringify(proof.normalized_record, null, 2)}</pre>
+          </div>
+        )}
       </details>
     </section>
   );

@@ -43,6 +43,27 @@ describe("typed API boundary", () => {
     await expect(getAmendmentImpact("wb-hci-063", { fetcher: respondingWith(amendment) })).resolves.toMatchObject({ data: { authority_change_applied: true } });
   });
 
+  test.each([
+    ["BID", "REVIEW"], ["BID", "NO_BID"], ["REVIEW", "BID"],
+    ["REVIEW", "NO_BID"], ["NO_BID", "BID"], ["NO_BID", "REVIEW"],
+  ])("rejects an unequal %s to %s recommendation when authority change is not applied", async (base, amended) => {
+    const invalid = cloneFixture(amendment);
+    const data = objectProperty(invalid, "data");
+    data.base_recommendation = base;
+    data.amended_recommendation = amended;
+    data.authority_change_applied = false;
+    await expect(getAmendmentImpact("wb-hci-063", { fetcher: respondingWith(invalid) })).rejects.toMatchObject({ kind: "schema" });
+  });
+
+  test("rejects duplicate turnover financial years required uniquely by OpenAPI", async () => {
+    const invalid = cloneFixture(assessment);
+    const base = objectProperty(objectProperty(invalid, "data"), "base_assessment");
+    const requirements = objectProperty(base, "requirements");
+    const turnover = objectValue(arrayProperty(requirements, "children")[0]);
+    objectProperty(turnover, "predicate").required_financial_years = ["2025-26", "2025-26"];
+    await expect(getAssessment("wb-hci-063", { fetcher: respondingWith(invalid) })).rejects.toMatchObject({ kind: "schema" });
+  });
+
   test("accepts a truthful empty opportunity list", async () => {
     const empty = cloneFixture(opportunities);
     const data = objectProperty(empty, "data");
@@ -84,4 +105,15 @@ describe("typed API boundary", () => {
     await expect(getOpportunities({ fetcher: offline })).rejects.toEqual(expect.any(ApiFailure));
     await expect(getOpportunities({ fetcher: hanging, timeoutMs: 1 })).rejects.toMatchObject({ kind: "transport" });
   });
+
+  test("keeps the timeout active while consuming a post-header response body", async () => {
+    const fetcher: typeof fetch = vi.fn(async (_input, init) => new Response(new ReadableStream<Uint8Array>({
+      /** Emits incomplete JSON and fails only when the request signal aborts. */
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{"request_id":'));
+        init?.signal?.addEventListener("abort", () => controller.error(new DOMException("aborted", "AbortError")));
+      },
+    }), { status: 200 }));
+    await expect(getOpportunities({ fetcher, timeoutMs: 5 })).rejects.toMatchObject({ kind: "transport" });
+  }, 250);
 });

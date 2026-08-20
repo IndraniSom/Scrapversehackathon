@@ -16,7 +16,7 @@ function OpportunityRow({ opportunity }: { opportunity: OpportunitySummary }) {
     <tr>
       <td><span className="source-label">{opportunity.source}</span></td>
       <td>
-        <Link className="primary-link" href={`/opportunities/${opportunity.id}`}>{opportunity.title}</Link>
+        <Link className="primary-link opportunity-title-link" href={`/opportunities/${encodeURIComponent(opportunity.id)}`}>{opportunity.title}</Link>
         <span className="subline">{opportunity.authority} · {opportunity.reference_number ?? opportunity.source_tender_id}</span>
       </td>
       <td>{opportunity.category.replaceAll("_", " ")}</td>

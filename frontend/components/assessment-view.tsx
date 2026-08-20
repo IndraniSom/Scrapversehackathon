@@ -77,7 +77,7 @@ export function AssessmentView({ envelope }: { envelope: AssessmentEnvelope }) {
       <DecisionSummary assessment={base} label="Base tender" />
       <DecisionSummary assessment={amended} label="After amendment" />
       <nav className="route-actions" aria-label="Opportunity actions">
-        <Link className="primary-action" href={`/opportunities/${opportunity.id}/amendment`}>Review amendment impact</Link>
+        <Link className="primary-action" href={`/opportunities/${encodeURIComponent(opportunity.id)}/amendment`}>Review amendment impact</Link>
         <a className="text-link" href={opportunity.canonical_url} target="_blank" rel="noreferrer">Open official tender notice</a>
       </nav>
       <ProfileSummary envelope={envelope} />

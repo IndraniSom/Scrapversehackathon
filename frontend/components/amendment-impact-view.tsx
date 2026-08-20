@@ -32,7 +32,7 @@ export function AmendmentImpactView({ impact }: { impact: AmendmentImpact }) {
   return (
     <>
       <header className="page-intro">
-        <Link className="text-link back-link" href={`/opportunities/${impact.opportunity_id}`}>← Opportunity assessment</Link>
+        <Link className="text-link back-link" href={`/opportunities/${encodeURIComponent(impact.opportunity_id)}`}>← Opportunity assessment</Link>
         <p className="source-line">Amendment evidence · <code>{impact.data_mode}</code></p>
         <h1>Amendment impact</h1><p>Rule <code>{impact.changed_rule_id}</code> is traced to an identified authority statement.</p>
       </header>

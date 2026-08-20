@@ -4,7 +4,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import AmendmentPage from "../app/opportunities/[opportunityId]/amendment/page";
 import OpportunityPage from "../app/opportunities/[opportunityId]/page";
 import HomePage from "../app/page";
-import { jsonResponse, readFixture } from "./fixtures";
+import { arrayProperty, cloneFixture, jsonResponse, objectProperty, objectValue, readFixture } from "./fixtures";
 
 vi.mock("next/dist/compiled/server-only", () => ({}));
 
@@ -37,6 +37,7 @@ describe("server-rendered routes", () => {
     expect(screen.getAllByText("CPPP")).toHaveLength(2);
     expect(screen.getAllByText("WEST_BENGAL")).toHaveLength(2);
     expect(screen.getAllByText("NTPC")).toHaveLength(2);
+    expect(screen.getByRole("link", { name: "Cloud operations support services" })).toHaveClass("opportunity-title-link");
     expect(screen.getByText(/Generated 20 Aug 2026/i)).toBeVisible();
     expect(screen.getAllByText("MANUAL_FIXTURE").length).toBeGreaterThan(0);
     expect(screen.getAllByText(/aaaaaaaaaaaaaaaa/)).toHaveLength(2);
@@ -87,5 +88,39 @@ describe("server-rendered routes", () => {
   test("delegates a missing opportunity to the route 404", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => jsonResponse({}, 404)));
     await expect(OpportunityPage({ params: Promise.resolve({ opportunityId: "missing" }), searchParams: Promise.resolve({}) })).rejects.toThrow(/NEXT_HTTP_ERROR_FALLBACK;404/);
+  });
+
+  test.each(["notice/2026", "notice?revision=2", "notice#award", "notice%draft", "notice 2026"])("encodes the hostile route id %s in links and backend paths", async (opportunityId) => {
+    const encoded = encodeURIComponent(opportunityId);
+    const listCopy = cloneFixture(opportunities);
+    const firstItem = objectValue(arrayProperty(objectProperty(listCopy, "data"), "items")[0]);
+    firstItem.id = opportunityId;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => input.toString().endsWith("/source-proof") ? jsonResponse(sourceProof) : jsonResponse(listCopy)));
+    render(await HomePage());
+    expect(screen.getByRole("link", { name: "Cloud operations support services" })).toHaveAttribute("href", `/opportunities/${encoded}`);
+    cleanup();
+
+    const assessmentCopy = cloneFixture(assessment);
+    objectProperty(objectProperty(assessmentCopy, "data"), "opportunity").id = opportunityId;
+    const detailPaths: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      detailPaths.push(new URL(input.toString()).pathname);
+      return jsonResponse(assessmentCopy);
+    }));
+    render(await OpportunityPage({ params: Promise.resolve({ opportunityId }), searchParams: Promise.resolve({}) }));
+    expect(detailPaths).toContain(`/api/v1/opportunities/${encoded}`);
+    expect(screen.getByRole("link", { name: /review amendment impact/i })).toHaveAttribute("href", `/opportunities/${encoded}/amendment`);
+    cleanup();
+
+    const amendmentCopy = cloneFixture(amendment);
+    objectProperty(amendmentCopy, "data").opportunity_id = opportunityId;
+    const impactPaths: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+      impactPaths.push(new URL(input.toString()).pathname);
+      return jsonResponse(amendmentCopy);
+    }));
+    render(await AmendmentPage({ params: Promise.resolve({ opportunityId }), searchParams: Promise.resolve({}) }));
+    expect(impactPaths).toContain(`/api/v1/opportunities/${encoded}/amendment-impact`);
+    expect(screen.getByRole("link", { name: /opportunity assessment/i })).toHaveAttribute("href", `/opportunities/${encoded}`);
   });
 });

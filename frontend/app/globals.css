@@ -49,6 +49,7 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 .source-line, .context-label { margin-bottom: 0.5rem; color: var(--action); font-size: 0.78rem; font-weight: 750; letter-spacing: 0.04em; text-transform: uppercase; }
 .text-link, .primary-link { color: var(--action); font-weight: 680; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 3px; }
 .text-link:hover, .primary-link:hover { color: var(--action-hover); text-decoration-thickness: 2px; }
+.opportunity-title-link { display: inline-flex; min-height: 44px; align-items: center; }
 .back-link { display: inline-flex; min-height: 44px; align-items: center; margin-bottom: 1.25rem; }
 .primary-action { display: inline-flex; min-height: 44px; align-items: center; justify-content: center; border: 0; border-radius: 8px; padding: 0.65rem 1rem; background: var(--action); color: var(--surface); font: inherit; font-weight: 750; text-decoration: none; cursor: pointer; }
 .primary-action:hover { background: var(--action-hover); }
@@ -60,6 +61,7 @@ details { border-top: 1px solid var(--border); }
 summary { min-height: 44px; padding: 0.75rem 0; color: var(--action); font-weight: 700; cursor: pointer; }
 .definition-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem 1.5rem; margin: 0.5rem 0 1rem; }
 .definition-grid div, .decision-counts div { min-width: 0; }
+.proof-records pre { margin: 0 0 1rem; padding: 0.8rem; overflow-wrap: anywhere; background: var(--surface-subtle); white-space: pre-wrap; }
 dt { color: var(--muted); font-size: 0.78rem; font-weight: 650; }
 dd { margin: 0.18rem 0 0; overflow-wrap: anywhere; font-weight: 620; }
 .status-badge { display: inline-flex; width: fit-content; min-height: 28px; align-items: center; gap: 0.35rem; border-radius: 999px; padding: 0.2rem 0.55rem; background: var(--surface-strong); color: var(--text); font-size: 0.75rem; font-weight: 780; letter-spacing: 0.02em; white-space: nowrap; }

@@ -54,6 +54,9 @@ const amendmentImpactSchema = z.strictObject({
   transition_reason: z.string().min(1),
 }).superRefine((value, context) => {
   const changed = value.base_recommendation !== value.amended_recommendation;
+  if (changed && !value.authority_change_applied) {
+    context.addIssue({ code: "custom", message: "recommendation changes require authority_change_applied" });
+  }
   if ((changed || value.authority_change_applied) && !value.authority_statement.effective_change) {
     context.addIssue({ code: "custom", message: "recommendation changes require effective authority evidence" });
   }
