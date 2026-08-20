@@ -5,7 +5,7 @@ from pathlib import Path
 
 import httpx
 import pytest
-from source_helpers import RAW_BYTES, temporary_storage_roots
+from source_helpers import RAW_BYTES, snapshot_directory, temporary_storage_roots
 from test_source_policy import NTPC_INPUT, approved_review
 
 from backend.bright_data import BrightDataScraperStudioClient
@@ -129,7 +129,7 @@ def test_direct_collection_rejects_real_demo_staging_with_zero_requests() -> Non
     """Domain collection rejects the canonical demo tree without traffic or writes."""
     requests = 0
     real_demo_raw = BACKEND / "data" / "demo" / "raw"
-
+    before = snapshot_directory(real_demo_raw)
     def handler(_: httpx.Request) -> httpx.Response:
         """Count traffic that escapes canonical domain storage validation."""
         nonlocal requests
@@ -155,7 +155,7 @@ def test_direct_collection_rejects_real_demo_staging_with_zero_requests() -> Non
     assert isinstance(result, CollectionAttemptFailure)
     assert result.failure_code == "LEGAL_VERIFY_REQUIRED"
     assert requests == 0
-    assert not real_demo_raw.exists()
+    assert snapshot_directory(real_demo_raw) == before
 
 
 def test_forged_roots_cannot_reclassify_real_demo_as_preparation(
@@ -164,6 +164,7 @@ def test_forged_roots_cannot_reclassify_real_demo_as_preparation(
     """Canonical demo remains forbidden even when injected roots call it preparation."""
     requests = 0
     real_demo_raw = BACKEND / "data" / "demo" / "raw"
+    before = snapshot_directory(real_demo_raw)
 
     def handler(_: httpx.Request) -> httpx.Response:
         """Count traffic that escapes the non-overridable canonical demo boundary."""
@@ -195,4 +196,4 @@ def test_forged_roots_cannot_reclassify_real_demo_as_preparation(
     assert isinstance(result, CollectionAttemptFailure)
     assert result.failure_code == "LEGAL_VERIFY_REQUIRED"
     assert requests == 0
-    assert not real_demo_raw.exists()
+    assert snapshot_directory(real_demo_raw) == before

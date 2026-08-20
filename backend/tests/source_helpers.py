@@ -94,6 +94,13 @@ def temporary_storage_roots(staging_directory: Path) -> SourceStorageRoots:
     )
 
 
+def snapshot_directory(directory: Path) -> dict[str, bytes]:
+    """Capture immediate file bytes so rejection tests can prove zero mutation."""
+    if not directory.exists():
+        return {}
+    return {path.name: path.read_bytes() for path in directory.iterdir() if path.is_file()}
+
+
 def assert_invalid_limits_rejected(staging_directory: Path) -> None:
     """Prove zero polling and negative intervals cannot reach the lifecycle."""
     values = approved_limits(staging_directory).model_dump()

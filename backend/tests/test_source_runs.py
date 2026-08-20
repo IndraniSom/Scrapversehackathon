@@ -7,6 +7,7 @@ import httpx
 import pytest
 from source_helpers import (
     RAW_BYTES,
+    RAW_RECORD,
     approved_limits,
     assert_invalid_limits_rejected,
     assert_trigger_rejects_extra_fields,
@@ -36,7 +37,7 @@ def test_fetch_distinguishes_building_from_exact_ready_bytes() -> None:
         httpx.Response(HTTPStatus.OK, json={"status": "building"}),
         httpx.Response(
             HTTPStatus.OK,
-            content=b'[{"source_tender_id":"NTPC-7","title":"Network support"}]',
+            content=RAW_BYTES,
             headers={"content-type": "application/json"},
         ),
     ]
@@ -49,8 +50,8 @@ def test_fetch_distinguishes_building_from_exact_ready_bytes() -> None:
 
     assert building == SnapshotBuilding()
     assert ready == SnapshotReady(
-        records=[{"source_tender_id": "NTPC-7", "title": "Network support"}],
-        raw_bytes=b'[{"source_tender_id":"NTPC-7","title":"Network support"}]',
+        records=[RAW_RECORD],
+        raw_bytes=RAW_BYTES,
     )
 
 
@@ -127,7 +128,7 @@ def test_collect_polls_to_ready_hashes_normalizes_and_stages(tmp_path: Path) -> 
 
 @pytest.mark.parametrize(
     ("dataset", "failure_code"),
-    [(b"[]", "EMPTY_RESULT"), (b'[{"title":"No stable ID"}]', "INVALID_RECORD")],
+    [(b"[]", "MALFORMED_RESPONSE"), (b'[{"title":"No stable ID"}]', "MALFORMED_RESPONSE")],
 )
 def test_collect_rejects_unusable_ready_results(
     tmp_path: Path, dataset: bytes, failure_code: str

@@ -57,18 +57,18 @@
       "snapshot_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
     },
     {
-      "id": "ntpc-erp-101",
+      "id": "ntpc-1859270f8d18",
       "source": "NTPC",
-      "source_tender_id": "NTPC-2026-101",
-      "reference_number": "NTPC/ERP/2026/101",
-      "authority": "NTPC Limited",
-      "title": "ERP application maintenance",
-      "category": "ERP",
-      "published_at": "2026-08-04T03:30:00Z",
-      "closes_at": "2026-09-08T12:00:00+05:30",
-      "canonical_url": "https://ntpctender.ntpc.co.in/",
-      "data_mode": "MANUAL_FIXTURE",
-      "snapshot_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+      "source_tender_id": "NRE-CS-5924-003(WTG)-9",
+      "reference_number": "NRE-CS-5924-003(WTG)-9",
+      "authority": "Renewable Energy",
+      "title": "SUPPLY AND INSTALLATION OF WIND TURBINE GENERATORS (WTG) FOR ISTS CONNECTED WIND ENERGY PROJECT WITH NOMINAL CAPACITY OF 600 MW (200 WTG) IN ANANTAPUR, ANDHRA PRADESH",
+      "category": "OTHER",
+      "published_at": null,
+      "closes_at": null,
+      "canonical_url": "https://ntpctender.ntpc.co.in/NITDetails/NITs/30166",
+      "data_mode": "RECORDED_BRIGHT_DATA_SNAPSHOT",
+      "snapshot_sha256": "b7ff42dfef9c3a12cd043ee0a23394158d9f9800a12407938a07dccd1ee11aef"
     },
     {
       "id": "ntpc-devops-102",

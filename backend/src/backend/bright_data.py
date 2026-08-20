@@ -5,7 +5,7 @@ from http import HTTPStatus
 from time import sleep
 
 import httpx
-from pydantic import JsonValue, TypeAdapter, ValidationError
+from pydantic import ValidationError
 
 from backend.contracts.source import (
     SnapshotBuilding,
@@ -15,8 +15,7 @@ from backend.contracts.source import (
     SnapshotRef,
     TriggerResponse,
 )
-
-_RECORDS = TypeAdapter(list[dict[str, JsonValue]])
+from backend.source_provider import ProviderRecordError, decode_provider_records
 
 
 class ProviderRequestError(RuntimeError):
@@ -70,9 +69,9 @@ class BrightDataScraperStudioClient:
         if response.status_code >= HTTPStatus.BAD_REQUEST:
             return SnapshotFailure(code=f"HTTP_{response.status_code}")
         try:
-            records = _RECORDS.validate_json(response.content)
+            records = decode_provider_records(response.content)
             return SnapshotReady(records=records, raw_bytes=response.content)
-        except ValidationError:
+        except ProviderRecordError:
             try:
                 return SnapshotBuilding.model_validate_json(response.content)
             except ValidationError:

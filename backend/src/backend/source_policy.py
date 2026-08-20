@@ -4,6 +4,7 @@ from collections.abc import Mapping, Sequence
 from datetime import date, datetime
 from typing import Literal
 from urllib.parse import parse_qs, urlsplit
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, ConfigDict, model_validator
 
@@ -14,6 +15,7 @@ _POLICIES = {
     "CPPP": "https://www.eprocure.gov.in/eprocure/app?page=Disclaimer&service=page",
     "WEST_BENGAL": "https://www.wbtenders.gov.in/nicgep/app?page=Disclaimer&service=page",
 }
+_INDIA_TIME = ZoneInfo("Asia/Kolkata")
 
 
 class ApprovalError(ValueError):
@@ -46,7 +48,7 @@ def validate_collection_inputs(
     """Return approved normalized inputs or reject before provider traffic."""
     if now.tzinfo is None or now.utcoffset() is None:
         raise ApprovalError("approval clock must be timezone-aware")
-    if review.reviewed_at > now.date():
+    if review.reviewed_at > portal_calendar_date(now, review.portal):
         raise ApprovalError("review date is in the future")
     if review.decision != "ALLOW" or review.retention_decision != "ALLOW":
         raise ApprovalError("collection and retention require ALLOW")
@@ -83,10 +85,15 @@ def _target_matches_review(url: str, portal: str) -> bool:
         return (
             parsed.hostname == "ntpctender.ntpc.co.in"
             and parsed.path == "/Index/Search"
-            and set(query) == {"Type", "Region"}
-            and query["Type"] == ["Reg"]
-            and len(query["Region"]) == 1
-            and query["Region"][0].isdigit()
+            and (
+                not query
+                or (
+                    set(query) == {"Type", "Region"}
+                    and query["Type"] == ["Reg"]
+                    and len(query["Region"]) == 1
+                    and query["Region"][0].isdigit()
+                )
+            )
         )
     if portal == "CPPP":
         return (
@@ -95,3 +102,12 @@ def _target_matches_review(url: str, portal: str) -> bool:
             and query == {"page": ["FrontEndLatestActiveTenders"], "service": ["page"]}
         )
     return False
+
+
+def portal_calendar_date(moment: datetime, portal: str) -> date:
+    """Return the official local calendar date used for a reviewed Indian portal."""
+    if moment.tzinfo is None or moment.utcoffset() is None:
+        raise ApprovalError("approval clock must be timezone-aware")
+    if portal in {"NTPC", "CPPP", "WEST_BENGAL"}:
+        return moment.astimezone(_INDIA_TIME).date()
+    raise ApprovalError("portal calendar is unsupported")

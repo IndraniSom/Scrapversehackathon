@@ -9,17 +9,13 @@ from pydantic import (
     BaseModel,
     ConfigDict,
     Field,
-    JsonValue,
-    TypeAdapter,
     ValidationError,
     model_validator,
 )
 
 from backend.contracts.source import MetadataText, VerifiedSourceProof
-from backend.source_policy import PortalReview
-from backend.source_runs import normalize_record
-
-_RECORDS = TypeAdapter(list[dict[str, JsonValue]])
+from backend.source_policy import PortalReview, portal_calendar_date
+from backend.source_provider import decode_provider_records, normalize_supported_record
 
 
 class ProviderRunMetadata(BaseModel):
@@ -94,7 +90,8 @@ def verify_source_proof(path: Path) -> VerifiedSourceProof:
     if proof.normalized_record.source != artifact.source_review.portal:
         raise ProofVerificationError("normalized source does not match approved portal")
     if artifact.source_review.reviewed_at > min(
-        run.started_at.date() for run in artifact.runs
+        portal_calendar_date(run.started_at, artifact.source_review.portal)
+        for run in artifact.runs
     ):
         raise ProofVerificationError("source approval postdates provider run")
     successful_ids = {
@@ -120,9 +117,9 @@ def verify_source_proof(path: Path) -> VerifiedSourceProof:
     ):
         raise ProofVerificationError("collector metadata mismatch")
     try:
-        raw_records = _RECORDS.validate_json(raw_bytes)
-        normalized = normalize_record(proof.raw_record, digest)
-    except ValidationError as error:
+        raw_records = decode_provider_records(raw_bytes)
+        normalized = normalize_supported_record(proof.raw_record, digest)
+    except (ValidationError, ValueError) as error:
         raise ProofVerificationError("raw snapshot records are invalid") from error
     if proof.raw_record not in raw_records or normalized != proof.normalized_record:
         raise ProofVerificationError("raw and normalized records are inconsistent")

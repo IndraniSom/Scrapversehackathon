@@ -99,6 +99,7 @@ def test_real_demo_staging_rejected_despite_false_demo_override(tmp_path: Path) 
     """An operator-selected finalization destination cannot redefine the real demo root."""
     review = write_review(tmp_path / "review.json")
     real_demo_raw = BACKEND / "data" / "demo" / "raw"
+    before = {path.name: path.read_bytes() for path in real_demo_raw.glob("*.json")}
     result = run_cli(
         [
             "--collect",
@@ -113,7 +114,7 @@ def test_real_demo_staging_rejected_despite_false_demo_override(tmp_path: Path) 
     )
     assert result.returncode == 2
     assert result.stderr.strip() == "STOP-PROVIDER: staging must be outside demo"
-    assert not real_demo_raw.exists()
+    assert {path.name: path.read_bytes() for path in real_demo_raw.glob("*.json")} == before
 
 
 def test_finalize_consumes_three_captures_without_credentials(tmp_path: Path) -> None:

@@ -11,7 +11,6 @@ from backend.bright_data import BrightDataScraperStudioClient, ProviderRequestEr
 from backend.contracts.source import (
     MetadataText,
     OpportunitySummary,
-    RawOpportunity,
     SnapshotFailure,
     SnapshotReady,
     UnavailableSourceProof,
@@ -32,6 +31,7 @@ from backend.source_policy import (
     PortalReview,
     validate_collection_inputs,
 )
+from backend.source_provider import normalize_supported_record
 from backend.source_storage import StorageError
 from backend.source_views import build_unavailable_source_proof
 
@@ -92,14 +92,7 @@ def normalize_record(
     record: Mapping[str, JsonValue], snapshot_hash: str
 ) -> OpportunitySummary:
     """Validate a collector row and deterministically add frozen provenance fields."""
-    raw = RawOpportunity.model_validate(record)
-    stable_digest = sha256(raw.source_tender_id.encode()).hexdigest()[:12]
-    return OpportunitySummary(
-        **raw.model_dump(),
-        id=f"{raw.source.lower()}-{stable_digest}",
-        data_mode="RECORDED_BRIGHT_DATA_SNAPSHOT",
-        snapshot_sha256=snapshot_hash,
-    )
+    return normalize_supported_record(record, snapshot_hash)
 
 
 def unavailable_source_view(reason_code: str) -> UnavailableSourceProof:

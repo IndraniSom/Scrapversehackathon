@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from hashlib import sha256
 from pathlib import Path
 
-from pydantic import JsonValue, TypeAdapter, ValidationError
+from pydantic import ValidationError
 
 from backend.source_capture import StagedCapture, load_staged_capture, review_digest
 from backend.source_policy import (
@@ -18,11 +18,9 @@ from backend.source_proof import (
     ProviderRunMetadata,
     SourceProofArtifact,
 )
-from backend.source_runs import normalize_record
+from backend.source_provider import decode_provider_records, normalize_supported_record
 from backend.source_storage import StorageError, atomic_install
 from backend.source_views import build_verified_source_proof
-
-_RECORDS = TypeAdapter(list[dict[str, JsonValue]])
 
 
 def finalize_source_proof(
@@ -120,9 +118,11 @@ def _validated_raw(capture_path: Path, capture: StagedCapture) -> bytes:
     raw_path = capture_path.parent / capture.raw_path
     try:
         raw_bytes = raw_path.read_bytes()
-        records = _RECORDS.validate_json(raw_bytes)
-        normalized = normalize_record(capture.raw_record, capture.raw_snapshot_sha256)
-    except (OSError, ValidationError) as error:
+        records = decode_provider_records(raw_bytes)
+        normalized = normalize_supported_record(
+            capture.raw_record, capture.raw_snapshot_sha256
+        )
+    except (OSError, ValidationError, ValueError) as error:
         raise FinalizationError("staged raw data is missing or invalid") from error
     if len(raw_bytes) != capture.raw_length:
         raise FinalizationError("staged raw length mismatch")
