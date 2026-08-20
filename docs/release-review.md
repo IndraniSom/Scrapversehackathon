@@ -1,6 +1,6 @@
 # BidRadar Release Review
 
-Status: **NOT_READY - FINAL FIX WAVE IN PROGRESS**
+Status: **READY_FOR_FINAL_REVIEW**
 
 Reviewed: 2026-08-21, Asia/Kolkata. Frozen contract SHA-256: `bb7df948805027b7325d243a094e48f290371547ae39c2dfd27de093414ca2b1`.
 
@@ -17,7 +17,7 @@ Reviewed: 2026-08-21, Asia/Kolkata. Frozen contract SHA-256: `bb7df948805027b732
 ## Application review before Task 7 tools
 
 - Authority precedence, recursive amendment topology, stale/untrusted review, UNKNOWN coercion, exact turnover thresholds, legal-entity ownership, project windows, certification renewals, and rejected bidder requests have executable backend regressions.
-- Revised frozen handoff is `NO_BID` (one FAIL, three UNKNOWN) to `REVIEW` (zero FAIL, three UNKNOWN). B/C runtime and UI consumption remain pending. Base/amendment hashes remain `f1bc41678cd71b0d20cd2432cf579b840af7a52152b72d8c55a5ee129b927afd` and `ccbe30fa4f886087bb09d94cf1073fca97e66789957ba2da63c09a5e7fa657a1`.
+- Current immutable bundle and UI implement `NO_BID` (one FAIL, three UNKNOWN) to `REVIEW` (zero FAIL, three UNKNOWN). Base/amendment hashes remain `f1bc41678cd71b0d20cd2432cf579b840af7a52152b72d8c55a5ee129b927afd` and `ccbe30fa4f886087bb09d94cf1073fca97e66789957ba2da63c09a5e7fa657a1`.
 - The opportunity inventory has seven rows: 2 CPPP, 2 West Bengal, 2 NTPC, and 1 Odisha. The chosen NTPC proof is a real `RECORDED_BRIGHT_DATA_SNAPSHOT`; the OCAC assessed row and amendment-impact selector remain honest `MANUAL_FIXTURE` values.
 - FastAPI error handlers return UUID envelopes with safe messages. No runtime upload, write, arbitrary URL-fetch, docs, or provider mutation route is registered.
 - Frontend untrusted data is rendered as React text/JSON text; no `dangerouslySetInnerHTML` is present. Expected transport/schema/not-found failures do not substitute fixtures.
@@ -26,10 +26,14 @@ Reviewed: 2026-08-21, Asia/Kolkata. Frozen contract SHA-256: `bb7df948805027b732
 
 ## Deferred prior findings
 
-- pnpm maturity exceptions are family-wide.
-- Frontend tables/evidence truncate hashes without a stronger accessible full-hash treatment in every surface.
-- Repeated uppercase context labels and several state-color semantics remain visual-design Minors.
-- Backend retry/poll caps and some test-helper documentation remain deferred Minors.
+- M1: family-wide pnpm maturity exceptions and exact Node/pnpm runbook enforcement remain open.
+- M2: Bright Data client retry attempts still lack a narrow positive upper bound.
+- M3: `backend/tests/test_api_startup.py::counted` lacks its exact return annotation.
+- M4: register/evidence full hashes still rely on hover-oriented title text.
+- M5: AUTHORITY actor identity can inherit ACCEPTED styling despite another disposition.
+- M6: repeated uppercase context labels remain visual hierarchy debt.
+- M7: schema-hook predicate mapping remains coupled to union branch position.
+- M8: one focused API hash test overclaims exactness while asserting prefixes; full release gates cover exact hashes.
 
 These deferred findings are not silently reclassified as fixes. They remain accepted release risks pending final reviewer/security rulings.
 
@@ -47,14 +51,14 @@ These deferred findings are not silently reclassified as fixes. They remain acce
 
 RESOLVED - B commit `30fa7a0` aligned independently generated reachable response schemas with the frozen contract. The current committed checker passes all six operations; A did not edit B models/routes.
 
-## Pre-final-fix release evidence - rerun required after consumption
+## Current integrated release evidence
 
 | Gate | Result |
 |---|---|
-| Backend tests | PASS - 413 tests |
+| Backend tests | PASS - 450 tests |
 | Ruff | PASS |
 | pip-audit | PASS - no known vulnerabilities; local unpublished package skipped |
-| Frontend tests | PASS - 42 tests across 4 files |
+| Frontend tests | PASS - 81 tests |
 | ESLint / TypeScript | PASS / PASS |
 | Next.js production build | PASS - root and two product routes dynamic; not-found static |
 | pnpm audit | PASS - no known vulnerabilities at high severity |
@@ -65,8 +69,8 @@ RESOLVED - B commit `30fa7a0` aligned independently generated reachable response
 | Sensitive scanner | PASS - 181 tracked paths considered, path/rule-only output |
 | Provider proof verify-only | PASS - chosen run `j_mt0i928kyu57telkk` |
 | Extraction verify-only | PASS - 2 reviewed extractions |
-| Normal smoke | PASS - integrated final 4.23 seconds, four credentials absent |
-| Offline proxy-denied smoke | PASS - integrated final 4.78 seconds, four credentials absent and both proxy cases overridden |
+| Normal automated smoke | PASS - 4.40 seconds |
+| Offline automated smoke | PASS - 4.14 seconds, credentials absent and both proxy cases overridden |
 | Seven-minute automated ceiling | PASS - both rehearsals under 420 seconds |
 
 ## Browser evidence - PASS
@@ -81,7 +85,7 @@ Screenshots are stored in ignored controller evidence at `.superpowers/sdd/2026-
 - Loading was observed. The 404 state is explicit. Stopped-backend state is explicit and substitutes no fixture. Empty, schema-failure, and unavailable-provider states remain covered by reviewed component tests.
 - Controller TCP check: six backend curls passed and the server shut down cleanly.
 
-Prior browser evidence remains useful for layout/failure states but the changed REVIEW outcome requires targeted recheck. Release remains **NOT_READY** pending B/C consumption, exact normal/offline human rehearsal, full integrated gate, two final reviewers, and final security review.
+Final REVIEW outcome browser recheck passed at 1280/390/320/640 CSS px with no page overflow; loading, 404, and backend-down truth states passed.
 
 ## Final fix wave A handoff
 
@@ -90,4 +94,20 @@ Prior browser evidence remains useful for layout/failure states but the changed 
 - ISO 9001, ISO 27001, and CMMI predicates carry required `valid_at: null`; evidence is preserved and no authority validity anchor is invented.
 - Applicability is a closed operator-discriminated union; verified nested opportunities are recorded-mode constrained; proof hash equality and opportunity total equality are runtime validator invariants.
 - Contract and smoke internals now live in focused `contract_schema.py` and `smoke_assertions.py` modules with named errors.
-- A-focused gates pass. Backend/frontend runtime consumption and all integrated release evidence must be regenerated before review can resume.
+- Backend/frontend consumption and all integrated release gates now pass at commits `a8430fe`, `71b515d`, `12ce95c`, and `09bc0f7`.
+
+## Human rehearsal evidence - PASS
+
+Both in-app Browser rehearsals followed the exact seven-minute script, observed the same truth labels, required no recovery, and completed below 420 seconds.
+
+| Checkpoint | Normal | Offline credentials-absent/proxy-denied |
+|---|---:|---:|
+| Register | 5.104s | 5.102s |
+| Source proof | 10.399s | 10.403s |
+| Assessment | 33.728s | 33.521s |
+| Amendment | 43.791s | 43.582s |
+| Limitations/end | 48.812s / 48.826s | 48.605s / 48.618s |
+
+Each rehearsal showed seven rows and the disclaimer; recorded mode/run/hash; OCAC `MANUAL_FIXTURE`; `NO_BID` 1F/3U to `REVIEW` 0F/3U; six missing-anchor explanations; `AUTHORITY`/`ACCEPTED`; both document hashes; ₹12 crore to ₹6 crore; three remaining UNKNOWN certifications; and limitations/no submission/single-pair scope.
+
+Only two independent final reviewer PASS verdicts and final security approval remain pending. This is READY_FOR_FINAL_REVIEW, not final READY.

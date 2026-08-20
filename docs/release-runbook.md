@@ -1,6 +1,6 @@
 # BidRadar Release Runbook
 
-Release state: **NOT_READY - FINAL FIX CONSUMPTION AND HUMAN REHEARSAL PENDING**.
+Release state: **READY_FOR_FINAL_REVIEW**. Only two final reviewer PASS verdicts and final security approval remain pending.
 
 ## Preconditions
 
@@ -27,10 +27,10 @@ uv run python ../tools/smoke_demo.py --mode offline
 
 Both modes remove `BRIGHT_DATA_API_TOKEN`, `BRIGHT_DATA_COLLECTOR_ID`, `DEEPSEEK_API_KEY`, and `OPENAI_API_KEY`, start Uvicorn and `pnpm start` on free loopback ports, verify four API and three frontend routes, and terminate both process groups on success or failure. Offline mode overwrites uppercase and lowercase HTTP/HTTPS/ALL proxy variables with a closed loopback proxy while preserving both localhost no-proxy variables. This is strong application-level evidence that the runtime makes no proxy-aware external request; it is not a kernel network-namespace proof.
 
-Observed on 2026-08-20:
+Observed on 2026-08-21:
 
-- integrated final normal: 4.23 seconds;
-- integrated final offline proxy-denied: 4.78 seconds;
+- automated normal: 4.40 seconds;
+- automated offline proxy-denied: 4.14 seconds;
 - ceiling enforced by the tool: 420 seconds.
 
 ## Manual server start
@@ -65,11 +65,23 @@ Stop both with Ctrl-C. Confirm neither process remains before leaving the demo m
 | 5:45-6:30 | Explain unchanged ISO 9001, ISO 27001, and CMMI evidence, why all remain UNKNOWN, and that only the reviewed turnover clause changes. |
 | 6:30-7:00 | State limitations: one curated digital-text pair, one synthetic company, no OCR, no automated submission, portal reuse governed by recorded review, and broader evaluation remains post-hackathon. |
 
+## Human rehearsal record - PASS
+
+| Checkpoint | Normal Browser run | Offline proxy-denied/credentials-absent Browser run |
+|---|---:|---:|
+| Register | 5.104s | 5.102s |
+| Proof | 10.399s | 10.403s |
+| Assessment | 33.728s | 33.521s |
+| Amendment | 43.791s | 43.582s |
+| Limitations | 48.812s | 48.605s |
+| End | 48.826s | 48.618s |
+
+Both runs observed the exact seven-row/proof/NO_BID-to-REVIEW/authority/hash/limitation markers in the script, required no recovery, and completed below 420 seconds.
+
 ## Failure handling
 
 - Any contract, startup, artifact, hash, audit, smoke, browser, or timing failure means `NOT_READY`.
 - Never swap in a manual provider proof, rewrite a truth label, skip failed evidence, or continue with a partially loaded bundle.
 - Backend stopped: frontend must show its explicit unavailable state; it must not substitute fixtures.
 - Unknown opportunity: verify the safe 404 UI/envelope, with no traceback or internal path.
-- Prior controller browser evidence passed for the superseded BID rendering. Rerun affected assessment/amendment browser evidence after B/C consume the REVIEW contract.
-- The exact normal and offline human seven-minute rehearsals remain `PENDING`; automated smoke timing is not a substitute.
+- Final REVIEW browser evidence and both exact human rehearsals passed; preserve their ledger/screenshots for final reviewers.

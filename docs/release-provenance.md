@@ -29,7 +29,7 @@ All 69 base and 30 amendment pages are listed as processed. The base turnover cl
 
 ## Deterministic decision
 
-Revised frozen handoff below is pending B artifact rebuild; the digest table that follows records the superseded pre-final-fix bundle for lineage only.
+The current immutable bundle implements the reviewed frozen handoff below.
 
 - Synthetic company artifact SHA-256: `f4c7e4522417a951207bbbe9374a3b174939aa34002e64079685c9e7190af030`.
 - Base: `NO_BID`, one failed hard rule, three UNKNOWN certification rules, ₹12 crore turnover threshold.
@@ -40,20 +40,20 @@ Revised frozen handoff below is pending B artifact rebuild; the digest table tha
 
 ## Immutable bundle digests
 
-**SUPERSEDED / REBUILD PENDING:** These digests identify the last BID bundle and must be replaced after backend consumption of contract hash `bb7df948805027b7325d243a094e48f290371547ae39c2dfd27de093414ca2b1`.
+These digests match the current manifest-backed bundle for contract hash `bb7df948805027b7325d243a094e48f290371547ae39c2dfd27de093414ca2b1`.
 
 | Manifest key | Path | SHA-256 |
 |---|---|---|
 | opportunities | `opportunities.json` | `9fecd94c9e6ebcc7c01516b82127e8ec79c4068a209a8b2ef0aeacfb2454ad3a` |
 | company | `company-profile.json` | `f4c7e4522417a951207bbbe9374a3b174939aa34002e64079685c9e7190af030` |
-| assessment | `assessment.json` | `fc7d106460d3c81a40885a481f5e7b83806bfe01e6badc47a83babd9148a6245` |
-| impact | `amendment-impact.json` | `30c79d4c7996a0c9a3d04a246bf2826b4136b6d66d9510efdbcae881789a6766` |
-| base extraction | `extractions/base.json` | `7033c80bb62cd69c091d6fe8dee5e9347511ab112f54d2a293b5de0c281cd81a` |
-| amendment extraction | `extractions/amendment.json` | `69bb705743f85e3d28ad42c1126640ca0641a22ae0f88a714cc21b3a92e66aca` |
+| assessment | `assessment.json` | `269e90d5991c0e8730171e82043c2a566710716d69963be95c894bdaccec0545` |
+| impact | `amendment-impact.json` | `36cf0c0b3cd308c47b024cc89682d6952b47fb5dfdf4e87282b4824c3ec52cda` |
+| base extraction | `extractions/base.json` | `dcd14dfb04c807627bcc54804510a86eb8a1eb7d3c6a62050e213956be112f29` |
+| amendment extraction | `extractions/amendment.json` | `2ddce3620b0bbb800a0a190e7cec76b0d7cef100db702722be82fa1a97fd420d` |
 | raw snapshot | `raw/b7ff…aef.json` | `b7ff42dfef9c3a12cd043ee0a23394158d9f9800a12407938a07dccd1ee11aef` |
 | source proof | `source-proof.json` | `9663cf48da676942f180d08a8c8f6c5d7071cfc056470176611d3d8bbdf67ade` |
 
-Manifest file SHA-256: `d0421c269f6afa17b7f6e2d2ae68c0ad381c1fe6b184fbfc24056e5a8e2feeca`.
+Manifest file SHA-256: `3963a42ec4d067d02d6f711884ced2ef1b0b4b51b127a43d6a981a368c8dfaae`.
 
 ## Limits
 

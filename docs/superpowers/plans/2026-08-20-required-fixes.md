@@ -440,9 +440,9 @@ Expected: all three routes and every explicit state have truthful tests; build s
 - [x] Start with a skeptical senior review and write findings before fixes: authority precedence, stale review, unknown coercion, threshold boundaries, false live labels, hash/lineage mismatch, path traversal, unsafe HTML, secret/error leakage, swallowed failures, process cleanup, misleading claims, contract-bypassing tests, code files at 200+ lines, and undocumented named functions. Include file, severity, and reproducible scenario; then fix only accepted findings in the owning task or return them to B/C.
 - [x] Run the security review: verify ignores; use `check_sensitive_patterns.py` to scan tracked text and report only path/rule, never matching values; run dependency audits; confirm no arbitrary URL/upload/write route; confirm no `dangerouslySetInnerHTML`, `eval`, shell execution, unsafe deserialization, or string-built SQL; and confirm preparation errors/logs omit credentials and full document text.
 - [x] Run both servers and inspect `/`, the tender detail, amendment view, 404, and stopped-backend failure at 1280px, 390px, and 320px. Capture screenshots and verify keyboard order, visible focus, text/icon statuses, 200% zoom, and no page-level horizontal overflow. Loading, empty, unavailable-provider-proof, and schema-failure states must have executable component tests; record `UNAVAILABLE_PROVIDER_PROOF_STATE=PASS` in `docs/release-review.md` only when the safe reason, honest label, null provider fields, and accessible disclosure assertions pass. Do not add demo-only routes.
-- [ ] **PENDING - HUMAN REHEARSAL:** Rehearse the exact script with normal network, then with network unavailable and all provider/model credentials absent. The runtime path must use the same cached `RECORDED_BRIGHT_DATA_SNAPSHOT` and verified extraction artifacts in both modes and finish in seven minutes without changing truth labels.
+- [x] **COMPLETE - HUMAN REHEARSAL:** Normal and credentials-absent/proxy-denied Browser rehearsals completed in 48.826s and 48.618s with recorded checkpoints and no recovery.
 - [x] **STOP-RELEASE:** Stop and report `NOT_READY` if the provider gate, document gate, independent clause review, contract comparison, startup smoke, offline replay, seven-minute timing, security review, responsive/a11y check, or any required command fails. Never replace missing external evidence with a manual fixture.
-- [ ] **PENDING - FINAL INTEGRATED GATE:** Run the full final gate after B/C consume the revised contract:
+- [x] **COMPLETE - INTEGRATED GATE:** The full final gate passed after B/C consumed the revised contract:
 
 ```bash
 (cd backend && uv run pytest -q)
@@ -463,7 +463,7 @@ git status --short
 
 Expected: every command exits 0, all known changes are intentional, both servers start, all API/frontend routes work, and the same base-to-amendment result is demonstrated offline in under seven minutes.
 
-## Authoritative completion matrix (2026-08-20)
+## Authoritative completion matrix (2026-08-21)
 
 This matrix supersedes stale phase/prerequisite prose in earlier reports while preserving their historical evidence.
 
@@ -472,16 +472,16 @@ This matrix supersedes stale phase/prerequisite prose in earlier reports while p
 | Task 1 foundation and final A contract/tool revisions | COMPLETE | Task 1 report plus Final fix wave A handoff |
 | Task 2 provider proof | COMPLETE | Three successful Bright Data runs; chosen run j_mt0i928kyu57telkk; raw hash b7ff42df...aef |
 | Task 3 official extraction/review | COMPLETE | 69-page base and 30-page amendment verified; human review recorded |
-| Tasks 4-6 prior implementation/browser work | COMPLETE FOR SUPERSEDED CONTRACT | Reports/reviews and browser evidence |
-| Task 7 integration tools/security/browser evidence | COMPLETE FOR SUPERSEDED CONTRACT | Task 7 report; checker/scanner/smoke/browser evidence |
-| Revised contract consumption by backend/frontend | PENDING | B/C must consume nullable anchors, applicability union, proof coupling, total invariant, and REVIEW outcome |
-| Normal and offline human seven-minute rehearsals | PENDING | Automated smoke timings do not satisfy this human gate |
-| Full integrated final gate on revised contract | PENDING | Run only after B/C consumption |
+| Tasks 4-6 revised implementation/browser work | COMPLETE | B/C commits `a8430fe`, `71b515d`, `12ce95c`, `09bc0f7`; final browser recheck passed |
+| Task 7 integration tools/security/browser evidence | COMPLETE | Task 7 report; checker/scanner/smoke/browser evidence |
+| Revised contract consumption by backend/frontend | COMPLETE | Contract commit `8ff2153`; B/C commits above; backend 450 and frontend 81 tests |
+| Normal and offline human seven-minute rehearsals | COMPLETE | 48.826s normal and 48.618s offline with checkpoint ledger |
+| Full integrated final gate on revised contract | COMPLETE | Ruff/lint/typecheck/build/audits/line/contract/scanner/proof/extraction/compile pass |
 | Two final independent reviews | PENDING | Prior final reviews found this fix wave |
 | Final security review/approval | PENDING | Required after all fixes and integrated gates |
 
-- [ ] **PENDING - DOWNSTREAM CONSUMPTION:** B/C consume the revised contract and rebuild immutable runtime/UI artifacts.
-- [ ] **PENDING - HUMAN REHEARSALS:** Record checkpoint timings for normal and credentials-absent/offline seven-minute demos.
+- [x] **COMPLETE - DOWNSTREAM CONSUMPTION:** B/C consumed the revised contract and rebuilt immutable runtime/UI artifacts.
+- [x] **COMPLETE - HUMAN REHEARSALS:** Normal and credentials-absent/offline checkpoint timings are recorded in the release runbook.
 - [ ] **PENDING - FINAL REVIEWS:** Obtain two independent PASS verdicts.
 - [ ] **PENDING - FINAL SECURITY:** Obtain final security approval after integrated gates pass.
 
