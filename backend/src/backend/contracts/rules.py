@@ -2,9 +2,16 @@
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    model_validator,
+)
 
-from backend.contracts.source import MetadataText
+from backend.contracts.source import MetadataText, NonEmpty
 
 FinancialYear = Annotated[str, StringConstraints(pattern=r"^[0-9]{4}-[0-9]{2}$")]
 DecimalString = Annotated[
@@ -31,8 +38,19 @@ class TurnoverAveragePredicate(ClosedRuleModel):
     """Represent the supported bidder-only audited average-turnover predicate."""
 
     kind: Literal["TURNOVER_AVERAGE"]
-    required_financial_years: list[FinancialYear] = Field(min_length=1)
-    minimum_average_inr: DecimalString
+    required_financial_years: list[FinancialYear] = Field(
+        min_length=1,
+        description=(
+            "Literal FY YYYY-YY labels from the document, such as "
+            "2022-23, 2023-24, 2024-25; never derive adjacent years."
+        ),
+    )
+    minimum_average_inr: DecimalString = Field(
+        description=(
+            "Absolute INR amount: 1 crore = 10000000, 12 crore = 120000000, "
+            "and 6 crore = 60000000; never emit crore units."
+        )
+    )
     audited_only: Literal[True]
     legal_entity_scope: Literal["BIDDER_ONLY"]
 
@@ -44,6 +62,14 @@ class TurnoverAveragePredicate(ClosedRuleModel):
         return self
 
 
+class CertificationPredicate(ClosedRuleModel):
+    """Represent a named certification that must be valid at an aware instant."""
+
+    kind: Literal["CERTIFICATION"]
+    certificate_name: NonEmpty
+    valid_at: AwareDatetime
+
+
 class UnsupportedPredicate(ClosedRuleModel):
     """Retain unsupported prose so downstream policy must remain UNKNOWN."""
 
@@ -51,15 +77,21 @@ class UnsupportedPredicate(ClosedRuleModel):
     reason: MetadataText
 
 
+RulePredicate = Annotated[
+    TurnoverAveragePredicate | CertificationPredicate | UnsupportedPredicate,
+    Field(discriminator="kind"),
+]
+
+
 class ProposedRuleLeaf(ClosedRuleModel):
     """Represent a supported or explicitly unsupported hard rule proposal."""
 
     node_type: Literal["LEAF"]
     id: MetadataText
-    kind: Literal["TURNOVER_AVERAGE", "UNSUPPORTED"]
+    kind: Literal["TURNOVER_AVERAGE", "CERTIFICATION", "UNSUPPORTED"]
     title: MetadataText
     hardness: Literal["HARD"]
-    predicate: TurnoverAveragePredicate | UnsupportedPredicate
+    predicate: RulePredicate
     evidence: list[EvidenceProposal] = Field(min_length=1)
 
     @model_validator(mode="after")
