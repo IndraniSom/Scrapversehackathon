@@ -1,5 +1,5 @@
 /** Validates company FY, INR, date ordering, tenant isolation, revision, and completeness. */
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, test } from "vitest";
 import { isValidDateOrder, isValidFinancialYear, isValidInrAmount, requireOrg } from "../../convex/companies";
 import { ConvexError } from "convex/values";
 
