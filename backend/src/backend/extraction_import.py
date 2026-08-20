@@ -1,23 +1,35 @@
 """Network-free response import, human review gate, and bounded cached artifacts."""
 
 import json
-from datetime import date
 from pathlib import Path
-from typing import Literal
 
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, ValidationError
+from pydantic import ValidationError
 
+from backend.contracts.cache import (
+    CachedExtraction,
+    CachedPage,
+    HumanExtractionReview,
+)
 from backend.contracts.extraction import (
     ExtractionEnvelope,
     ExtractionRequestArtifact,
-    ExtractionSelection,
     ProposedExtraction,
-    VerifiedExtraction,
 )
-from backend.contracts.source import MetadataText, Sha256
-from backend.documents import DocumentError, DocumentLimits, ParsedDocument, parse_pdf
+from backend.contracts.selection import PrivateSelection, SelectedDocument
+from backend.documents import DocumentError, ParsedDocument
 from backend.extraction import ExtractionError, verify_extraction
-from backend.extraction_requests import request_payload_sha256
+from backend.extraction_lineage import (
+    ExtractionLineageError,
+    validate_cache_lineage,
+    validate_import_lineage,
+)
+from backend.extraction_paths import (
+    ExtractionCachePathError,
+    extraction_output_for_role,
+    validate_extraction_output,
+)
+from backend.extraction_verification import iter_proposed_evidence
+from backend.preparation import PreparationError, rebuild_request_from_selection
 from backend.source_storage import StorageError, atomic_install
 
 
@@ -25,70 +37,43 @@ class ExtractionImportError(ValueError):
     """Report safe request, response, review, or cache validation failure."""
 
 
-class HumanExtractionReview(BaseModel):
-    """Record independent human confirmation for one document revision."""
-
-    model_config = ConfigDict(extra="forbid")
-    reviewer: MetadataText
-    reviewed_at: date
-    document_sha256: Sha256
-    revision: int = Field(ge=1)
-    review_state: Literal["HUMAN_CONFIRMED", "HUMAN_EDITED", "HUMAN_REJECTED"]
-    evidence_confirmed: bool
-    authority_confirmed: bool
-
-
-class CachedPage(BaseModel):
-    """Retain only one-based page identity and normalized text hash, never full text."""
-
-    model_config = ConfigDict(extra="forbid", frozen=True)
-    physical_page_number: int = Field(ge=1)
-    normalized_text_sha256: Sha256
-
-
-class CachedExtraction(BaseModel):
-    """Retain verified bounded extraction, lineage, model metadata, and page inventory."""
-
-    model_config = ConfigDict(extra="forbid")
-    document: ExtractionSelection
-    document_sha256: Sha256
-    physical_page_count: int = Field(ge=1)
-    page_inventory: list[CachedPage] = Field(min_length=1)
-    request_sha256: Sha256
-    provider: Literal["DEEPSEEK"]
-    model: MetadataText
-    prompt_version: MetadataText
-    prompt_sha256: Sha256
-    schema_version: MetadataText
-    generated_at: AwareDatetime
-    verified: VerifiedExtraction
-    reviewer: MetadataText
-    reviewed_at: date
-    review_state: Literal["HUMAN_CONFIRMED", "HUMAN_EDITED"]
-
-
 def import_response_files(
+    selection_path: Path,
     request_path: Path,
     response_path: Path,
     review_path: Path,
     pdf_path: Path,
-    output_path: Path,
 ) -> Path:
-    """Validate all private inputs before atomically writing one bounded cache."""
+    """Rebuild authority and atomically write only its canonical role-derived cache."""
     try:
+        selection, selected, document, authoritative = rebuild_request_from_selection(
+            selection_path, pdf_path
+        )
         request = ExtractionRequestArtifact.model_validate_json(request_path.read_bytes())
         response = ExtractionEnvelope.model_validate_json(response_path.read_bytes())
         review = HumanExtractionReview.model_validate_json(review_path.read_bytes())
-        document = parse_pdf(pdf_path, DocumentLimits())
-        cached = _validate_import(request, response, review, document)
+        cached = _validate_import(
+            authoritative, request, response, review, document, selection, selected
+        )
+        output = extraction_output_for_role(selected.role)
+        validate_extraction_output(output, selected.role)
         content = (
             json.dumps(cached.model_dump(mode="json"), sort_keys=True, separators=(",", ":"))
             + "\n"
         ).encode()
-        return atomic_install(output_path.parent, output_path.name, content)
+        return atomic_install(output.parent, output.name, content)
     except ExtractionImportError:
         raise
-    except (DocumentError, ExtractionError, OSError, StorageError, ValidationError) as error:
+    except (
+        DocumentError,
+        ExtractionCachePathError,
+        ExtractionLineageError,
+        ExtractionError,
+        OSError,
+        PreparationError,
+        StorageError,
+        ValidationError,
+    ) as error:
         raise ExtractionImportError("response import validation failed") from error
 
 
@@ -100,9 +85,13 @@ def verify_cached_extraction(path: Path) -> CachedExtraction:
         raise ExtractionImportError("cached extraction is missing or invalid") from error
     page_numbers = [item.physical_page_number for item in cached.page_inventory]
     proposal = cached.verified.proposal
+    evidence_pages = {
+        item.physical_page_number for item in iter_proposed_evidence(proposal)
+    }
     if (
         proposal.document_sha256 != cached.document_sha256
         or proposal.processed_page_numbers != page_numbers
+        or not evidence_pages.issubset(set(page_numbers))
         or cached.verified.review_state != cached.review_state
         or proposal.review_state != cached.review_state
     ):
@@ -111,28 +100,35 @@ def verify_cached_extraction(path: Path) -> CachedExtraction:
 
 
 def verify_extraction_directory(directory: Path) -> list[CachedExtraction]:
-    """Require one offline-valid base and one offline-valid corrigendum cache."""
-    paths = [directory / "base.json", directory / "amendment.json"]
-    if not all(path.is_file() for path in paths):
+    """Verify fixed base/amendment caches and their authority/revision lineage."""
+    base_path = directory / "base.json"
+    amendment_path = directory / "amendment.json"
+    if not base_path.is_file() or not amendment_path.is_file():
         raise ExtractionImportError("base and amendment extraction caches are required")
-    cached = [verify_cached_extraction(path) for path in paths]
-    if {item.document.role for item in cached} != {"BASE_TENDER", "CORRIGENDUM"}:
-        raise ExtractionImportError("cached extraction roles are incomplete")
-    return cached
+    base = verify_cached_extraction(base_path)
+    amendment = verify_cached_extraction(amendment_path)
+    try:
+        validate_cache_lineage(base, amendment)
+    except ExtractionLineageError as error:
+        raise ExtractionImportError(str(error)) from error
+    return [base, amendment]
 
 
 def _validate_import(
+    authoritative: ExtractionRequestArtifact,
     request: ExtractionRequestArtifact,
     response: ExtractionEnvelope,
     review: HumanExtractionReview,
     document: ParsedDocument,
+    selection: PrivateSelection,
+    selected: SelectedDocument,
 ) -> CachedExtraction:
-    """Correlate request/response/document/review and perform local excerpt verification."""
-    payload = request.request
-    if request.request_sha256 != request_payload_sha256(payload):
-        raise ExtractionImportError("request payload hash mismatch")
+    """Correlate rebuilt request, response chronology, document lineage, and review."""
+    if request != authoritative:
+        raise ExtractionImportError("request does not match PDF-derived authority")
+    payload = authoritative.request
     metadata_pairs = (
-        (response.request_sha256, request.request_sha256),
+        (response.request_sha256, authoritative.request_sha256),
         (response.provider, payload.provider),
         (response.model, payload.model),
         (response.prompt_version, payload.prompt_version),
@@ -141,23 +137,23 @@ def _validate_import(
     )
     if any(actual != expected for actual, expected in metadata_pairs):
         raise ExtractionImportError("response metadata does not match request")
-    if response.output is None:
-        raise ExtractionImportError("provider did not return extraction output")
+    if response.generated_at < payload.generated_at or response.output is None:
+        raise ExtractionImportError("response chronology or output is invalid")
+    output = response.output
+    if output.review_state != "UNREVIEWED":
+        raise ExtractionImportError("provider output cannot claim human review")
     if (
-        payload.document_sha256 != document.document_sha256
-        or response.output.document_sha256 != document.document_sha256
+        output.document_sha256 != document.document_sha256
         or review.document_sha256 != document.document_sha256
-        or review.revision != response.output.revision
+        or review.revision != output.revision
     ):
         raise ExtractionImportError("document or revision metadata mismatch")
-    if (
-        review.review_state not in {"HUMAN_CONFIRMED", "HUMAN_EDITED"}
-        or not review.evidence_confirmed
-        or (payload.document.role == "CORRIGENDUM" and not review.authority_confirmed)
-    ):
-        raise ExtractionImportError("independent human review did not pass")
+    try:
+        validate_import_lineage(output, selection, selected, review)
+    except ExtractionLineageError as error:
+        raise ExtractionImportError(str(error)) from error
     reviewed = ProposedExtraction.model_validate(
-        response.output.model_dump() | {"review_state": review.review_state}
+        output.model_dump() | {"review_state": review.review_state}
     )
     verified = verify_extraction(document, reviewed)
     return CachedExtraction(
@@ -171,7 +167,7 @@ def _validate_import(
             )
             for page in document.pages
         ],
-        request_sha256=request.request_sha256,
+        request_sha256=authoritative.request_sha256,
         provider=response.provider,
         model=response.model,
         prompt_version=response.prompt_version,

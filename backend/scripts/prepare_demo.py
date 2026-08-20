@@ -2,7 +2,6 @@
 
 import argparse
 import sys
-from datetime import UTC, datetime
 from pathlib import Path
 
 from backend.extraction_import import (
@@ -26,9 +25,9 @@ def _parse_args() -> argparse.Namespace:
         "--request-output", type=Path, default=Path("data/preparation/extraction-requests")
     )
     parser.add_argument("--request", type=Path)
+    parser.add_argument("--selection", type=Path)
     parser.add_argument("--review", type=Path)
     parser.add_argument("--pdf", type=Path)
-    parser.add_argument("--output", type=Path)
     return parser.parse_args()
 
 
@@ -39,7 +38,6 @@ def _prepare(selection: Path, options: argparse.Namespace) -> int:
         options.request_output,
         options.private_root,
         repository_source_roots(),
-        datetime.now(UTC),
     )
     for path in paths:
         print(path)
@@ -48,17 +46,17 @@ def _prepare(selection: Path, options: argparse.Namespace) -> int:
 
 def _import(response: Path, options: argparse.Namespace) -> int:
     """Import one provider envelope only when request/PDF/review all verify."""
-    required = (options.request, options.review, options.pdf, options.output)
+    required = (options.selection, options.request, options.review, options.pdf)
     if any(path is None for path in required):
         raise ExtractionImportError(
-            "--request, --review, --pdf, and --output are required"
+            "--selection, --request, --review, and --pdf are required"
         )
     path = import_response_files(
+        options.selection,
         options.request,
         response,
         options.review,
         options.pdf,
-        options.output,
     )
     print(path)
     return 0

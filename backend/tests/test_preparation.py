@@ -1,7 +1,6 @@
 """Private selection validation and full-document request preparation tests."""
 
 import json
-from datetime import UTC, datetime
 from hashlib import sha256
 from pathlib import Path
 
@@ -28,6 +27,7 @@ def write_selection(tmp_path: Path, mutation: str | None = None) -> tuple[Path, 
             "expected_sha256": sha256(base.read_bytes()).hexdigest(),
             "expected_page_count": 2,
             "expected_text_chars": len("base one") + len("base two"),
+            "request_generated_at": "2026-08-20T12:00:00Z",
         },
         {
             "document_version_id": "amendment-v1",
@@ -37,6 +37,7 @@ def write_selection(tmp_path: Path, mutation: str | None = None) -> tuple[Path, 
             "expected_sha256": sha256(amendment.read_bytes()).hexdigest(),
             "expected_page_count": 1,
             "expected_text_chars": len("amendment"),
+            "request_generated_at": "2026-08-20T12:00:00Z",
         },
     ]
     if mutation == "hash":
@@ -64,6 +65,14 @@ def write_selection(tmp_path: Path, mutation: str | None = None) -> tuple[Path, 
             "effective_change_confirmed": True,
         },
     }
+    if mutation == "swapped-review":
+        review = manifest["change_review"]
+        review.update(
+            base_document_version_id="amendment-v1",
+            base_excerpt="amendment",
+            amendment_document_version_id="base-v1",
+            amendment_excerpt="base one",
+        )
     selection = private / "selection.json"
     selection.write_text(json.dumps(manifest))
     return selection, private
@@ -80,7 +89,6 @@ def test_prepare_requests_include_every_page_and_closed_tool_free_schema(
         output,
         private,
         SourceStorageRoots(preparation_root=output, demo_root=tmp_path / "demo"),
-        datetime(2026, 8, 20, 12, tzinfo=UTC),
     )
     assert [path.name for path in paths] == ["base-v1.request.json", "amendment-v1.request.json"]
     requests = [ExtractionRequestArtifact.model_validate_json(path.read_bytes()) for path in paths]
@@ -92,7 +100,9 @@ def test_prepare_requests_include_every_page_and_closed_tool_free_schema(
     assert sum(len(page.text) for page in requests[0].request.pages) == len("base onebase two")
 
 
-@pytest.mark.parametrize("mutation", ["hash", "pages", "text", "path", "roles"])
+@pytest.mark.parametrize(
+    "mutation", ["hash", "pages", "text", "path", "roles", "swapped-review"]
+)
 def test_prepare_rejects_selection_mutation_before_any_request_write(
     tmp_path: Path, mutation: str
 ) -> None:
@@ -105,6 +115,5 @@ def test_prepare_rejects_selection_mutation_before_any_request_write(
             output,
             private,
             SourceStorageRoots(preparation_root=output, demo_root=tmp_path / "demo"),
-            datetime(2026, 8, 20, 12, tzinfo=UTC),
         )
     assert not output.exists()

@@ -1,14 +1,12 @@
 """Private selection validation and complete ignored request preparation."""
 
 import json
-from datetime import date, datetime
 from pathlib import Path
-from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from pydantic import ValidationError
 
 from backend.contracts.extraction import ExtractionRequestArtifact
-from backend.contracts.source import HttpsUrl, MetadataText, Sha256
+from backend.contracts.selection import PrivateSelection, SelectedDocument
 from backend.documents import (
     DocumentError,
     DocumentLimits,
@@ -30,41 +28,7 @@ class PreparationError(ValueError):
     """Report safe private selection or request preparation failure."""
 
 
-class SelectedDocument(BaseModel):
-    """Bind one private filename to official lineage and expected local facts."""
-
-    model_config = ConfigDict(extra="forbid")
-    document_version_id: MetadataText
-    role: Literal["BASE_TENDER", "CORRIGENDUM"]
-    local_filename: MetadataText
-    source_url: HttpsUrl
-    expected_sha256: Sha256
-    expected_page_count: int = Field(ge=1, le=80)
-    expected_text_chars: int = Field(ge=1)
-
-
-class ChangeReview(BaseModel):
-    """Record the named-human visual confirmation that selected clauses differ."""
-
-    model_config = ConfigDict(extra="forbid")
-    reviewer: MetadataText
-    reviewed_at: date
-    base_document_version_id: MetadataText
-    base_physical_page_number: int = Field(ge=1)
-    base_excerpt: str = Field(min_length=1, max_length=1200)
-    amendment_document_version_id: MetadataText
-    amendment_physical_page_number: int = Field(ge=1)
-    amendment_excerpt: str = Field(min_length=1, max_length=1200)
-    effective_change_confirmed: Literal[True]
-
-
-class PrivateSelection(BaseModel):
-    """Select exactly one official base tender and one authority corrigendum."""
-
-    model_config = ConfigDict(extra="forbid")
-    selection_version: Literal["1"]
-    documents: list[SelectedDocument] = Field(min_length=2, max_length=2)
-    change_review: ChangeReview
+PreparedDocument = tuple[SelectedDocument, ParsedDocument, ExtractionRequestArtifact]
 
 
 def prepare_extraction_requests(
@@ -72,28 +36,13 @@ def prepare_extraction_requests(
     output_directory: Path,
     private_root: Path,
     storage_roots: SourceStorageRoots,
-    generated_at: datetime,
 ) -> list[Path]:
     """Validate both selected PDFs before atomically writing complete request files."""
+    selection, prepared = load_prepared_selection(selection_path, private_root)
     try:
         validate_staging_directory(output_directory, storage_roots)
-        selection = PrivateSelection.model_validate_json(selection_path.read_bytes())
-        if {item.role for item in selection.documents} != {"BASE_TENDER", "CORRIGENDUM"}:
-            raise PreparationError("selection must contain base and corrigendum")
-        prepared = [
-            _prepare_document(item, private_root, generated_at)
-            for item in selection.documents
-        ]
-        _validate_change_review(selection, prepared)
-    except PreparationError:
-        raise
-    except (
-        DocumentError,
-        OSError,
-        StorageBoundaryError,
-        ValidationError,
-    ) as error:
-        raise PreparationError("selection or private document is invalid") from error
+    except StorageBoundaryError as error:
+        raise PreparationError("request output is outside preparation storage") from error
     paths: list[Path] = []
     try:
         for selected, _, artifact in prepared:
@@ -114,14 +63,40 @@ def prepare_extraction_requests(
             )
     except StorageError as error:
         raise PreparationError("request artifact write failed") from error
+    assert selection.selection_version == "1"
     return paths
 
 
-def _prepare_document(
-    selected: SelectedDocument,
-    private_root: Path,
-    generated_at: datetime,
-) -> tuple[SelectedDocument, ParsedDocument, ExtractionRequestArtifact]:
+def load_prepared_selection(
+    selection_path: Path, private_root: Path
+) -> tuple[PrivateSelection, list[PreparedDocument]]:
+    """Validate selection roles, both PDFs, and reviewed change excerpts without writes."""
+    try:
+        selection = PrivateSelection.model_validate_json(selection_path.read_bytes())
+        if {item.role for item in selection.documents} != {"BASE_TENDER", "CORRIGENDUM"}:
+            raise PreparationError("selection must contain base and corrigendum")
+        prepared = [_prepare_document(item, private_root) for item in selection.documents]
+        _validate_change_review(selection, prepared)
+        return selection, prepared
+    except PreparationError:
+        raise
+    except (DocumentError, OSError, ValidationError) as error:
+        raise PreparationError("selection or private document is invalid") from error
+
+
+def rebuild_request_from_selection(
+    selection_path: Path, pdf_path: Path
+) -> tuple[PrivateSelection, SelectedDocument, ParsedDocument, ExtractionRequestArtifact]:
+    """Rebuild the authoritative request for one selected PDF using its fixed timestamp."""
+    selection, prepared = load_prepared_selection(selection_path, selection_path.parent)
+    resolved = pdf_path.resolve()
+    for selected, document, artifact in prepared:
+        if (selection_path.parent / selected.local_filename).resolve() == resolved:
+            return selection, selected, document, artifact
+    raise PreparationError("PDF is not one of the selected private documents")
+
+
+def _prepare_document(selected: SelectedDocument, private_root: Path) -> PreparedDocument:
     """Validate one selected private PDF and build its complete request in memory."""
     if Path(selected.local_filename).name != selected.local_filename:
         raise PreparationError("private filename must be a basename")
@@ -141,39 +116,38 @@ def _prepare_document(
         source_url=selected.source_url,
     )
     artifact = build_extraction_request(
-        document, lineage, ExtractionRequestConfig(), generated_at
+        document, lineage, ExtractionRequestConfig(), selected.request_generated_at
     )
     return selected, document, artifact
 
 
 def _validate_change_review(
-    selection: PrivateSelection,
-    prepared: list[tuple[SelectedDocument, ParsedDocument, ExtractionRequestArtifact]],
+    selection: PrivateSelection, prepared: list[PreparedDocument]
 ) -> None:
-    """Locate both human-confirmed change excerpts in their selected document pages."""
+    """Bind reviewed IDs to roles and locate both confirmed excerpts."""
+    selected_by_id = {item.document_version_id: item for item, _, _ in prepared}
     documents = {item.document_version_id: document for item, document, _ in prepared}
     review = selection.change_review
+    base = selected_by_id.get(review.base_document_version_id)
+    amendment = selected_by_id.get(review.amendment_document_version_id)
+    if base is None or base.role != "BASE_TENDER" or amendment is None or amendment.role != "CORRIGENDUM":
+        raise PreparationError("change review IDs do not match selected document roles")
     pairs = (
+        (base.document_version_id, review.base_physical_page_number, review.base_excerpt),
         (
-            review.base_document_version_id,
-            review.base_physical_page_number,
-            review.base_excerpt,
-        ),
-        (
-            review.amendment_document_version_id,
+            amendment.document_version_id,
             review.amendment_physical_page_number,
             review.amendment_excerpt,
         ),
     )
     for document_id, page_number, excerpt in pairs:
-        document = documents.get(document_id)
         page = next(
             (
                 item
-                for item in document.pages
+                for item in documents[document_id].pages
                 if item.physical_page_number == page_number
             ),
             None,
-        ) if document is not None else None
+        )
         if page is None or normalize_text(excerpt) not in normalize_text(page.text):
             raise PreparationError("human-reviewed change excerpt is not locatable")

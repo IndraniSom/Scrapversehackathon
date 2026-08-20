@@ -26,9 +26,7 @@ def verify_extraction(
     if proposed.processed_page_numbers != expected_pages:
         raise EvidenceVerificationError("INCOMPLETE_PAGE_INVENTORY")
     page_by_number = {page.physical_page_number: page for page in document.pages}
-    evidence_items = list(_iter_group_evidence(proposed.requirements))
-    if proposed.authority_statement is not None:
-        evidence_items.append(proposed.authority_statement.evidence)
+    evidence_items = list(iter_proposed_evidence(proposed))
     for item in evidence_items:
         page = page_by_number.get(item.physical_page_number)
         if page is None or normalize_text(item.excerpt) not in normalize_text(page.text):
@@ -52,8 +50,16 @@ def reset_review_for_material_change(
     )
 
 
+def iter_proposed_evidence(proposed: ProposedExtraction) -> list[EvidenceProposal]:
+    """Flatten requirement and authority evidence without evaluating rules."""
+    evidence = _iter_group_evidence(proposed.requirements)
+    if proposed.authority_statement is not None:
+        evidence.append(proposed.authority_statement.evidence)
+    return evidence
+
+
 def _iter_group_evidence(group: ProposedRuleGroup) -> list[EvidenceProposal]:
-    """Flatten evidence spans from a recursive proposal without evaluating rules."""
+    """Flatten requirement evidence from a recursive proposal without evaluation."""
     evidence: list[EvidenceProposal] = []
     for child in group.children:
         if isinstance(child, ProposedRuleLeaf):
