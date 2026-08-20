@@ -16,7 +16,6 @@ EXCLUDED_PARTS = frozenset(
         "__pycache__",
         "coverage",
         "node_modules",
-        "out",
     }
 )
 EXCLUDED_PATHS = (
@@ -24,6 +23,7 @@ EXCLUDED_PATHS = (
     ("backend", "data", "preparation"),
     ("backend", "data", "private-demo"),
     ("backend", "data", "snapshots"),
+    ("frontend", "out"),
 )
 
 

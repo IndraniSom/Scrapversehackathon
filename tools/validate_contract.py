@@ -111,11 +111,29 @@ def _validate_named_stories(name: str, instance: object) -> None:
             raise ContractValidationError(f"{name}: base recommendation must be NO_BID")
         if not isinstance(amended, dict) or amended.get("recommendation") != "BID":
             raise ContractValidationError(f"{name}: amended recommendation must be BID")
+        for label, assessment in (("base", base), ("amended", amended)):
+            if assessment.get("unknown_applicable_rule_count") != 0:
+                raise ContractValidationError(
+                    f"{name}: {label} unknown_applicable_rule_count must be zero"
+                )
         if any(
             key == "evaluation" and value == "UNKNOWN"
             for key, value in _iter_key_values(data)
         ):
             raise ContractValidationError(f"{name}: transition contains UNKNOWN evaluation")
+    if name == "amendment-impact.manual.json":
+        statement = data.get("authority_statement")
+        if (
+            not isinstance(statement, dict)
+            or statement.get("actor") != "AUTHORITY"
+            or statement.get("disposition") != "ACCEPTED"
+            or statement.get("effective_change") is not True
+            or not statement.get("replaces_document_id")
+            or data.get("authority_change_applied") is not True
+            or data.get("base_recommendation") != "NO_BID"
+            or data.get("amended_recommendation") != "BID"
+        ):
+            raise ContractValidationError(f"{name}: invalid authority-backed transition")
     if name == "source-proof.manual.json":
         if data.get("status") != "UNAVAILABLE":
             raise ContractValidationError(f"{name}: source proof must be UNAVAILABLE")

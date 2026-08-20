@@ -19,8 +19,14 @@ describe("frozen API examples", () => {
     expect(example).toMatchObject({
       data: {
         opportunity: { data_mode: "MANUAL_FIXTURE" },
-        base_assessment: { recommendation: "NO_BID" },
-        amended_assessment: { recommendation: "BID" },
+        base_assessment: {
+          recommendation: "NO_BID",
+          unknown_applicable_rule_count: 0,
+        },
+        amended_assessment: {
+          recommendation: "BID",
+          unknown_applicable_rule_count: 0,
+        },
       },
     });
     expect(JSON.stringify(example)).not.toContain('"evaluation":"UNKNOWN"');
