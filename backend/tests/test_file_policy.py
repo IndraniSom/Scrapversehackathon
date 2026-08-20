@@ -144,7 +144,7 @@ def test_rejects_schema_drift_and_invalid_rule_shapes() -> None:
     group_examples = deepcopy(examples)
     assessment = group_examples["assessment.manual.json"]["instance"]["data"]
     group = assessment["amended_assessment"]["requirements"]
-    group.update(operator="AT_LEAST_N", minimum_matches=3)
+    group.update(operator="AT_LEAST_N", minimum_matches=len(group["children"]) + 1)
     with pytest.raises(validation_error, match="minimum_matches"):
         validate(contract, group_examples)
     mismatched = deepcopy(examples)
@@ -157,7 +157,7 @@ def test_rejects_schema_drift_and_invalid_rule_shapes() -> None:
         unknown_count = deepcopy(examples)
         assessment = unknown_count["assessment.manual.json"]["instance"]["data"]
         assessment[assessment_name]["unknown_applicable_rule_count"] = 1
-        with pytest.raises(validation_error, match="unknown_applicable_rule_count"):
+        with pytest.raises(validation_error, match="three UNKNOWN certifications"):
             validate(contract, unknown_count)
     for field, value in (
         ("actor", "BIDDER"),
