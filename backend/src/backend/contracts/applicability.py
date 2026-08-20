@@ -2,9 +2,13 @@
 
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, model_validator
 
 from backend.contracts.source import HttpsUrl, NonEmpty, Sha256
+
+NonBlankApplicabilityValue = Annotated[
+    str, StringConstraints(min_length=1, pattern=r".*\S.*")
+]
 
 
 class ClosedApplicabilityModel(BaseModel):
@@ -39,7 +43,7 @@ class ApplicabilityEquals(ClosedApplicabilityModel):
 
     field: NonEmpty
     operator: Literal["EQUALS"]
-    expected_value: str
+    expected_value: NonBlankApplicabilityValue
     evidence: EvidenceSpan
 
 
@@ -48,7 +52,7 @@ class ApplicabilityIn(ClosedApplicabilityModel):
 
     field: NonEmpty
     operator: Literal["IN"]
-    expected_value: list[str] = Field(
+    expected_value: list[NonBlankApplicabilityValue] = Field(
         min_length=1, json_schema_extra={"uniqueItems": True}
     )
     evidence: EvidenceSpan

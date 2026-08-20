@@ -28,7 +28,16 @@ def evaluate_applicability(
     if isinstance(condition, ApplicabilityExists):
         return True
     if isinstance(condition, ApplicabilityEquals):
-        return actual == condition.expected_value
+        candidate = condition.expected_value
+        if not isinstance(candidate, str) or not candidate.strip():
+            return None
+        return actual == candidate
     if isinstance(condition, ApplicabilityIn):
-        return actual in condition.expected_value
+        candidates = condition.expected_value
+        if not candidates or any(
+            not isinstance(candidate, str) or not candidate.strip()
+            for candidate in candidates
+        ):
+            return None
+        return actual in candidates
     return None

@@ -21,7 +21,7 @@ from backend.routes import (
 )
 
 CONTRACT_PATH = Path(__file__).resolve().parents[3] / "contracts" / "api-v1.openapi.json"
-CONTRACT_SHA256 = "7256e33df529de365bdc1263a188a17a8d3d3c4035c905d067ded286e7333a3e"
+CONTRACT_SHA256 = "bb7df948805027b7325d243a094e48f290371547ae39c2dfd27de093414ca2b1"
 
 
 def create_app(settings: Settings) -> FastAPI:

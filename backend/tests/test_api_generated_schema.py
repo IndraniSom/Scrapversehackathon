@@ -50,9 +50,14 @@ def test_public_applicability_schema_is_operator_discriminated() -> None:
     equals = definitions["ApplicabilityEquals"]["properties"]["expected_value"]
     in_values = definitions["ApplicabilityIn"]["properties"]["expected_value"]
     exists = definitions["ApplicabilityExists"]["properties"]["expected_value"]
-    assert equals["type"] == "string"
+    assert equals | {} == {
+        "minLength": 1,
+        "pattern": ".*\\S.*",
+        "title": "Expected Value",
+        "type": "string",
+    }
     assert in_values | {} == {
-        "items": {"type": "string"},
+        "items": {"minLength": 1, "pattern": ".*\\S.*", "type": "string"},
         "minItems": 1,
         "title": "Expected Value",
         "type": "array",
