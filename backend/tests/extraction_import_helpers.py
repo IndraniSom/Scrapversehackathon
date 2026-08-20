@@ -62,7 +62,7 @@ def import_files(
     envelope = ExtractionEnvelope(
         request_sha256=request.request_sha256,
         provider="DEEPSEEK",
-        model="deepseek-chat",
+        model="deepseek-v4-flash",
         prompt_version="ocac-v1",
         prompt_sha256=request.request.prompt_sha256,
         schema_version="rules-v1",
@@ -143,7 +143,7 @@ def _mutate(
     if mutation == "request-hash":
         envelope = envelope.model_copy(update={"request_sha256": "f" * 64})
     elif mutation == "model":
-        envelope = envelope.model_copy(update={"model": "different-model"})
+        envelope = envelope.model_copy(update={"model": "deepseek-chat"})
     elif mutation == "rejected-review":
         review = review.model_copy(update={"review_state": "HUMAN_REJECTED"})
     elif mutation == "unconfirmed-evidence":

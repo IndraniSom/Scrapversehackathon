@@ -107,6 +107,7 @@ def test_request_contains_all_pages_no_tools_and_untrusted_text() -> None:
         datetime(2026, 8, 20, 12, tzinfo=UTC),
     )
     assert [item.text for item in request.request.pages] == [p.text for p in document().pages]
+    assert request.request.model == "deepseek-v4-flash"
     assert request.request.tools == []
     assert "untrusted" in request.request.instructions.lower()
     assert "call a tool" in request.request.pages[1].text
@@ -174,7 +175,7 @@ def test_extract_requirements_rejects_refusal_or_provider_failure(state: str) ->
     values = {
         "request_sha256": "b" * 64,
         "provider": "DEEPSEEK",
-        "model": "deepseek-chat",
+        "model": "deepseek-v4-flash",
         "prompt_version": "ocac-v1",
         "prompt_sha256": "c" * 64,
         "schema_version": "rules-v1",

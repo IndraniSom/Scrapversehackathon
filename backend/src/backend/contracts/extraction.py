@@ -33,7 +33,7 @@ class ExtractionRequestConfig(ClosedExtractionModel):
     """Freeze provider-independent model, prompt, and schema identifiers."""
 
     provider: Literal["DEEPSEEK"] = "DEEPSEEK"
-    model: Literal["deepseek-chat"] = "deepseek-chat"
+    model: Literal["deepseek-v4-flash"] = "deepseek-v4-flash"
     prompt_version: Literal["ocac-v1"] = "ocac-v1"
     schema_version: Literal["rules-v1"] = "rules-v1"
 
