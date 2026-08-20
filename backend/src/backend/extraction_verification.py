@@ -61,8 +61,8 @@ def iter_proposed_evidence(proposed: ProposedExtraction) -> list[EvidenceProposa
 
 
 def _normalize_evidence_text(text: str) -> str:
-    """Treat the selected PDF's bullet/comma list separators as word spacing."""
-    return normalize_text(text.translate({ord("\uf0b7"): " ", ord(","): " "}))
+    """Treat the selected PDF font's private-use bullet glyph as word spacing."""
+    return normalize_text(text.replace("\uf0b7", " "))
 
 
 def _iter_group_evidence(group: ProposedRuleGroup) -> list[EvidenceProposal]:

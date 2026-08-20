@@ -21,7 +21,7 @@ def test_evidence_lookup_treats_private_use_pdf_bullet_as_spacing() -> None:
             "evidence": [
                 evidence(
                     excerpt=(
-                        "The Bidder must have certification ISO 9001, ISO 27001, "
+                        "The Bidder must have certification ISO 9001, ISO 27001 "
                         "CMMI DEV- Level 3."
                     )
                 )
@@ -33,14 +33,22 @@ def test_evidence_lookup_treats_private_use_pdf_bullet_as_spacing() -> None:
     assert verified.extraction_state == "EVIDENCE_VERIFIED"
 
 
-def test_evidence_lookup_preserves_numeric_commas() -> None:
-    """List normalization cannot erase a thousands separator inside an amount."""
+@pytest.mark.parametrize(
+    ("page_text", "excerpt"),
+    [
+        ("Required: ISO 9001, ISO 27001.", "Required: ISO 9001 ISO 27001."),
+        ("Required: ISO 9001 ISO 27001.", "Required: ISO 9001, ISO 27001."),
+        ("The required amount is INR 1,200.", "The required amount is INR 1 200."),
+    ],
+)
+def test_evidence_lookup_preserves_commas(page_text: str, excerpt: str) -> None:
+    """Comma insertion/removal cannot create a list or spaced-number match."""
     parsed = document().model_copy(
-        update={"pages": [page(1, "The required amount is INR 1,200."), document().pages[1]]}
+        update={"pages": [page(1, page_text), document().pages[1]]}
     )
     group = supported_group()
     leaf = group.children[0].model_copy(
-        update={"evidence": [evidence(excerpt="The required amount is INR 1200.")]}
+        update={"evidence": [evidence(excerpt=excerpt)]}
     )
     changed_group = group.model_copy(update={"children": [leaf]})
     with pytest.raises(ExtractionError, match="EXCERPT_NOT_FOUND"):
