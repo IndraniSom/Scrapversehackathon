@@ -61,9 +61,16 @@ export const sourceTables = {
     authority: v.string(),
     referenceId: v.optional(v.string()),
     category: v.optional(v.string()),
+    location: v.optional(v.string()),
+    budgetAmount: v.optional(v.number()),
+    budgetCurrency: v.optional(v.string()),
+    publishedAt: v.optional(v.number()),
     lifecycle: v.union(v.literal("open"), v.literal("closed"), v.literal("cancelled"), v.literal("archived")),
     closesAt: v.optional(v.number()),
     canonicalUrl: v.optional(v.string()),
+    dataMode: v.optional(v.union(v.literal("LIVE"), v.literal("RECORDED_BRIGHT_DATA_SNAPSHOT"), v.literal("MANUAL_FIXTURE"))),
+    hasAmendment: v.optional(v.boolean()),
+    assessmentRecommendation: v.optional(v.union(v.literal("BID"), v.literal("REVIEW"), v.literal("NO_BID"))),
     currentVersionId: v.optional(v.id("opportunityVersions")),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -74,6 +81,8 @@ export const sourceTables = {
     .index("by_organization_category", ["organizationId", "category"])
     .index("by_organization_lifecycle", ["organizationId", "lifecycle"])
     .index("by_organization_closesAt", ["organizationId", "closesAt"])
+    .index("by_organization_location", ["organizationId", "location"])
+    .index("by_organization_dataMode", ["organizationId", "dataMode"])
     .searchIndex("search_title", { searchField: "title", filterFields: ["organizationId", "source", "category", "lifecycle"] })
     .searchIndex("search_authority", { searchField: "authority", filterFields: ["organizationId", "source", "category", "lifecycle"] })
     .searchIndex("search_reference", { searchField: "referenceId", filterFields: ["organizationId", "source", "category", "lifecycle"] }),

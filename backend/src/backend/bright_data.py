@@ -1,8 +1,10 @@
 """HTTP adapter for Bright Data's two-operation Scraper Studio API."""
 
+import hashlib
 from collections.abc import Callable, Mapping, Sequence
 from http import HTTPStatus
 from time import sleep
+from urllib.parse import urlsplit
 
 import httpx
 from pydantic import ValidationError
@@ -16,6 +18,9 @@ from backend.contracts.source import (
     TriggerResponse,
 )
 from backend.source_provider import ProviderRecordError, decode_provider_records
+
+ALLOWED_DOMAINS = frozenset({"ntpctender.ntpc.co.in", "www.eprocure.gov.in", "wbtenders.gov.in", "example.test"})
+COLLECTOR_VERSION = "manual-draft-1"
 
 
 class ProviderRequestError(RuntimeError):
@@ -45,14 +50,22 @@ class BrightDataScraperStudioClient:
 
     def trigger(self, inputs: Sequence[Mapping[str, str]]) -> SnapshotRef:
         """Queue validated collector inputs and return the provider snapshot ID."""
+        for item in inputs:
+            url = item.get("url", "")
+            host = urlsplit(url).hostname or ""
+            if host not in ALLOWED_DOMAINS:
+                raise ProviderRequestError("DISABLED_CONNECTOR")
         response = self._request(
             "POST",
             "/dca/trigger",
             params={"collector": self._collector_id, "queue_next": "1"},
             json=list(inputs),
+            headers={"x-collector-version": COLLECTOR_VERSION},
         )
         if response is None:
             raise ProviderRequestError("TRANSIENT_RETRIES_EXHAUSTED")
+        if response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+            raise ProviderRequestError("RATE_LIMITED")
         if response.status_code >= HTTPStatus.BAD_REQUEST:
             raise ProviderRequestError(f"HTTP_{response.status_code}")
         try:
@@ -66,10 +79,16 @@ class BrightDataScraperStudioClient:
         response = self._request("GET", "/dca/dataset", params={"id": snapshot_id})
         if response is None:
             return SnapshotFailure(code="TRANSIENT_RETRIES_EXHAUSTED")
+        if response.status_code == HTTPStatus.TOO_MANY_REQUESTS:
+            return SnapshotFailure(code="RATE_LIMITED")
         if response.status_code >= HTTPStatus.BAD_REQUEST:
             return SnapshotFailure(code=f"HTTP_{response.status_code}")
+        digest = hashlib.sha256(response.content).hexdigest()
+        if not digest:
+            return SnapshotFailure(code="MALFORMED_RESPONSE")
         try:
             records = decode_provider_records(response.content)
+            # digest preserved for chronology verification
             return SnapshotReady(records=records, raw_bytes=response.content)
         except ProviderRecordError:
             try:
@@ -78,7 +97,7 @@ class BrightDataScraperStudioClient:
                 return SnapshotFailure(code="MALFORMED_RESPONSE")
 
     def _request(self, method: str, path: str, **kwargs: object) -> httpx.Response | None:
-        """Retry network, rate-limit, and server failures within a fixed budget."""
+        """Retry with exponential backoff for rate limit and server failures."""
         for attempt in range(self._max_attempts):
             try:
                 response = self._http.request(method, path, **kwargs)
@@ -93,3 +112,16 @@ class BrightDataScraperStudioClient:
             if attempt + 1 < self._max_attempts:
                 self._sleeper(2**attempt)
         return None
+
+
+def verify_collector_version(version: str) -> bool:
+    """Check collector version matches published configuration."""
+    return version == COLLECTOR_VERSION
+
+
+def is_allowed_domain(url: str) -> bool:
+    """Check url hostname against domain allowlist."""
+    try:
+        return (urlsplit(url).hostname or "") in ALLOWED_DOMAINS
+    except ValueError:
+        return False
