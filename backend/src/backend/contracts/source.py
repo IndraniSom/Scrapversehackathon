@@ -140,6 +140,14 @@ class VerifiedSourceProof(ClosedModel):
         return self
 
 
+class StoredVerifiedSourceProof(VerifiedSourceProof):
+    """Persist verified proof metadata with the internal 256-character bounds."""
+
+    collector_name: MetadataText
+    collector_config_version: MetadataText
+    provider_run_id: MetadataText
+
+
 class UnavailableSourceProof(ClosedModel):
     """Represent a stopped provider workflow without fabricating source evidence."""
 

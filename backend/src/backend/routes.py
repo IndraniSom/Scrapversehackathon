@@ -9,6 +9,7 @@ from backend.contracts.api import ApiEnvelope, HealthResponse, success
 from backend.contracts.artifacts import DemoBundle
 from backend.contracts.source import OpportunityId, SourceProof
 from backend.contracts.views import AmendmentImpactView, AssessmentView, OpportunityList
+from backend.source_views import build_public_verified_source_proof
 
 
 class OpportunityNotFound(LookupError):
@@ -117,4 +118,4 @@ def get_assessment(
 )
 def get_source_proof(request: Request) -> ApiEnvelope[SourceProof]:
     """Return the offline-verified real provider proof branch."""
-    return success(_bundle(request).verified_proof)
+    return success(build_public_verified_source_proof(_bundle(request).verified_proof))

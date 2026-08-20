@@ -13,7 +13,7 @@ from pydantic import (
     model_validator,
 )
 
-from backend.contracts.source import MetadataText, VerifiedSourceProof
+from backend.contracts.source import MetadataText, StoredVerifiedSourceProof
 from backend.source_policy import PortalReview, portal_calendar_date
 from backend.source_provider import decode_provider_records, normalize_supported_record
 
@@ -50,7 +50,7 @@ class SourceProofArtifact(BaseModel):
     chosen_proof_id: MetadataText
     source_review: PortalReview
     raw_snapshot_path: str
-    proof: VerifiedSourceProof
+    proof: StoredVerifiedSourceProof
 
     @model_validator(mode="after")
     def validate_raw_layout(self) -> "SourceProofArtifact":
@@ -69,7 +69,7 @@ class FinalizationError(ValueError):
     """Report a safe staged-capture or publication gate failure."""
 
 
-def verify_source_proof(path: Path) -> VerifiedSourceProof:
+def verify_source_proof(path: Path) -> StoredVerifiedSourceProof:
     """Verify one proof artifact and its exact local raw bytes without network access."""
     try:
         artifact = SourceProofArtifact.model_validate_json(path.read_bytes())

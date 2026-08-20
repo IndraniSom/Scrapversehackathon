@@ -7,6 +7,7 @@ from pydantic import JsonValue
 
 from backend.contracts.source import (
     OpportunitySummary,
+    StoredVerifiedSourceProof,
     UnavailableSourceProof,
     VerifiedSourceProof,
 )
@@ -21,9 +22,9 @@ def build_verified_source_proof(
     raw_snapshot_sha256: str,
     raw_record: dict[str, JsonValue],
     normalized_record: OpportunitySummary,
-) -> VerifiedSourceProof:
-    """Build a complete VERIFIED branch while keeping every input field required."""
-    return VerifiedSourceProof(
+) -> StoredVerifiedSourceProof:
+    """Build a complete bounded VERIFIED proof for persisted finalization."""
+    return StoredVerifiedSourceProof(
         status="VERIFIED",
         data_mode="RECORDED_BRIGHT_DATA_SNAPSHOT",
         reason_code=None,
@@ -37,6 +38,27 @@ def build_verified_source_proof(
         normalized_record=normalized_record,
         terminal_state="SUCCESS",
         failure_code=None,
+    )
+
+
+def build_public_verified_source_proof(
+    proof: StoredVerifiedSourceProof,
+) -> VerifiedSourceProof:
+    """Map one bounded stored proof explicitly to the complete frozen public view."""
+    return VerifiedSourceProof(
+        status=proof.status,
+        data_mode=proof.data_mode,
+        reason_code=proof.reason_code,
+        collector_name=proof.collector_name,
+        collector_config_version=proof.collector_config_version,
+        provider_run_id=proof.provider_run_id,
+        started_at=proof.started_at,
+        completed_at=proof.completed_at,
+        raw_snapshot_sha256=proof.raw_snapshot_sha256,
+        raw_record=proof.raw_record,
+        normalized_record=proof.normalized_record,
+        terminal_state=proof.terminal_state,
+        failure_code=proof.failure_code,
     )
 
 

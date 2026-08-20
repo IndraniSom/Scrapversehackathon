@@ -4,7 +4,7 @@ from pydantic import AwareDatetime, Field, model_validator
 
 from backend.contracts.cache import CachedExtraction
 from backend.contracts.evaluation import ClosedEvaluationModel, CompanyProfile
-from backend.contracts.source import NonEmpty, Sha256, VerifiedSourceProof
+from backend.contracts.source import NonEmpty, Sha256, StoredVerifiedSourceProof
 from backend.contracts.views import AmendmentImpactView, AssessmentView, OpportunityList
 from backend.source_proof import SourceProofArtifact
 
@@ -49,7 +49,7 @@ class DemoBundle(ClosedEvaluationModel):
     manifest: DemoManifest
     opportunities: OpportunityList
     source_proof: SourceProofArtifact
-    verified_proof: VerifiedSourceProof
+    verified_proof: StoredVerifiedSourceProof
     base_extraction: CachedExtraction
     amendment_extraction: CachedExtraction
     company: CompanyProfile
