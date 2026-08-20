@@ -517,11 +517,22 @@
           },
           {
             "if": {
-              "properties": {
-                "base_recommendation": { "const": "NO_BID" },
-                "amended_recommendation": { "const": "BID" }
-              },
-              "required": ["base_recommendation", "amended_recommendation"]
+              "not": {
+                "anyOf": [
+                  {
+                    "properties": { "base_recommendation": { "const": "BID" }, "amended_recommendation": { "const": "BID" } },
+                    "required": ["base_recommendation", "amended_recommendation"]
+                  },
+                  {
+                    "properties": { "base_recommendation": { "const": "REVIEW" }, "amended_recommendation": { "const": "REVIEW" } },
+                    "required": ["base_recommendation", "amended_recommendation"]
+                  },
+                  {
+                    "properties": { "base_recommendation": { "const": "NO_BID" }, "amended_recommendation": { "const": "NO_BID" } },
+                    "required": ["base_recommendation", "amended_recommendation"]
+                  }
+                ]
+              }
             },
             "then": { "properties": { "authority_change_applied": { "const": true } } }
           }

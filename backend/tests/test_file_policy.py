@@ -133,12 +133,9 @@ def test_validates_frozen_examples_and_a_separate_unknown_input() -> None:
         view["failed_hard_rule_count"] = 0
     assessment["data"]["company_profile"]["projects"] = [
         {
-            "id": "project-001",
-            "title": "Completed platform migration",
-            "client": "Example Client",
-            "value_inr": "5000000.00",
-            "completion_state": "COMPLETED",
-            "completed_at": "2026-01-01",
+            "id": "project-001", "title": "Completed platform migration",
+            "client": "Example Client", "value_inr": "5000000.00",
+            "completion_state": "COMPLETED", "completed_at": "2026-01-01",
             "similar_work_confirmed": True,
             "evidence_reference": "completion-certificate-001",
         }
@@ -152,9 +149,8 @@ def test_rejects_schema_drift_and_invalid_rule_shapes() -> None:
     validate, validation_error = load_contract_validator()
     contract, examples = load_contract_fixtures()
     broken_ref = deepcopy(contract)
-    broken_ref["components"]["schemas"]["OpportunityListEnvelope"]["properties"][
-        "data"
-    ]["$ref"] = "#/components/schemas/Missing"
+    envelope = broken_ref["components"]["schemas"]["OpportunityListEnvelope"]
+    envelope["properties"]["data"]["$ref"] = "#/components/schemas/Missing"
     with pytest.raises(validation_error, match="unresolved"):
         validate(broken_ref, examples)
     extra = deepcopy(examples)
@@ -162,24 +158,21 @@ def test_rejects_schema_drift_and_invalid_rule_shapes() -> None:
     with pytest.raises(validation_error, match="source-proof.manual.json"):
         validate(contract, extra)
     group_examples = deepcopy(examples)
-    group = group_examples["assessment.manual.json"]["instance"]["data"][
-        "amended_assessment"
-    ]["requirements"]
+    assessment = group_examples["assessment.manual.json"]["instance"]["data"]
+    group = assessment["amended_assessment"]["requirements"]
     group.update(operator="AT_LEAST_N", minimum_matches=3)
     with pytest.raises(validation_error, match="minimum_matches"):
         validate(contract, group_examples)
     mismatched = deepcopy(examples)
-    leaf = mismatched["assessment.manual.json"]["instance"]["data"][
-        "base_assessment"
-    ]["requirements"]["children"][0]
+    assessment = mismatched["assessment.manual.json"]["instance"]["data"]
+    leaf = assessment["base_assessment"]["requirements"]["children"][0]
     leaf["kind"] = "CERTIFICATION"
     with pytest.raises(validation_error, match="assessment.manual.json"):
         validate(contract, mismatched)
     for assessment_name in ("base_assessment", "amended_assessment"):
         unknown_count = deepcopy(examples)
-        unknown_count["assessment.manual.json"]["instance"]["data"][assessment_name][
-            "unknown_applicable_rule_count"
-        ] = 1
+        assessment = unknown_count["assessment.manual.json"]["instance"]["data"]
+        assessment[assessment_name]["unknown_applicable_rule_count"] = 1
         with pytest.raises(validation_error, match="unknown_applicable_rule_count"):
             validate(contract, unknown_count)
     for field, value in (
@@ -190,9 +183,16 @@ def test_rejects_schema_drift_and_invalid_rule_shapes() -> None:
         ("replaces_document_id", None),
     ):
         invalid_authority = deepcopy(examples)
-        statement = invalid_authority["amendment-impact.manual.json"]["instance"][
-            "data"
-        ]["authority_statement"]
+        impact = invalid_authority["amendment-impact.manual.json"]["instance"]["data"]
+        statement = impact["authority_statement"]
         statement[field] = value
         with pytest.raises(validation_error, match="amendment-impact.manual.json"):
             validate(contract, invalid_authority)
+    alternate = deepcopy(examples)
+    target = alternate.pop("amendment-impact.manual.json")
+    alternate["alternate-transition.contract-test.json"] = target
+    impact = target["instance"]["data"]
+    impact.update(base_recommendation="BID", amended_recommendation="NO_BID", authority_change_applied=False)
+    impact["authority_statement"].update(actor="BIDDER", disposition="REJECTED", effective_change=False, replaces_document_id=None)
+    with pytest.raises(validation_error, match="alternate-transition.contract-test.json"):
+        validate(contract, alternate)
