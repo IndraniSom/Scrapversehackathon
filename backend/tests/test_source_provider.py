@@ -4,10 +4,11 @@ from datetime import UTC, datetime
 
 import httpx
 import pytest
+from pydantic import ValidationError
 from test_source_policy import approved_review
 
 from backend.bright_data import BrightDataScraperStudioClient
-from backend.contracts.source import SnapshotFailure, SnapshotReady
+from backend.contracts.source import SnapshotBuilding, SnapshotFailure, SnapshotReady
 from backend.source_policy import ApprovalError, validate_collection_inputs
 from backend.source_provider import normalize_provider_record
 
@@ -52,6 +53,24 @@ def test_fetch_rejects_empty_or_nonrecord_response(body: bytes) -> None:
     assert isinstance(result, SnapshotFailure)
 
 
+@pytest.mark.parametrize(
+    "body",
+    [b"{}", b'{"message":"building"}', b'{"status":"building","extra":1}'],
+)
+def test_fetch_rejects_missing_or_expanded_building_discriminator(body: bytes) -> None:
+    """Only the exact explicit building object can consume another poll attempt."""
+    transport = httpx.MockTransport(lambda _: httpx.Response(200, content=body))
+    with httpx.Client(transport=transport, base_url="https://api.brightdata.com") as http:
+        result = BrightDataScraperStudioClient(http, "c_test").fetch("j_test")
+    assert isinstance(result, SnapshotFailure)
+
+
+def test_building_model_requires_explicit_status() -> None:
+    """The status discriminator cannot materialize from a Pydantic default."""
+    with pytest.raises(ValidationError):
+        SnapshotBuilding.model_validate({})
+
+
 def test_ntpc_provider_record_maps_deterministically_without_invented_fields() -> None:
     """CamelCase NTPC output maps to the frozen summary with honest null dates."""
     normalized = normalize_provider_record(PROVIDER_RECORD, "a" * 64)
@@ -69,6 +88,18 @@ def test_ntpc_provider_record_maps_deterministically_without_invented_fields() -
         "data_mode": "RECORDED_BRIGHT_DATA_SNAPSHOT",
         "snapshot_sha256": "a" * 64,
     }
+
+
+@pytest.mark.parametrize("detail_id", ["0", "0001"])
+def test_ntpc_provider_rejects_nonpositive_or_zero_padded_detail_id(
+    detail_id: str,
+) -> None:
+    """Provider detail IDs must match the parser's positive non-zero-leading rule."""
+    record = PROVIDER_RECORD | {
+        "canonicalUrl": f"https://ntpctender.ntpc.co.in/NITDetails/NITs/{detail_id}"
+    }
+    with pytest.raises(ValidationError):
+        normalize_provider_record(record, "a" * 64)
 
 
 def test_ntpc_no_query_input_is_approved_on_local_review_date() -> None:

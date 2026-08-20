@@ -1,5 +1,6 @@
 """Closed NTPC provider record contract and deterministic normalization."""
 
+import re
 from collections.abc import Mapping
 from hashlib import sha256
 from urllib.parse import urlsplit
@@ -64,8 +65,7 @@ class NtpcProviderRecord(BaseModel):
             or parsed.password is not None
             or parsed.query
             or parsed.fragment
-            or not parsed.path.startswith("/NITDetails/NITs/")
-            or not parsed.path.removeprefix("/NITDetails/NITs/").isdigit()
+            or re.fullmatch(r"/NITDetails/NITs/[1-9]\d*", parsed.path) is None
         ):
             raise ValueError("provider canonical URL is unsupported")
         return value

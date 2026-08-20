@@ -56,7 +56,7 @@ class TriggerResponse(ClosedModel):
 class SnapshotBuilding(ClosedModel):
     """Represent a provider snapshot that is still being assembled."""
 
-    status: Literal["building"] = "building"
+    status: Literal["building"]
 
 
 class SnapshotReady(ClosedModel):

@@ -48,7 +48,7 @@ def test_fetch_distinguishes_building_from_exact_ready_bytes() -> None:
         building = client.fetch("j_run_1")
         ready = client.fetch("j_run_1")
 
-    assert building == SnapshotBuilding()
+    assert building == SnapshotBuilding(status="building")
     assert ready == SnapshotReady(
         records=[RAW_RECORD],
         raw_bytes=RAW_BYTES,

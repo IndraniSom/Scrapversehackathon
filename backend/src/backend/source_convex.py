@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from pathlib import Path
+from typing import Annotated
 
 from pydantic import (
     BaseModel,
@@ -31,6 +32,9 @@ from backend.source_provider import (
 from backend.source_storage import StorageError
 
 _EPOCH = datetime(1970, 1, 1, tzinfo=UTC)
+EpochMilliseconds = Annotated[
+    int, Field(strict=True, ge=0, le=253_402_300_799_999)
+]
 
 
 class ConvexImportError(ValueError):
@@ -51,8 +55,8 @@ class ReadyRunMetadata(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     provider_run_id: MetadataText
-    started_at_ms: int = Field(ge=0)
-    completed_at_ms: int = Field(ge=0)
+    started_at_ms: EpochMilliseconds
+    completed_at_ms: EpochMilliseconds
     raw_snapshot_sha256: Sha256
     collector_name: MetadataText
     collector_version: MetadataText
@@ -89,7 +93,7 @@ def import_convex_exports(
         prepared = _prepare_pairs(exports, metadata, review)
     except ConvexImportError:
         raise
-    except (OSError, ValidationError, ValueError) as error:
+    except (OSError, OverflowError, ValidationError, ValueError) as error:
         raise ConvexImportError("Convex import inputs are missing or invalid") from error
     paths: list[Path] = []
     try:

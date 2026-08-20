@@ -6,11 +6,15 @@ from hashlib import sha256
 from pathlib import Path
 
 import pytest
-from pydantic import JsonValue
+from pydantic import JsonValue, ValidationError
 from test_source_policy import approved_review
 from test_source_provider import NTPC_URL, PROVIDER_BYTES
 
-from backend.source_convex import ConvexImportError, import_convex_exports
+from backend.source_convex import (
+    ConvexImportError,
+    ReadyRunMetadata,
+    import_convex_exports,
+)
 from backend.source_finalize import finalize_source_proof
 from backend.source_paths import SourceStorageRoots
 from backend.source_proof import verify_source_proof
@@ -109,9 +113,16 @@ def test_import_stages_three_objects_then_finalizes_and_verifies(tmp_path: Path)
         "base64",
         "hash",
         "time",
+        "time-string",
+        "time-float",
+        "time-bool",
+        "time-negative",
+        "time-overflow",
         "collector",
         "input",
         "response",
+        "detail-zero",
+        "detail-padded",
         "review",
     ],
 )
@@ -130,6 +141,17 @@ def test_import_rejects_each_invalid_pair_before_staging(
         exports[0]["sha256"] = "0" * 64
     elif mutation == "time":
         metadata[0]["completed_at_ms"] = 1
+    elif mutation == "time-string":
+        metadata[0]["started_at_ms"] = "1787168896422"
+    elif mutation == "time-float":
+        metadata[0]["started_at_ms"] = 1787168896422.0
+    elif mutation == "time-bool":
+        metadata[0]["started_at_ms"] = True
+    elif mutation == "time-negative":
+        metadata[0]["started_at_ms"] = -1
+    elif mutation == "time-overflow":
+        metadata[0]["started_at_ms"] = 10**30
+        metadata[0]["completed_at_ms"] = 10**30 + 1
     elif mutation == "collector":
         metadata[2]["collector_version"] = "2.0.0"
     elif mutation == "input":
@@ -138,6 +160,13 @@ def test_import_rejects_each_invalid_pair_before_staging(
         rewrite_raw(exports, metadata, json.dumps(value).encode())
     elif mutation == "response":
         rewrite_raw(exports, metadata, b'{"status":"building"}')
+    elif mutation in {"detail-zero", "detail-padded"}:
+        value = json.loads(PROVIDER_BYTES)
+        suffix = "0" if mutation == "detail-zero" else "0001"
+        value["canonicalUrl"] = (
+            f"https://ntpctender.ntpc.co.in/NITDetails/NITs/{suffix}"
+        )
+        rewrite_raw(exports, metadata, json.dumps(value).encode())
     elif mutation == "review":
         pass
     else:
@@ -151,3 +180,16 @@ def test_import_rejects_each_invalid_pair_before_staging(
     with pytest.raises(ConvexImportError):
         import_convex_exports(exports_path, metadata_path, review_path, staging, roots)
     assert not staging.exists()
+
+
+@pytest.mark.parametrize(
+    "invalid",
+    ["1787168896422", 1787168896422.0, True, -1, 253_402_300_800_000],
+)
+def test_run_metadata_requires_strict_bounded_epoch_milliseconds(
+    invalid: object,
+) -> None:
+    """Timestamp metadata rejects coercion, negatives, booleans, and overflow."""
+    _, metadata = synthetic_payloads()
+    with pytest.raises(ValidationError):
+        ReadyRunMetadata.model_validate(metadata[0] | {"started_at_ms": invalid})
