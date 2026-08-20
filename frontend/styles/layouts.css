@@ -1,6 +1,7 @@
 /**
  * Layout primitives for BidRadar shell and responsive behavior.
- * Handles sidebar, drawer, filter rail, and content rhythm.
+ * Editorial shell: sidebar + header + main, 4/8 rhythm, stone borders.
+ * No glassmorphism, no gradients, warm paper surfaces.
  */
 
 .app-shell-layout {
@@ -73,8 +74,8 @@
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: 0.68rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  text-transform: none;
 }
 
 .shell-main {
@@ -98,8 +99,8 @@
   color: var(--faint);
   font-family: var(--font-mono);
   font-size: 0.66rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  text-transform: none;
 }
 .nav-link {
   display: flex;
@@ -132,13 +133,36 @@
   border-radius: var(--radius-sm);
   background: var(--surface);
   font: inherit;
+  font-weight: 650;
   cursor: pointer;
 }
+.menu-button:hover { background: var(--surface-strong); }
 
 /* Filter rail responsive: rail on desktop, sheet on mobile */
 .filter-rail-desktop { display: grid; }
 .filter-sheet-trigger { display: none; }
 
+/* Distinct discovery vs proposal layouts — avoid identical grids */
+.discovery-layout {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: var(--space-6);
+  align-items: start;
+}
+.proposal-workspace-layout {
+  display: grid;
+  grid-template-columns: 300px 1fr 280px;
+  gap: var(--space-4);
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .proposal-workspace-layout { grid-template-columns: 280px 1fr; }
+}
+@media (max-width: 1024px) {
+  .discovery-layout { grid-template-columns: 240px 1fr; gap: var(--space-4); }
+  .shell-main { width: min(100% - 1.5rem, var(--content-max)); }
+}
 @media (max-width: 767px) {
   .app-shell-layout {
     grid-template-columns: 1fr;
@@ -151,11 +175,24 @@
   .shell-main { width: min(100% - 1.25rem, var(--content-max)); padding-top: 1.5rem; }
   .filter-rail-desktop { display: none; }
   .filter-sheet-trigger { display: inline-flex; min-height: 44px; }
+  .discovery-layout { grid-template-columns: 1fr; }
+  .proposal-workspace-layout { grid-template-columns: 1fr; }
 }
 
 @media (min-width: 768px) {
   .drawer-panel,
   .drawer-overlay { display: none !important; }
+}
+
+/* 320 fixes — ensure no overflow, keep 44px targets tappable */
+@media (max-width: 480px) {
+  .shell-topbar { padding: 0 var(--space-4); }
+  .shell-main { width: min(100% - 1rem, var(--content-max)); }
+}
+
+/* 1440 — wider but not giant */
+@media (min-width: 1440px) {
+  .shell-main { width: min(1280px, calc(100% - 3rem)); }
 }
 
 @media (prefers-reduced-motion: reduce) {
