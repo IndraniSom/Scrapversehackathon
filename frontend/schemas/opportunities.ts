@@ -6,7 +6,7 @@ export const opportunityIdSchema = z.string().min(1).max(160).refine((value) => 
 
 export const opportunitySummarySchema = z.strictObject({
   id: opportunityIdSchema,
-  source: z.enum(["CPPP", "WEST_BENGAL", "NTPC"]),
+  source: z.enum(["CPPP", "WEST_BENGAL", "NTPC", "ODISHA"]),
   source_tender_id: z.string().min(1),
   reference_number: z.string().nullable(),
   authority: z.string().min(1),

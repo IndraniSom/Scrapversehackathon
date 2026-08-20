@@ -27,7 +27,11 @@ function respondingWith(body: unknown, status = 200): typeof fetch {
 
 describe("frozen response schemas", () => {
   test("parse all four manual fixtures", () => {
-    expect(opportunityListEnvelopeSchema.parse(opportunities).data.total).toBe(6);
+    const parsedOpportunities = opportunityListEnvelopeSchema.parse(opportunities);
+    expect(parsedOpportunities.data.total).toBe(7);
+    expect(parsedOpportunities.data.items.map((item) => item.source)).toEqual([
+      "CPPP", "CPPP", "WEST_BENGAL", "WEST_BENGAL", "NTPC", "NTPC", "ODISHA",
+    ]);
     expect(assessmentEnvelopeSchema.parse(assessment).data.base_assessment.recommendation).toBe("NO_BID");
     expect(amendmentImpactEnvelopeSchema.parse(amendment).data.amended_recommendation).toBe("BID");
     expect(sourceProofEnvelopeSchema.parse(sourceProof).data.status).toBe("UNAVAILABLE");
@@ -37,7 +41,7 @@ describe("frozen response schemas", () => {
 
 describe("typed API boundary", () => {
   test("returns validated values from all four endpoints", async () => {
-    await expect(getOpportunities({ fetcher: respondingWith(opportunities) })).resolves.toMatchObject({ data: { total: 6 } });
+    await expect(getOpportunities({ fetcher: respondingWith(opportunities) })).resolves.toMatchObject({ data: { total: 7 } });
     await expect(getSourceProof({ fetcher: respondingWith(sourceProof) })).resolves.toMatchObject({ data: { status: "UNAVAILABLE" } });
     await expect(getAssessment("wb-hci-063", { fetcher: respondingWith(assessment) })).resolves.toMatchObject({ data: { opportunity: { id: "wb-hci-063" } } });
     await expect(getAmendmentImpact("wb-hci-063", { fetcher: respondingWith(amendment) })).resolves.toMatchObject({ data: { authority_change_applied: true } });
@@ -93,7 +97,7 @@ describe("typed API boundary", () => {
     const partial = cloneFixture(opportunities);
     const data = objectProperty(partial, "data");
     data.items = arrayProperty(data, "items").slice(0, 5);
-    await expect(getOpportunities({ fetcher: respondingWith(partial) })).resolves.toMatchObject({ data: { total: 6 } });
+    await expect(getOpportunities({ fetcher: respondingWith(partial) })).resolves.toMatchObject({ data: { total: 7 } });
   });
 
   test.each([

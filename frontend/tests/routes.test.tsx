@@ -30,13 +30,20 @@ afterEach(() => {
 });
 
 describe("server-rendered routes", () => {
-  test("lists six opportunities from all three sources with freshness and proof", async () => {
+  test("lists seven opportunities in the 2/2/2/1 source distribution with truthful OCAC proof", async () => {
     installFixtureApi();
     render(await HomePage());
-    expect(screen.getAllByRole("row")).toHaveLength(7);
+    expect(screen.getAllByRole("row")).toHaveLength(8);
     expect(screen.getAllByText("CPPP")).toHaveLength(2);
     expect(screen.getAllByText("WEST_BENGAL")).toHaveLength(2);
     expect(screen.getAllByText("NTPC")).toHaveLength(2);
+    expect(screen.getByText("ODISHA")).toBeVisible();
+    const ocacLink = screen.getByRole("link", { name: /AI-enabled IoT-based Pond Monitoring/i });
+    expect(ocacLink).toHaveAttribute("href", "/opportunities/ocac-pond-monitoring-26001");
+    const ocacRow = ocacLink.closest("tr");
+    if (ocacRow === null) throw new Error("Expected OCAC opportunity table row");
+    expect(within(ocacRow).getByText("MANUAL_FIXTURE")).toBeVisible();
+    expect(within(ocacRow).getByRole("link", { name: "Open official notice" })).toHaveAttribute("href", "https://odisha.gov.in/sites/default/files/2026-01/RFP-26001_03.01.2026_1.pdf");
     expect(screen.getByRole("link", { name: "Cloud operations support services" })).toHaveClass("opportunity-title-link");
     expect(screen.getByText(/Generated 20 Aug 2026/i)).toBeVisible();
     expect(screen.getAllByText("MANUAL_FIXTURE").length).toBeGreaterThan(0);
