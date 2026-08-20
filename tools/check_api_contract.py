@@ -11,9 +11,6 @@ from fastapi.testclient import TestClient
 from jsonschema import Draft202012Validator, FormatChecker
 from openapi_spec_validator import validate
 
-from backend.config import Settings
-from backend.main import create_app
-
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = {
     "listOpportunities": ("opportunities.manual.json", "OpportunityListEnvelope"), "getAssessment": ("assessment.manual.json", "AssessmentViewEnvelope"),
@@ -114,7 +111,7 @@ def _normalize(value: object, document: Mapping[str, object], seen: frozenset[st
     if "const" in normalized: normalized.pop("type", None)
     if normalized.get("pattern") == "^[a-f0-9]{64}$": normalized["pattern"] = "^[0-9a-f]{64}$"
     branches = normalized.get("anyOf")
-    if isinstance(branches, list) and {"type": "null"} in branches and len(branches) == 2:
+    if set(normalized) == {"anyOf"} and isinstance(branches, list) and {"type": "null"} in branches and len(branches) == 2:
         other = next(branch for branch in branches if branch != {"type": "null"})
         if isinstance(other, dict) and isinstance(other.get("type"), str):
             normalized = dict(other)
@@ -183,6 +180,9 @@ def verify_contract(app: FastAPI, contract: Mapping[str, object], root: Path) ->
 
 def main() -> int:
     """Validate the repository application against its frozen contract in process."""
+    from backend.config import Settings
+    from backend.main import create_app
+
     contract = json.loads((ROOT / "contracts/api-v1.openapi.json").read_text())
     verify_contract(create_app(Settings()), contract, ROOT)
     print("validated 6 concrete GET operations, normalized schema graphs, 4 examples, and 7 responses")
