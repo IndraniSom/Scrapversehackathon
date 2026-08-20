@@ -28,7 +28,7 @@ export class ApiFailure extends Error {
 }
 
 const loopbackApiOriginSchema = z.string().transform((value, context) => {
-  const match = /^http:\/\/(?:localhost|127\.0\.0\.1):([0-9]{1,5})$/i.exec(value);
+  const match = value.match(/^http:\/\/(?:localhost|127\.0\.0\.1):([0-9]{1,5})$/i);
   const port = match ? Number(match[1]) : 0;
   if (match === null || port < 1 || port > 65_535) {
     context.addIssue({ code: "custom", message: "BIDRADAR_API_BASE_URL must be an HTTP loopback origin with an explicit valid port" });
