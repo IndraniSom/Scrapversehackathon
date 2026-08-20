@@ -22,6 +22,7 @@ from backend.extraction_lineage import (
     ExtractionLineageError,
     validate_cache_lineage,
     validate_import_lineage,
+    validate_review_chronology,
 )
 from backend.extraction_paths import (
     ExtractionCachePathError,
@@ -139,6 +140,7 @@ def _validate_import(
         raise ExtractionImportError("response metadata does not match request")
     if response.generated_at < payload.generated_at or response.output is None:
         raise ExtractionImportError("response chronology or output is invalid")
+    validate_review_chronology(review.reviewed_at, response.generated_at)
     output = response.output
     if output.review_state != "UNREVIEWED":
         raise ExtractionImportError("provider output cannot claim human review")

@@ -1,5 +1,8 @@
 """Base/corrigendum review, authority replacement, and revision lineage checks."""
 
+from datetime import date, datetime
+from zoneinfo import ZoneInfo
+
 from backend.contracts.cache import CachedExtraction, HumanExtractionReview
 from backend.contracts.extraction import ProposedExtraction
 from backend.contracts.selection import PrivateSelection, SelectedDocument
@@ -7,6 +10,21 @@ from backend.contracts.selection import PrivateSelection, SelectedDocument
 
 class ExtractionLineageError(ValueError):
     """Report invalid review, document role, authority, or revision lineage."""
+
+
+INDIA_CALENDAR = ZoneInfo("Asia/Kolkata")
+
+
+def validate_review_chronology(
+    reviewed_at: date, response_generated_at: datetime
+) -> None:
+    """Require date-only review on/after the response's India date and not in future."""
+    if (
+        response_generated_at.utcoffset() is None
+        or reviewed_at < response_generated_at.astimezone(INDIA_CALENDAR).date()
+        or reviewed_at > datetime.now(INDIA_CALENDAR).date()
+    ):
+        raise ExtractionLineageError("independent review chronology is invalid")
 
 
 def validate_import_lineage(

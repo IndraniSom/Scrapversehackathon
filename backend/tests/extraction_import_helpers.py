@@ -26,7 +26,11 @@ PAGE_TEXTS = (
 )
 
 
-def import_files(tmp_path: Path, *, mutation: str | None = None) -> Path:
+def import_files(
+    tmp_path: Path, *, mutation: str | None = None,
+    response_at: datetime | None = None,
+    reviewed_at: date | None = None,
+) -> Path:
     """Build and import one complete synthetic authority bundle."""
     pdf = write_text_pdf(tmp_path / "document.pdf", list(PAGE_TEXTS))
     amendment = write_text_pdf(tmp_path / "amendment.pdf", ["Amendment text"])
@@ -62,14 +66,14 @@ def import_files(tmp_path: Path, *, mutation: str | None = None) -> Path:
         prompt_version="ocac-v1",
         prompt_sha256=request.request.prompt_sha256,
         schema_version="rules-v1",
-        generated_at=datetime(2026, 8, 20, 12, 1, tzinfo=UTC),
+        generated_at=response_at or datetime(2026, 8, 20, 12, 1, tzinfo=UTC),
         output=proposal,
         refusal=None,
         failure_code=None,
     )
     review = HumanExtractionReview(
         reviewer="Human Reviewer",
-        reviewed_at=date(2026, 8, 20),
+        reviewed_at=reviewed_at or date(2026, 8, 20),
         document_sha256=document.document_sha256,
         revision=1,
         review_state="HUMAN_CONFIRMED",
