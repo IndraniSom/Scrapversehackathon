@@ -1,0 +1,163 @@
+/**
+ * Layout primitives for BidRadar shell and responsive behavior.
+ * Handles sidebar, drawer, filter rail, and content rhythm.
+ */
+
+.app-shell-layout {
+  display: grid;
+  grid-template-columns: var(--sidebar-width) 1fr;
+  grid-template-rows: var(--header-height) 1fr;
+  grid-template-areas:
+    "sidebar header"
+    "sidebar main";
+  min-height: 100vh;
+  background: var(--surface-subtle);
+}
+
+.shell-sidebar {
+  grid-area: sidebar;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  border-right: 1px solid var(--border);
+  background: var(--surface-raised);
+  padding: var(--space-5) var(--space-3) var(--space-6);
+  box-shadow: 1px 0 0 var(--border), inset -1px 0 0 oklch(0 0 0 / 0.02);
+}
+.shell-sidebar-head {
+  display: grid;
+  gap: var(--space-2);
+  padding: 0 var(--space-2) var(--space-5);
+  border-bottom: 1px solid var(--border);
+  margin-bottom: var(--space-5);
+}
+.shell-sidebar-head strong {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--leading-tight);
+}
+.shell-sidebar-head p {
+  margin: 0;
+  color: var(--faint);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.shell-topbar {
+  grid-area: header;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: var(--header-height);
+  padding: 0 var(--space-6);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+.top-context {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.top-context-kicker {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  padding: 0 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: var(--surface-subtle);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.shell-main {
+  grid-area: main;
+  width: min(var(--content-max), calc(100% - 2rem));
+  margin: 0 auto;
+  padding: 2rem 0 3rem;
+}
+
+.nav-list {
+  display: grid;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav-section-label {
+  margin: 1.25rem 0 0.5rem;
+  padding: 0 var(--space-2);
+  color: var(--faint);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.nav-link {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: var(--space-3);
+  border-radius: var(--radius-sm);
+  padding: 0 0.75rem;
+  color: var(--muted);
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.92rem;
+  transition: background var(--duration-fast) var(--ease-default), color var(--duration-fast) var(--ease-default);
+}
+.nav-link[aria-current="page"] {
+  background: var(--surface-strong);
+  color: var(--text);
+  box-shadow: inset 3px 0 0 var(--action);
+}
+.nav-link:hover { background: var(--surface-subtle); color: var(--text); }
+.nav-link:focus-visible { outline-offset: -2px; }
+
+.menu-button {
+  display: none;
+  min-height: 44px;
+  min-width: 44px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font: inherit;
+  cursor: pointer;
+}
+
+/* Filter rail responsive: rail on desktop, sheet on mobile */
+.filter-rail-desktop { display: grid; }
+.filter-sheet-trigger { display: none; }
+
+@media (max-width: 767px) {
+  .app-shell-layout {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "header"
+      "main";
+  }
+  .shell-sidebar { display: none; }
+  .menu-button { display: inline-flex; }
+  .shell-main { width: min(100% - 1.25rem, var(--content-max)); padding-top: 1.5rem; }
+  .filter-rail-desktop { display: none; }
+  .filter-sheet-trigger { display: inline-flex; min-height: 44px; }
+}
+
+@media (min-width: 768px) {
+  .drawer-panel,
+  .drawer-overlay { display: none !important; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { scroll-behavior: auto !important; }
+}
