@@ -1,2 +1,16 @@
+"""BidRadar backend package and local server entry point."""
+
+import uvicorn
+
+from backend.config import Settings
+
+
 def main() -> None:
-    print("Hello from backend!")
+    """Run the offline FastAPI application with validated bind settings."""
+    settings = Settings()
+    uvicorn.run(
+        "backend.main:app",
+        host=settings.host,
+        port=settings.port,
+        reload=False,
+    )
