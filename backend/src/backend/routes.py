@@ -7,7 +7,7 @@ from starlette.types import Scope
 
 from backend.contracts.api import ApiEnvelope, HealthResponse, success
 from backend.contracts.artifacts import DemoBundle
-from backend.contracts.source import OpportunityId, VerifiedSourceProof
+from backend.contracts.source import OpportunityId, SourceProof
 from backend.contracts.views import AmendmentImpactView, AssessmentView, OpportunityList
 
 
@@ -112,9 +112,9 @@ def get_assessment(
 
 @router.get(
     "/api/v1/source-proof",
-    response_model=ApiEnvelope[VerifiedSourceProof],
+    response_model=ApiEnvelope[SourceProof],
     operation_id="getSourceProof",
 )
-def get_source_proof(request: Request) -> ApiEnvelope[VerifiedSourceProof]:
+def get_source_proof(request: Request) -> ApiEnvelope[SourceProof]:
     """Return the offline-verified real provider proof branch."""
     return success(_bundle(request).verified_proof)

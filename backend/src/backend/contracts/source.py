@@ -3,46 +3,26 @@
 from typing import Annotated, Literal
 
 from pydantic import (
-    AfterValidator,
     AwareDatetime,
     BaseModel,
-    BeforeValidator,
     ConfigDict,
-    HttpUrl,
+    Field,
     JsonValue,
-    StringConstraints,
-    TypeAdapter,
     field_validator,
     model_validator,
 )
 
+from backend.contracts.scalars import (
+    DataMode,
+    HttpsUrl,
+    JsonObject,
+    NonEmpty,
+    OpportunityId,
+    Sha256,
+)
+from backend.contracts.scalars import MetadataText as ScalarMetadataText
 
-def _validate_https_url(value: str) -> str:
-    """Return a normalized credential-free HTTPS URL with a real host."""
-    url = TypeAdapter(HttpUrl).validate_python(value)
-    if url.scheme != "https" or url.username or url.password:
-        raise ValueError("URL must be credential-free HTTPS")
-    return str(url)
-
-
-def _validate_opportunity_id(value: str) -> str:
-    """Reject only exact route dot segments without transforming other IDs."""
-    if value in {".", ".."}:
-        raise ValueError("opportunity ID cannot be a dot segment")
-    return value
-
-Sha256 = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
-HttpsUrl = Annotated[str, BeforeValidator(_validate_https_url)]
-NonEmpty = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
-MetadataText = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=256)
-]
-OpportunityId = Annotated[
-    str,
-    StringConstraints(min_length=1, max_length=160),
-    AfterValidator(_validate_opportunity_id),
-]
-DataMode = Literal["LIVE", "RECORDED_BRIGHT_DATA_SNAPSHOT", "MANUAL_FIXTURE"]
+MetadataText = ScalarMetadataText
 
 
 class ClosedModel(BaseModel):
@@ -141,13 +121,13 @@ class VerifiedSourceProof(ClosedModel):
     status: Literal["VERIFIED"]
     data_mode: Literal["RECORDED_BRIGHT_DATA_SNAPSHOT"]
     reason_code: None
-    collector_name: MetadataText
-    collector_config_version: MetadataText
-    provider_run_id: MetadataText
+    collector_name: NonEmpty
+    collector_config_version: NonEmpty
+    provider_run_id: NonEmpty
     started_at: AwareDatetime
     completed_at: AwareDatetime
     raw_snapshot_sha256: Sha256
-    raw_record: dict[str, JsonValue]
+    raw_record: JsonObject
     normalized_record: OpportunitySummary
     terminal_state: Literal["SUCCESS"]
     failure_code: None
@@ -183,4 +163,7 @@ class UnavailableSourceProof(ClosedModel):
     failure_code: None
 
 
-SourceProof = VerifiedSourceProof | UnavailableSourceProof
+SourceProof = Annotated[
+    VerifiedSourceProof | UnavailableSourceProof,
+    Field(discriminator="status"),
+]

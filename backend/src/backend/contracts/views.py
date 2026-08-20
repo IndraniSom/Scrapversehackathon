@@ -11,6 +11,11 @@ from backend.contracts.evaluation import (
     RuleGroup,
     RulePredicate,
     RuleResult,
+    UnsupportedRuleLeaf,
+)
+from backend.contracts.schema_hooks import (
+    amendment_impact_json_schema,
+    authority_json_schema,
 )
 from backend.contracts.source import (
     DataMode,
@@ -49,6 +54,9 @@ class Assessment(ClosedEvaluationModel):
 class AuthorityStatement(ClosedEvaluationModel):
     """Represent one reviewed authority, bidder, or third-party statement."""
 
+    model_config = ConfigDict(
+        extra="forbid", json_schema_extra=authority_json_schema
+    )
     actor: Literal["AUTHORITY", "BIDDER", "THIRD_PARTY"]
     disposition: Literal["ACCEPTED", "REJECTED", "CLARIFIED", "UNCHANGED", "AMBIGUOUS"]
     effective_change: bool
@@ -76,6 +84,22 @@ class AssessmentView(ClosedEvaluationModel):
     amended_assessment: Assessment
     disclaimer: NonEmpty
 
+    @model_validator(mode="after")
+    def reject_public_unsupported_rules(self) -> "AssessmentView":
+        """Keep internal unsupported evaluation fixtures outside public responses."""
+        pending = [
+            self.base_assessment.requirements,
+            self.amended_assessment.requirements,
+        ]
+        while pending:
+            node = pending.pop()
+            if any(isinstance(child, UnsupportedRuleLeaf) for child in node.children):
+                raise ValueError("unsupported rule cannot enter a public assessment")
+            pending.extend(
+                child for child in node.children if isinstance(child, RuleGroup)
+            )
+        return self
+
 
 class OpportunityList(ClosedEvaluationModel):
     """Expose the immutable opportunity inventory and generation timestamp."""
@@ -95,6 +119,9 @@ class OpportunityList(ClosedEvaluationModel):
 class AmendmentImpactView(ClosedEvaluationModel):
     """Expose the single authority-controlled rule and recommendation transition."""
 
+    model_config = ConfigDict(
+        extra="forbid", json_schema_extra=amendment_impact_json_schema
+    )
     opportunity_id: OpportunityId
     data_mode: DataMode
     base_document: DocumentVersion

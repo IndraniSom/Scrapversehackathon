@@ -40,6 +40,7 @@ class TurnoverAveragePredicate(ClosedRuleModel):
     kind: Literal["TURNOVER_AVERAGE"]
     required_financial_years: list[FinancialYear] = Field(
         min_length=1,
+        json_schema_extra={"uniqueItems": True},
         description=(
             "Literal FY YYYY-YY labels from the document, such as "
             "2022-23, 2023-24, 2024-25; never derive adjacent years."

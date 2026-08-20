@@ -1,12 +1,16 @@
 """Closed deterministic company, predicate, rule, and result contracts."""
 
 from datetime import date
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, WithJsonSchema, model_validator
 
 from backend.contracts.predicates import RulePredicate
 from backend.contracts.rules import DecimalString, FinancialYear
+from backend.contracts.schema_hooks import (
+    rule_group_json_schema,
+    rule_leaf_json_schema,
+)
 from backend.contracts.source import HttpsUrl, MetadataText, NonEmpty, Sha256
 
 
@@ -94,17 +98,28 @@ class ApplicabilityCondition(ClosedEvaluationModel):
 
     field: NonEmpty
     operator: Literal["EQUALS", "IN", "EXISTS"]
-    expected_value: str | bool | list[str] | None
+    expected_value: Annotated[
+        str | bool | list[str] | None,
+        WithJsonSchema(
+            {
+                "type": ["string", "boolean", "array", "null"],
+                "items": {"type": "string"},
+            }
+        ),
+    ]
     evidence: EvidenceSpan
 
 
 class RuleLeaf(ClosedEvaluationModel):
     """Represent one frozen supported hard rule and its reviewed evidence."""
 
+    model_config = ConfigDict(
+        extra="forbid", json_schema_extra=rule_leaf_json_schema
+    )
     node_type: Literal["LEAF"]
-    id: MetadataText
+    id: NonEmpty
     kind: Literal["TURNOVER_AVERAGE", "CERTIFICATION", "PROJECT_EXPERIENCE", "EMD", "DEADLINE"]
-    title: MetadataText
+    title: NonEmpty
     hardness: Literal["HARD"]
     predicate: RulePredicate
     applicability: ApplicabilityCondition | None
@@ -122,9 +137,9 @@ class UnsupportedRuleLeaf(ClosedEvaluationModel):
     """Retain bounded unsupported prose that must evaluate to UNKNOWN."""
 
     node_type: Literal["LEAF"]
-    id: MetadataText
+    id: NonEmpty
     kind: Literal["UNSUPPORTED"]
-    title: MetadataText
+    title: NonEmpty
     hardness: Literal["HARD"]
     reason: MetadataText
     applicability: ApplicabilityCondition | None
@@ -134,10 +149,13 @@ class UnsupportedRuleLeaf(ClosedEvaluationModel):
 class RuleGroup(ClosedEvaluationModel):
     """Represent one non-vacuous recursive rule operator."""
 
+    model_config = ConfigDict(
+        extra="forbid", json_schema_extra=rule_group_json_schema
+    )
     node_type: Literal["GROUP"]
-    id: MetadataText
+    id: NonEmpty
     operator: Literal["ALL", "ANY", "AT_LEAST_N"]
-    minimum_matches: int | None
+    minimum_matches: int | None = Field(ge=1)
     children: list["RuleGroup | RuleLeaf | UnsupportedRuleLeaf"] = Field(min_length=1)
 
     @model_validator(mode="after")
@@ -160,8 +178,8 @@ RuleNode = RuleGroup | RuleLeaf | UnsupportedRuleLeaf
 class RuleResult(ClosedEvaluationModel):
     """Expose one deterministic evaluation and recursive child explanations."""
 
-    rule_id: MetadataText
-    title: MetadataText
+    rule_id: NonEmpty
+    title: NonEmpty
     evaluation: Literal["PASS", "FAIL", "UNKNOWN", "NOT_APPLICABLE"]
     explanation: NonEmpty
     company_value: str | None

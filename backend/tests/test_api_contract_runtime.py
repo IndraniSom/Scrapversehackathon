@@ -12,7 +12,7 @@ from pydantic import BaseModel, ValidationError
 from backend.artifacts import load_demo_bundle
 from backend.config import Settings
 from backend.contracts.api import ApiEnvelope, HealthResponse, success
-from backend.contracts.source import VerifiedSourceProof
+from backend.contracts.source import SourceProof
 from backend.contracts.views import (
     AmendmentImpactView,
     AssessmentView,
@@ -53,7 +53,7 @@ def test_concrete_routes_match_frozen_operation_response_models(tmp_path: Path) 
         ("/api/v1/opportunities", frozenset({"GET"}), "listOpportunities"): ApiEnvelope[OpportunityList],
         ("/api/v1/opportunities/{opportunity_id:path}", frozenset({"GET"}), "getAssessment"): ApiEnvelope[AssessmentView],
         ("/api/v1/opportunities/{opportunity_id:path}/amendment-impact", frozenset({"GET"}), "getAmendmentImpact"): ApiEnvelope[AmendmentImpactView],
-        ("/api/v1/source-proof", frozenset({"GET"}), "getSourceProof"): ApiEnvelope[VerifiedSourceProof],
+        ("/api/v1/source-proof", frozenset({"GET"}), "getSourceProof"): ApiEnvelope[SourceProof],
     }
 
 
