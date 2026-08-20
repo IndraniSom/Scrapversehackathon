@@ -29,7 +29,9 @@ def verify_extraction(
     evidence_items = list(iter_proposed_evidence(proposed))
     for item in evidence_items:
         page = page_by_number.get(item.physical_page_number)
-        if page is None or normalize_text(item.excerpt) not in normalize_text(page.text):
+        if page is None or _normalize_evidence_text(item.excerpt) not in (
+            _normalize_evidence_text(page.text)
+        ):
             raise EvidenceVerificationError("EXCERPT_NOT_FOUND")
     return VerifiedExtraction(
         proposal=proposed,
@@ -56,6 +58,11 @@ def iter_proposed_evidence(proposed: ProposedExtraction) -> list[EvidenceProposa
     if proposed.authority_statement is not None:
         evidence.append(proposed.authority_statement.evidence)
     return evidence
+
+
+def _normalize_evidence_text(text: str) -> str:
+    """Treat the selected PDF's bullet/comma list separators as word spacing."""
+    return normalize_text(text.translate({ord("\uf0b7"): " ", ord(","): " "}))
 
 
 def _iter_group_evidence(group: ProposedRuleGroup) -> list[EvidenceProposal]:
