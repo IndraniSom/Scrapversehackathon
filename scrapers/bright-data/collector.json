@@ -1,0 +1,19 @@
+{
+  "name": "bidradar-ntpc-public-tenders",
+  "config_version": "manual-draft-1",
+  "publication_status": "DRAFT_NOT_PUBLISHED",
+  "legal_status": "LEGAL_VERIFY",
+  "worker": "CODE",
+  "max_records_per_input": 3,
+  "target": "https://ntpctender.ntpc.co.in/Index/Search",
+  "input_schema": {
+    "url": "string",
+    "legal_decision": "ALLOW"
+  },
+  "restrictions": [
+    "NO_LOGIN",
+    "NO_CAPTCHA",
+    "NO_FORM_SUBMISSION",
+    "NO_PAGINATION"
+  ]
+}
