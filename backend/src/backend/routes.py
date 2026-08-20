@@ -59,19 +59,7 @@ def _selected(request: Request, opportunity_id: str) -> DemoBundle:
 
 
 @router.get(
-    "/api/v1/opportunities/{opportunity_id}",
-    response_model=ApiEnvelope[AssessmentView],
-    operation_id="getAssessment",
-)
-def get_assessment(
-    request: Request, opportunity_id: OpportunityId
-) -> ApiEnvelope[AssessmentView]:
-    """Return the recomputation-verified before/after assessment view."""
-    return success(_selected(request, opportunity_id).assessment)
-
-
-@router.get(
-    "/api/v1/opportunities/{opportunity_id}/amendment-impact",
+    "/api/v1/opportunities/{opportunity_id:path}/amendment-impact",
     response_model=ApiEnvelope[AmendmentImpactView],
     operation_id="getAmendmentImpact",
 )
@@ -80,6 +68,18 @@ def get_amendment_impact(
 ) -> ApiEnvelope[AmendmentImpactView]:
     """Return the authority-gated single-rule amendment impact view."""
     return success(_selected(request, opportunity_id).impact)
+
+
+@router.get(
+    "/api/v1/opportunities/{opportunity_id:path}",
+    response_model=ApiEnvelope[AssessmentView],
+    operation_id="getAssessment",
+)
+def get_assessment(
+    request: Request, opportunity_id: OpportunityId
+) -> ApiEnvelope[AssessmentView]:
+    """Return the recomputation-verified before/after assessment view."""
+    return success(_selected(request, opportunity_id).assessment)
 
 
 @router.get(

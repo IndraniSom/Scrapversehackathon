@@ -17,7 +17,7 @@ def get_paths(routes: list[object]) -> set[str]:
         methods = getattr(route, "methods", set())
         path = getattr(route, "path", None)
         if isinstance(methods, set) and "GET" in methods and isinstance(path, str):
-            paths.add(path)
+            paths.add(path.replace("{opportunity_id:path}", "{opportunity_id}"))
     return paths
 
 
