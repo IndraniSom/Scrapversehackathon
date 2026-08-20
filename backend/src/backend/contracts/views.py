@@ -16,6 +16,7 @@ from backend.contracts.source import (
     DataMode,
     HttpsUrl,
     NonEmpty,
+    OpportunityId,
     OpportunitySummary,
     Sha256,
 )
@@ -94,7 +95,7 @@ class OpportunityList(ClosedEvaluationModel):
 class AmendmentImpactView(ClosedEvaluationModel):
     """Expose the single authority-controlled rule and recommendation transition."""
 
-    opportunity_id: NonEmpty
+    opportunity_id: OpportunityId
     data_mode: DataMode
     base_document: DocumentVersion
     amendment_document: DocumentVersion

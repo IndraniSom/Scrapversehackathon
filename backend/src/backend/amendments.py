@@ -1,10 +1,9 @@
 """Authority-gated assessment orchestration for one base and one amendment."""
 
+from backend.amendment_topology import leaf_map, validate_single_change
 from backend.contracts.evaluation import (
     RuleGroup,
-    RuleLeaf,
     RuleResult,
-    UnsupportedRuleLeaf,
 )
 from backend.contracts.views import (
     AmendmentImpact,
@@ -24,7 +23,7 @@ def assess_versions(input: AssessmentInput) -> AmendmentImpact:
     """Recompute both versions and apply only one reviewed authority replacement."""
     if input.amendment_revision != input.base_revision + 1:
         raise ValueError("amendment revision must immediately follow base revision")
-    _validate_single_change(
+    validate_single_change(
         input.base_requirements, input.amendment_requirements, input.changed_rule_id
     )
     base_trusted = _trusted_version(
@@ -33,6 +32,8 @@ def assess_versions(input: AssessmentInput) -> AmendmentImpact:
     amendment_trusted = _trusted_version(
         input.amendment_extraction_state, input.amendment_review_state
     )
+    if not base_trusted:
+        raise ValueError("base extraction or review is not positively trusted")
     if not amendment_trusted:
         raise ValueError("amendment review is stale or rejected")
     applied = amendment_trusted and _authority_applies(input)
@@ -43,9 +44,9 @@ def assess_versions(input: AssessmentInput) -> AmendmentImpact:
     amended = _assessment(
         input, effective_amendment, input.amendment_document, amendment_trusted
     )
-    old_leaf = _leaf_map(input.base_requirements)[input.changed_rule_id]
+    old_leaf = leaf_map(input.base_requirements)[input.changed_rule_id]
     new_leaf = (
-        _leaf_map(input.amendment_requirements)[input.changed_rule_id]
+        leaf_map(input.amendment_requirements)[input.changed_rule_id]
         if applied
         else old_leaf
     )
@@ -112,43 +113,6 @@ def _authority_applies(input: AssessmentInput) -> bool:
         and statement.effective_change
         and statement.replaces_document_id == input.base_document.id
     )
-
-
-def _validate_single_change(
-    base: RuleGroup, amendment: RuleGroup, changed_rule_id: str
-) -> None:
-    """Reject missing, extra, or mutated unchanged hard-rule inputs."""
-    base_leaves = _leaf_map(base)
-    amendment_leaves = _leaf_map(amendment)
-    if base_leaves.keys() != amendment_leaves.keys() or changed_rule_id not in base_leaves:
-        raise ValueError("amendment does not preserve stable rule IDs")
-    if base.operator != amendment.operator or base.minimum_matches != amendment.minimum_matches:
-        raise ValueError("amendment changes group semantics")
-    for identifier, leaf in base_leaves.items():
-        if identifier != changed_rule_id and leaf != amendment_leaves[identifier]:
-            raise ValueError("only changed rule may differ")
-    old = base_leaves[changed_rule_id]
-    new = amendment_leaves[changed_rule_id]
-    if old.kind != new.kind or old == new:
-        raise ValueError("changed rule must replace the same predicate kind")
-
-
-def _leaf_map(group: RuleGroup) -> dict[str, RuleLeaf]:
-    """Flatten supported leaves and reject unsupported persisted orchestration input."""
-    found: dict[str, RuleLeaf] = {}
-    for child in group.children:
-        if isinstance(child, RuleGroup):
-            nested = _leaf_map(child)
-            if found.keys() & nested.keys():
-                raise ValueError("duplicate rule ID")
-            found.update(nested)
-        elif isinstance(child, UnsupportedRuleLeaf):
-            raise TypeError("unsupported rule cannot enter judge-facing assessment")
-        elif child.id in found:
-            raise ValueError("duplicate rule ID")
-        else:
-            found[child.id] = child
-    return found
 
 
 def _unknown_result(result: RuleResult) -> RuleResult:

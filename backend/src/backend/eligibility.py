@@ -121,13 +121,22 @@ def _certification(
     requirement = f"valid at {predicate.valid_at.isoformat()}"
     if not matches:
         return "UNKNOWN", None, requirement, "Certification evidence is missing."
-    certificate = matches[0]
-    if certificate.valid_from is None or certificate.valid_until is None:
-        return "UNKNOWN", None, requirement, "Certification validity wording is incomplete."
     anchor = predicate.valid_at.date()
-    state: Evaluation = "PASS" if certificate.valid_from <= anchor <= certificate.valid_until else "FAIL"
-    value = f"{certificate.valid_from.isoformat()} through {certificate.valid_until.isoformat()}"
-    return state, value, requirement, "Certificate validity was checked at the required instant."
+    complete = [
+        (item, item.valid_from, item.valid_until)
+        for item in matches
+        if item.valid_from is not None and item.valid_until is not None
+    ]
+    valid = [
+        item for item in complete if item[1] <= anchor <= item[2]
+    ]
+    if valid:
+        _, valid_from, valid_until = min(valid, key=lambda item: (item[1], item[2]))
+        value = f"{valid_from.isoformat()} through {valid_until.isoformat()}"
+        return "PASS", value, requirement, "A complete matching certificate is valid at the required instant."
+    if len(complete) != len(matches):
+        return "UNKNOWN", None, requirement, "Unresolved matching certificate validity may affect the result."
+    return "FAIL", f"{len(complete)} complete expired or future record(s)", requirement, "No complete matching certificate is valid at the required instant."
 
 
 def _emd(

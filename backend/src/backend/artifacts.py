@@ -164,7 +164,10 @@ def _verify_cross_artifact(
         raise ArtifactError("provider proof opportunity lineage is invalid")
     if source.raw_snapshot_path != manifest.files["raw_snapshot"].path:
         raise ArtifactError("source proof raw path differs from manifest")
-    input = build_assessment_input(root, manifest.assessment_as_of)
+    try:
+        input = build_assessment_input(root, manifest.assessment_as_of)
+    except ValueError as error:
+        raise ArtifactError("opportunity semantic lineage is invalid") from error
     if input.company_profile != company:
         raise ArtifactError("company profile lineage is invalid")
     recomputed = assess_versions(input)

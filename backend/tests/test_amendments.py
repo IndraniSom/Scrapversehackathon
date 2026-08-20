@@ -2,8 +2,10 @@
 
 import pytest
 from amendment_helpers import assessment_input, authority, rules
+from pydantic import ValidationError
 
 from backend.amendments import assess_versions
+from backend.contracts.views import AmendmentImpactView
 
 
 def test_explicit_authority_replacement_flips_only_turnover_decision() -> None:
@@ -64,3 +66,38 @@ def test_authority_change_rejects_unrelated_unchanged_rule_mutation() -> None:
     changed.children[1] = certification.model_copy(update={"predicate": predicate})
     with pytest.raises(ValueError, match="only changed rule"):
         assess_versions(assessment_input(amended_rules=changed))
+
+
+@pytest.mark.parametrize(
+    ("extraction", "review"),
+    [
+        ("PROPOSED", "HUMAN_EDITED"),
+        ("INVALID", "HUMAN_EDITED"),
+        ("EVIDENCE_VERIFIED", "UNREVIEWED"),
+        ("EVIDENCE_VERIFIED", "HUMAN_REJECTED"),
+    ],
+)
+def test_untrusted_base_cannot_produce_amended_bid(extraction: str, review: str) -> None:
+    """Carried unchanged rules require positively trusted base extraction and review."""
+    input = assessment_input().model_copy(
+        update={"base_extraction_state": extraction, "base_review_state": review}
+    )
+    with pytest.raises(ValueError, match="base"):
+        assess_versions(input)
+
+
+@pytest.mark.parametrize("identifier", [".", "..", "x" * 161])
+def test_amendment_impact_rejects_unsafe_opportunity_ids(identifier: str) -> None:
+    """Pydantic enforces the frozen route-safe OpportunityId constraints."""
+    values = assess_versions(assessment_input()).impact_view.model_dump()
+    with pytest.raises(ValidationError):
+        AmendmentImpactView.model_validate(values | {"opportunity_id": identifier})
+
+
+def test_amendment_impact_retains_valid_hostile_route_characters() -> None:
+    """Non-dot hostile characters remain valid for one-time client encoding."""
+    values = assess_versions(assessment_input()).impact_view.model_dump()
+    validated = AmendmentImpactView.model_validate(
+        values | {"opportunity_id": "ocac /?# % identifier"}
+    )
+    assert validated.opportunity_id == "ocac /?# % identifier"

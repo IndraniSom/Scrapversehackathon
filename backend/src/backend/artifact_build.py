@@ -9,10 +9,18 @@ from backend.contracts.evaluation import (
     CompanyProfile,
     TurnoverEvidence,
 )
+from backend.contracts.source import OpportunitySummary
 from backend.contracts.views import AssessmentInput, OpportunityList
 from backend.extraction_import import verify_extraction_directory
 
-DEMO_OPPORTUNITY_ID = "wb-hci-063"
+DEMO_OPPORTUNITY_ID = "ocac-pond-monitoring-26001"
+OCAC_REFERENCE = "OCAC-SASCI-CPMU-0001-2025-26001"
+OCAC_AUTHORITY = "Odisha Computer Application Centre"
+OCAC_TITLE = (
+    "RFP for Selection of System Integrator for Development, Implementation, "
+    "Operation & Maintenance Support of AI-enabled IoT-based Pond Monitoring "
+    "and Advisory System for Fish Farming."
+)
 
 
 def demo_company_profile() -> CompanyProfile:
@@ -62,6 +70,31 @@ def build_assessment_input(root: Path, as_of: datetime) -> AssessmentInput:
         (root / "company-profile.json").read_bytes()
     )
     base, amendment = verify_extraction_directory(root / "extractions")
+    validate_demo_opportunity(opportunity, base.document.source_url)
     return assessment_input_from_caches(
         opportunity, company, base, amendment, as_of
     )
+
+
+def validate_demo_opportunity(
+    opportunity: OpportunitySummary, base_url: str
+) -> None:
+    """Bind the manual OCAC selector semantically to the selected official base PDF."""
+    if (
+        opportunity.id,
+        opportunity.source,
+        opportunity.source_tender_id,
+        opportunity.reference_number,
+        opportunity.authority,
+        opportunity.title,
+        opportunity.canonical_url,
+    ) != (
+        DEMO_OPPORTUNITY_ID,
+        "ODISHA",
+        OCAC_REFERENCE,
+        OCAC_REFERENCE,
+        OCAC_AUTHORITY,
+        OCAC_TITLE,
+        base_url,
+    ):
+        raise ValueError("demo opportunity semantic lineage is invalid")

@@ -3,6 +3,7 @@
 from typing import Annotated, Literal
 
 from pydantic import (
+    AfterValidator,
     AwareDatetime,
     BaseModel,
     BeforeValidator,
@@ -23,6 +24,13 @@ def _validate_https_url(value: str) -> str:
         raise ValueError("URL must be credential-free HTTPS")
     return str(url)
 
+
+def _validate_opportunity_id(value: str) -> str:
+    """Reject literal route dot segments after length/whitespace normalization."""
+    if value in {".", ".."}:
+        raise ValueError("opportunity ID cannot be a dot segment")
+    return value
+
 Sha256 = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
 HttpsUrl = Annotated[str, BeforeValidator(_validate_https_url)]
 NonEmpty = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
@@ -30,7 +38,9 @@ MetadataText = Annotated[
     str, StringConstraints(strip_whitespace=True, min_length=1, max_length=256)
 ]
 OpportunityId = Annotated[
-    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=160)
+    str,
+    StringConstraints(strip_whitespace=True, min_length=1, max_length=160),
+    AfterValidator(_validate_opportunity_id),
 ]
 DataMode = Literal["LIVE", "RECORDED_BRIGHT_DATA_SNAPSHOT", "MANUAL_FIXTURE"]
 
@@ -80,7 +90,7 @@ SnapshotPoll = SnapshotBuilding | SnapshotReady | SnapshotFailure
 class RawOpportunity(ClosedModel):
     """Validate the exact bounded output emitted by the published collector."""
 
-    source: Literal["CPPP", "WEST_BENGAL", "NTPC"]
+    source: Literal["CPPP", "WEST_BENGAL", "NTPC", "ODISHA"]
     source_tender_id: NonEmpty
     reference_number: str | None
     authority: NonEmpty

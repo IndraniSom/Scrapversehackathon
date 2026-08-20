@@ -22,15 +22,16 @@ def test_real_proof_verifies_without_network_or_preparation_files() -> None:
 
 
 def test_opportunities_contain_one_recorded_row_matching_real_proof() -> None:
-    """Six demo rows retain two per source and exactly one proof-backed recorded row."""
+    """Seven rows retain source counts and exactly one proof-backed recorded row."""
     proof = verify_source_proof(DEMO / "source-proof.json")
     artifact = json.loads((DEMO / "opportunities.json").read_text())
     items = [OpportunitySummary.model_validate(item) for item in artifact["items"]]
     recorded = [item for item in items if item.data_mode == "RECORDED_BRIGHT_DATA_SNAPSHOT"]
-    assert len(items) == artifact["total"] == 6
+    assert len(items) == artifact["total"] == 7
     assert Counter(item.source for item in items) == {
         "CPPP": 2,
         "WEST_BENGAL": 2,
         "NTPC": 2,
+        "ODISHA": 1,
     }
     assert recorded == [proof.normalized_record]
