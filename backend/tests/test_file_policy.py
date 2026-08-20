@@ -10,10 +10,8 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[2]
 TARGETS = {
-    "assessment.manual.json": "AssessmentViewEnvelope",
-    "amendment-impact.manual.json": "AmendmentImpactViewEnvelope",
-    "opportunities.manual.json": "OpportunityListEnvelope",
-    "source-proof.manual.json": "SourceProofViewEnvelope",
+    "assessment.manual.json": "AssessmentViewEnvelope", "amendment-impact.manual.json": "AmendmentImpactViewEnvelope",
+    "opportunities.manual.json": "OpportunityListEnvelope", "source-proof.manual.json": "SourceProofViewEnvelope",
 }
 
 
@@ -108,9 +106,7 @@ def test_validates_frozen_examples_and_a_separate_unknown_input() -> None:
     validate, _ = load_contract_validator()
     contract, examples = load_contract_fixtures()
     unknown_examples = deepcopy(examples)
-    unknown_examples["unknown.contract-test.json"] = deepcopy(
-        examples["assessment.manual.json"]
-    )
+    unknown_examples["unknown.contract-test.json"] = deepcopy(examples["assessment.manual.json"])
     assessment = unknown_examples["unknown.contract-test.json"]["instance"]
     profile = assessment["data"]["company_profile"]
     profile["bidder_legal_entity_id"] = None
@@ -123,9 +119,8 @@ def test_validates_frozen_examples_and_a_separate_unknown_input() -> None:
         view["unknown_applicable_rule_count"] = 1
         view["failed_hard_rule_count"] = 0
     project = {
-        "id": "project-001", "title": "Completed platform migration",
-        "client": "Example Client", "value_inr": "5000000.00",
-        "completion_state": "COMPLETED", "completed_at": "2026-01-01",
+        "id": "project-001", "title": "Completed platform migration", "client": "Example Client",
+        "value_inr": "5000000.00", "completion_state": "COMPLETED", "completed_at": "2026-01-01",
         "similar_work_confirmed": True, "evidence_reference": "completion-certificate-001",
     }
     assessment["data"]["company_profile"]["projects"] = [project]
@@ -188,10 +183,16 @@ def test_rejects_schema_drift_and_invalid_rule_shapes() -> None:
     for unsafe_id in (".", ".."):
         unsafe = deepcopy(examples)
         opportunity = unsafe["opportunities.manual.json"]["instance"]["data"]["items"][0]
+        original_id = opportunity["id"]
         opportunity["id"] = unsafe_id
         with pytest.raises(validation_error, match="opportunities.manual.json"):
+            validate(contract, unsafe)
+        opportunity["id"] = original_id
+        unsafe["amendment-impact.manual.json"]["instance"]["data"]["opportunity_id"] = unsafe_id
+        with pytest.raises(validation_error, match="amendment-impact.manual.json"):
             validate(contract, unsafe)
     for safe_id in ("a/b", "a?b", "a#b", "a%b", "a b"):
         safe = deepcopy(examples)
         safe["opportunities.manual.json"]["instance"]["data"]["items"][0]["id"] = safe_id
+        safe["amendment-impact.manual.json"]["instance"]["data"]["opportunity_id"] = safe_id
         validate(contract, safe)

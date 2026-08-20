@@ -493,7 +493,7 @@
         "additionalProperties": false,
         "required": ["opportunity_id", "data_mode", "base_document", "amendment_document", "authority_statement", "changed_rule_id", "old_clause", "new_clause", "old_predicate", "new_predicate", "base_recommendation", "amended_recommendation", "authority_change_applied", "transition_reason"],
         "properties": {
-          "opportunity_id": { "type": "string", "minLength": 1 },
+          "opportunity_id": { "$ref": "#/components/schemas/OpportunityId" },
           "data_mode": { "$ref": "#/components/schemas/DataMode" },
           "base_document": { "$ref": "#/components/schemas/DocumentVersion" },
           "amendment_document": { "$ref": "#/components/schemas/DocumentVersion" },
