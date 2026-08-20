@@ -5,8 +5,10 @@ from pathlib import Path
 
 import httpx
 import pytest
-from source_helpers import RAW_BYTES
+from source_helpers import RAW_BYTES, temporary_storage_roots
 from test_source_policy import NTPC_INPUT, approved_review
+
+BACKEND = Path(__file__).parents[1]
 
 from backend.bright_data import BrightDataScraperStudioClient
 from backend.source_attempts import CollectionAttemptFailure, CollectionAttemptSuccess
@@ -28,6 +30,7 @@ def test_invalid_approval_makes_zero_provider_requests(tmp_path: Path) -> None:
         max_polls=3,
         poll_interval_seconds=0,
         staging_directory=tmp_path / "preparation",
+        storage_roots=temporary_storage_roots(tmp_path / "preparation"),
         collector_name="ntpc-public-tenders",
         collector_config_version="v1",
         review=approved_review("CPPP"),
@@ -61,6 +64,7 @@ def test_completed_run_is_staged_without_demo_publication(tmp_path: Path) -> Non
         max_polls=3,
         poll_interval_seconds=0,
         staging_directory=staging,
+        storage_roots=temporary_storage_roots(staging),
         collector_name="ntpc-public-tenders",
         collector_config_version="v1",
         review=approved_review(),
@@ -101,6 +105,7 @@ def test_each_non_allow_decision_makes_zero_requests(
     review = approved_review().model_copy(update={decision_field: "LEGAL_VERIFY"})
     limits = CollectionLimits(
         staging_directory=tmp_path,
+        storage_roots=temporary_storage_roots(tmp_path),
         collector_name="collector",
         collector_config_version="v1",
         review=review,
@@ -117,3 +122,36 @@ def test_each_non_allow_decision_makes_zero_requests(
         )
     assert isinstance(result, CollectionAttemptFailure)
     assert requests == 0
+
+
+def test_direct_collection_rejects_real_demo_staging_with_zero_requests() -> None:
+    """Domain collection rejects the canonical demo tree without traffic or writes."""
+    requests = 0
+    real_demo_raw = BACKEND / "data" / "demo" / "raw"
+
+    def handler(_: httpx.Request) -> httpx.Response:
+        """Count traffic that escapes canonical domain storage validation."""
+        nonlocal requests
+        requests += 1
+        return httpx.Response(500)
+
+    limits = CollectionLimits(
+        staging_directory=real_demo_raw,
+        collector_name="collector",
+        collector_config_version="v1",
+        review=approved_review(),
+    )
+    with httpx.Client(
+        transport=httpx.MockTransport(handler), base_url="https://api.brightdata.com"
+    ) as http:
+        result = collect_source(
+            BrightDataScraperStudioClient(http, "c_test", max_attempts=1),
+            [NTPC_INPUT],
+            lambda: datetime(2026, 8, 20, 12, tzinfo=UTC),
+            lambda _: None,
+            limits,
+        )
+    assert isinstance(result, CollectionAttemptFailure)
+    assert result.failure_code == "LEGAL_VERIFY_REQUIRED"
+    assert requests == 0
+    assert not real_demo_raw.exists()

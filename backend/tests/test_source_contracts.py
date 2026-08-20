@@ -11,6 +11,7 @@ from backend.contracts.source import (
     VerifiedSourceProof,
 )
 from backend.source_runs import normalize_record, unavailable_source_view
+from backend.source_views import build_unavailable_source_proof
 
 PUBLIC_FIELDS = {
     "status",
@@ -33,7 +34,7 @@ def test_public_proof_branches_match_frozen_fields() -> None:
     """Both public proof branches expose exactly the frozen SourceProofView fields."""
     assert set(VerifiedSourceProof.model_fields) == PUBLIC_FIELDS
     assert set(UnavailableSourceProof.model_fields) == PUBLIC_FIELDS
-    unavailable = UnavailableSourceProof(reason_code="LEGAL_VERIFY_REQUIRED")
+    unavailable = build_unavailable_source_proof("LEGAL_VERIFY_REQUIRED")
     assert unavailable.model_dump() == {
         "status": "UNAVAILABLE",
         "data_mode": "MANUAL_FIXTURE",

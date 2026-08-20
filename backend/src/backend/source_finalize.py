@@ -7,7 +7,6 @@ from pathlib import Path
 
 from pydantic import JsonValue, TypeAdapter, ValidationError
 
-from backend.contracts.source import VerifiedSourceProof
 from backend.source_capture import StagedCapture, load_staged_capture, review_digest
 from backend.source_policy import (
     ApprovalError,
@@ -21,6 +20,7 @@ from backend.source_proof import (
 )
 from backend.source_runs import normalize_record
 from backend.source_storage import StorageError, atomic_install
+from backend.source_views import build_verified_source_proof
 
 _RECORDS = TypeAdapter(list[dict[str, JsonValue]])
 
@@ -40,16 +40,15 @@ def finalize_source_proof(
     if chosen is None:
         raise FinalizationError("chosen run is not one of the three captures")
     chosen_raw = _validated_raw(capture_paths[captures.index(chosen)], chosen)
-    proof = VerifiedSourceProof(
-        data_mode="RECORDED_BRIGHT_DATA_SNAPSHOT",
-        collector_name=chosen.collector_name,
-        collector_config_version=chosen.collector_config_version,
-        provider_run_id=chosen.provider_run_id,
-        started_at=chosen.started_at,
-        completed_at=chosen.completed_at,
-        raw_snapshot_sha256=chosen.raw_snapshot_sha256,
-        raw_record=chosen.raw_record,
-        normalized_record=chosen.normalized_record,
+    proof = build_verified_source_proof(
+        chosen.collector_name,
+        chosen.collector_config_version,
+        chosen.provider_run_id,
+        chosen.started_at,
+        chosen.completed_at,
+        chosen.raw_snapshot_sha256,
+        chosen.raw_record,
+        chosen.normalized_record,
     )
     artifact = SourceProofArtifact(
         collector_name=chosen.collector_name,

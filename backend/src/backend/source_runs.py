@@ -21,12 +21,19 @@ from backend.source_attempts import (
     CollectionAttemptFailure,
 )
 from backend.source_capture import stage_completed_run
+from backend.source_paths import (
+    SourceStorageRoots,
+    StorageBoundaryError,
+    repository_source_roots,
+    validate_staging_directory,
+)
 from backend.source_policy import (
     ApprovalError,
     PortalReview,
     validate_collection_inputs,
 )
 from backend.source_storage import StorageError
+from backend.source_views import build_unavailable_source_proof
 
 
 class CollectionLimits(BaseModel):
@@ -36,6 +43,7 @@ class CollectionLimits(BaseModel):
     max_polls: int = Field(default=36, ge=1, le=120)
     poll_interval_seconds: float = Field(default=5, ge=0, le=60)
     staging_directory: Path
+    storage_roots: SourceStorageRoots = Field(default_factory=repository_source_roots)
     collector_name: MetadataText
     collector_config_version: MetadataText
     review: PortalReview
@@ -51,8 +59,9 @@ def collect_source(
     """Validate approval, run within bounds, and stage one completed capture privately."""
     started_at = clock()
     try:
+        validate_staging_directory(limits.staging_directory, limits.storage_roots)
         validated = validate_collection_inputs(inputs, limits.review, started_at)
-    except ApprovalError:
+    except (ApprovalError, StorageBoundaryError):
         return _failure("LEGAL_VERIFY_REQUIRED")
     try:
         snapshot = client.trigger(validated)
@@ -102,7 +111,7 @@ def unavailable_source_view(reason_code: str) -> UnavailableSourceProof:
         "PROOF_NOT_CAPTURED",
     }
     reason = reason_code if reason_code in allowed else "PROVIDER_UNAVAILABLE"
-    return UnavailableSourceProof(reason_code=reason)
+    return build_unavailable_source_proof(reason)
 
 
 def _stage_ready(

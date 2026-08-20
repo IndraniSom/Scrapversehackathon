@@ -9,6 +9,7 @@ import pytest
 
 from backend.bright_data import BrightDataScraperStudioClient, ProviderRequestError
 from backend.source_attempts import CollectionAttempt
+from backend.source_paths import SourceStorageRoots
 from backend.source_policy import PortalReview
 from backend.source_runs import CollectionLimits, collect_source
 
@@ -70,6 +71,7 @@ def approved_limits(staging_directory: Path, max_polls: int = 3) -> CollectionLi
         max_polls=max_polls,
         poll_interval_seconds=0,
         staging_directory=staging_directory,
+        storage_roots=temporary_storage_roots(staging_directory),
         collector_name="ntpc-public-tenders",
         collector_config_version="manual-draft-1",
         review=PortalReview(
@@ -81,6 +83,14 @@ def approved_limits(staging_directory: Path, max_polls: int = 3) -> CollectionLi
             reviewer="Human Reviewer",
             reviewer_kind="HUMAN",
         ),
+    )
+
+
+def temporary_storage_roots(staging_directory: Path) -> SourceStorageRoots:
+    """Create explicit non-overlapping trusted roots for isolated filesystem tests."""
+    return SourceStorageRoots(
+        preparation_root=staging_directory,
+        demo_root=staging_directory.with_name(f"{staging_directory.name}-demo"),
     )
 
 

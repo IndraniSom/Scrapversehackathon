@@ -14,6 +14,11 @@ from pydantic import ValidationError
 from backend.bright_data import BrightDataScraperStudioClient
 from backend.source_attempts import CollectionAttemptSuccess
 from backend.source_finalize import finalize_source_proof
+from backend.source_paths import (
+    StorageBoundaryError,
+    repository_source_roots,
+    validate_staging_directory,
+)
 from backend.source_policy import (
     ApprovalError,
     PortalReview,
@@ -100,9 +105,11 @@ def _collect_one(options: CliOptions) -> int:
         )
     except (ApprovalError, ProofVerificationError):
         return _stop("collection approval does not cover input")
-    if options.staging_directory.resolve().is_relative_to(
-        options.demo_directory.resolve()
-    ):
+    try:
+        validate_staging_directory(
+            options.staging_directory, repository_source_roots()
+        )
+    except StorageBoundaryError:
         return _stop("staging must be outside demo")
     token = os.environ.get("BRIGHT_DATA_API_TOKEN")
     collector_id = os.environ.get("BRIGHT_DATA_COLLECTOR_ID")

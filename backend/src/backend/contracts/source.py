@@ -128,9 +128,9 @@ class OpportunitySummary(RawOpportunity):
 class VerifiedSourceProof(ClosedModel):
     """Prove one completed provider run and its content-addressed normalization."""
 
-    status: Literal["VERIFIED"] = "VERIFIED"
+    status: Literal["VERIFIED"]
     data_mode: Literal["RECORDED_BRIGHT_DATA_SNAPSHOT"]
-    reason_code: None = None
+    reason_code: None
     collector_name: MetadataText
     collector_config_version: MetadataText
     provider_run_id: MetadataText
@@ -139,8 +139,8 @@ class VerifiedSourceProof(ClosedModel):
     raw_snapshot_sha256: Sha256
     raw_record: dict[str, JsonValue]
     normalized_record: OpportunitySummary
-    terminal_state: Literal["SUCCESS"] = "SUCCESS"
-    failure_code: None = None
+    terminal_state: Literal["SUCCESS"]
+    failure_code: None
 
     @model_validator(mode="after")
     def validate_chronology(self) -> "VerifiedSourceProof":
@@ -153,24 +153,24 @@ class VerifiedSourceProof(ClosedModel):
 class UnavailableSourceProof(ClosedModel):
     """Represent a stopped provider workflow without fabricating source evidence."""
 
-    status: Literal["UNAVAILABLE"] = "UNAVAILABLE"
-    data_mode: Literal["MANUAL_FIXTURE"] = "MANUAL_FIXTURE"
+    status: Literal["UNAVAILABLE"]
+    data_mode: Literal["MANUAL_FIXTURE"]
     reason_code: Literal[
         "NOT_CONFIGURED",
         "LEGAL_VERIFY_REQUIRED",
         "PROVIDER_UNAVAILABLE",
         "PROOF_NOT_CAPTURED",
     ]
-    collector_name: None = None
-    collector_config_version: None = None
-    provider_run_id: None = None
-    started_at: None = None
-    completed_at: None = None
-    raw_snapshot_sha256: None = None
-    raw_record: None = None
-    normalized_record: None = None
-    terminal_state: None = None
-    failure_code: None = None
+    collector_name: None
+    collector_config_version: None
+    provider_run_id: None
+    started_at: None
+    completed_at: None
+    raw_snapshot_sha256: None
+    raw_record: None
+    normalized_record: None
+    terminal_state: None
+    failure_code: None
 
 
 SourceProof = VerifiedSourceProof | UnavailableSourceProof

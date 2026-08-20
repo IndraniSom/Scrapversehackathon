@@ -6,6 +6,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from source_helpers import temporary_storage_roots
 from test_source_policy import NTPC_INPUT, approved_review
 
 from backend.bright_data import BrightDataScraperStudioClient
@@ -86,6 +87,7 @@ def test_every_approval_rejection_makes_zero_provider_requests(
 
     limits = CollectionLimits(
         staging_directory=tmp_path / "preparation",
+        storage_roots=temporary_storage_roots(tmp_path / "preparation"),
         collector_name="collector",
         collector_config_version="v1",
         review=review_factory(),

@@ -95,6 +95,27 @@ def test_collect_rejects_staging_inside_demo_before_credentials(tmp_path: Path) 
     assert not demo.exists()
 
 
+def test_real_demo_staging_rejected_despite_false_demo_override(tmp_path: Path) -> None:
+    """An operator-selected finalization destination cannot redefine the real demo root."""
+    review = write_review(tmp_path / "review.json")
+    real_demo_raw = BACKEND / "data" / "demo" / "raw"
+    result = run_cli(
+        [
+            "--collect",
+            "https://ntpctender.ntpc.co.in/Index/Search?Type=Reg&Region=1",
+            "--review",
+            str(review),
+            "--staging-directory",
+            str(real_demo_raw),
+            "--demo-directory",
+            str(tmp_path / "false-demo"),
+        ]
+    )
+    assert result.returncode == 2
+    assert result.stderr.strip() == "STOP-PROVIDER: staging must be outside demo"
+    assert not real_demo_raw.exists()
+
+
 def test_finalize_consumes_three_captures_without_credentials(tmp_path: Path) -> None:
     """The finalizer publishes verified proof using only staged non-secret inputs."""
     captures = stage_three(tmp_path)
