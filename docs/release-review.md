@@ -37,13 +37,15 @@ These deferred findings are not silently reclassified as release passes. Browser
 
 | Initial finding | Disposition |
 |---|---|
-| Frozen `app.openapi` can mask concrete drift | Addressed in `tools/check_api_contract.py`. It never calls `app.openapi`; it compares concrete route/method/operation/response-model names and independently generated framework paths, validates four examples, and validates seven in-process responses against frozen schemas. An isolated operation-ID mutation still fails while `app.openapi` returns frozen JSON. |
-| Contract release command absent | Addressed. Required-field and unknown-enum mutations reject, opposite assessment/amendment models remain distinct through the concrete surface, and runtime success/error envelopes validate. |
+| Frozen `app.openapi` can mask concrete drift | Tool addressed. It never calls `app.openapi`; it compares concrete route/method/operation surface and normalized reachable response-schema graphs. Six required/enum/nullability/closure/envelope/ref mutations fail. The real application now correctly fails this gate. |
+| Contract release command absent | Tool addressed, application blocked. Runtime instances/examples still validate, but independently generated success schemas drift from frozen schemas. |
 | Two-process smoke absent | Addressed. Normal and offline proxy-denied modes build, start, verify, and terminate both groups in bounded time with credentials absent. |
 | Path/rule-only scanner absent | Addressed. Scanner tests prove secret text is absent from formatted output and exact generated/private exclusions do not hide authored paths. Final staged self-scan passes. |
 | Controller browser evidence absent | Open and blocking. No browser claim or screenshot was fabricated. |
 
-No accepted B/C application finding was discovered during Task 7 static, test, contract, artifact, or smoke review. Implementer A made no B/C application edit.
+### Returned application finding
+
+IMPORTANT - `backend/src/backend` generated response schemas: `getLiveness` and `getReadiness` normalize exactly, but `listOpportunities`, `getAssessment`, `getAmendmentImpact`, and `getSourceProof` do not match their frozen reachable response graphs bidirectionally. Reproduction: `(cd backend && uv run python ../tools/check_api_contract.py)` exits nonzero with `operation response schema graph drift`. Observed substantive examples include generated opportunity URL constraints missing frozen HTTPS/URI constraints, assessment rule graph differences including an extra unsupported response branch, and a VERIFIED-only source-proof response model versus the frozen VERIFIED/UNAVAILABLE union. This finding belongs to B; A did not edit application contracts/models.
 
 ## Fresh release evidence
 
@@ -57,13 +59,14 @@ No accepted B/C application finding was discovered during Task 7 static, test, c
 | Next.js production build | PASS - root and two product routes dynamic; not-found static |
 | pnpm audit | PASS - no known vulnerabilities at high severity |
 | Code-file policy | PASS - zero files at 200+ lines |
-| Contract checker | PASS - 6 concrete GET operations, response models, 4 examples, 7 responses |
+| Contract checker TDD mutations | PASS - required, enum, nullability, closure, envelope, and response-ref drift rejected |
+| Contract checker real application | **FAIL - four success-operation schema graphs drift** |
 | Required/enum mutation probes | PASS - missing authority and unknown source rejected |
 | Sensitive scanner | PASS - 177 tracked paths considered, path/rule-only output |
 | Provider proof verify-only | PASS - chosen run `j_mt0i928kyu57telkk` |
 | Extraction verify-only | PASS - 2 reviewed extractions |
-| Normal smoke | PASS - 4.90 seconds, credentials absent |
-| Offline proxy-denied smoke | PASS - 4.08 seconds, credentials absent |
+| Normal smoke | PASS - final 4.04 seconds, four credentials absent |
+| Offline proxy-denied smoke | PASS - final 3.98 seconds, four credentials absent and both proxy cases overridden |
 | Seven-minute automated ceiling | PASS - both rehearsals under 420 seconds |
 
 ## Remaining STOP-RELEASE browser gate
@@ -77,4 +80,4 @@ Controller must start the integrated application and record actual evidence for:
 - text/icon status differentiation and safe error copy;
 - screenshots tied to the tested commit.
 
-Until every item passes, final verdict remains **NOT_READY** even though all non-browser Task 7 gates pass.
+Until the B-owned contract drift and every browser item pass, final verdict remains **NOT_READY**. The browser gate is still pending; it is no longer the sole blocker.

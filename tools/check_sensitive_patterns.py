@@ -40,6 +40,14 @@ SECRET_RULES = (
         re.compile(r"(?i)\bOPENAI_API_KEY\s*=\s*['\"]?sk-[A-Za-z0-9_-]{20,}"),
     ),
     (
+        "DEEPSEEK_API_KEY",
+        re.compile(r"(?im)^[ \t]*DEEPSEEK_API_KEY[ \t]*=[ \t]*['\"]?[^ \t\r\n'\"#][^\r\n]*"),
+    ),
+    (
+        "BRIGHT_DATA_API_TOKEN",
+        re.compile(r"(?im)^[ \t]*BRIGHT_DATA_API_TOKEN[ \t]*=[ \t]*['\"]?[^ \t\r\n'\"#][^\r\n]*"),
+    ),
+    (
         "PRIVATE_KEY",
         re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
     ),

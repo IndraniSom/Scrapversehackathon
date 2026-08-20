@@ -25,12 +25,12 @@ cd backend
 uv run python ../tools/smoke_demo.py --mode offline
 ```
 
-Both modes remove `BRIGHT_DATA_API_TOKEN`, `BRIGHT_DATA_COLLECTOR_ID`, and `OPENAI_API_KEY`, start Uvicorn and `pnpm start` on free loopback ports, verify four API and three frontend routes, and terminate both process groups on success or failure. Offline mode routes outbound HTTP proxies to a closed loopback port while exempting localhost. This is strong application-level evidence that the runtime makes no proxy-aware external request; it is not a kernel network-namespace proof.
+Both modes remove `BRIGHT_DATA_API_TOKEN`, `BRIGHT_DATA_COLLECTOR_ID`, `DEEPSEEK_API_KEY`, and `OPENAI_API_KEY`, start Uvicorn and `pnpm start` on free loopback ports, verify four API and three frontend routes, and terminate both process groups on success or failure. Offline mode overwrites uppercase and lowercase HTTP/HTTPS/ALL proxy variables with a closed loopback proxy while preserving both localhost no-proxy variables. This is strong application-level evidence that the runtime makes no proxy-aware external request; it is not a kernel network-namespace proof.
 
 Observed on 2026-08-20:
 
-- normal: 4.90 seconds;
-- final offline proxy-denied: 4.08 seconds (earlier rehearsal: 4.18 seconds);
+- final fix-round normal: 4.04 seconds (earlier fix rehearsal: 5.05 seconds);
+- final fix-round offline proxy-denied: 3.98 seconds (earlier fix rehearsal: 4.40 seconds);
 - ceiling enforced by the tool: 420 seconds.
 
 ## Manual server start
@@ -39,7 +39,7 @@ Terminal 1:
 
 ```bash
 cd backend
-env -u BRIGHT_DATA_API_TOKEN -u BRIGHT_DATA_COLLECTOR_ID -u OPENAI_API_KEY \
+env -u BRIGHT_DATA_API_TOKEN -u BRIGHT_DATA_COLLECTOR_ID -u DEEPSEEK_API_KEY -u OPENAI_API_KEY \
   uv run uvicorn backend.main:app --host 127.0.0.1 --port 8000
 ```
 

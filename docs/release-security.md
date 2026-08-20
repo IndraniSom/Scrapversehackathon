@@ -15,7 +15,7 @@ Review date: 2026-08-20. Status: **application/tool checks passed; controller br
 - Root ignores cover `.env` variants, private keys/certificates, local environments/caches, `backend/data/private-demo/`, and generated preparation inputs while retaining name-only `.env.example` files.
 - Runtime receives no provider/model credential. Preparation credentials remain external to source and artifacts.
 - `tools/check_sensitive_patterns.py` scans Git-tracked UTF-8 text. Findings retain only a rule name and path; matched text is never stored or printed.
-- Secret rules cover AWS-style access IDs, non-empty OpenAI key assignments, private-key headers, bearer tokens, and credential-bearing database URLs.
+- Secret rules cover AWS-style access IDs, non-empty OpenAI, DeepSeek, and Bright Data token assignments, private-key headers, bearer tokens, and credential-bearing database URLs. Names-only examples remain valid.
 - Code-only rules cover unsafe HTML, dynamic evaluation, shell execution, unsafe pickle/YAML loading, and obvious string-built SQL.
 
 ## Scanner exclusions
@@ -38,13 +38,14 @@ Fresh results on 2026-08-20:
 - tracked sensitive scan: pass across 177 paths after Task 7 files were staged;
 - dangerous runtime routes/patterns: none found;
 - Task 7 TDD harness: 3 passed, including scanner redaction/exclusion behavior and real process-group cleanup;
-- Ruff, ESLint, TypeScript, Python/React tests, production build, contract checker, line gate, and diff checks: pass.
+- Ruff, ESLint, TypeScript, Python/React tests, production build, line gate, and diff checks: pass.
+- Contract checker implementation/mutation tests pass, but its real application gate correctly fails on generated response-schema drift in four API operations. Release remains blocked pending a B-owned fix.
 
 ## Process safety
 
 - `tools/smoke_demo.py` uses argument arrays with `shell=False` behavior, quiet child output, fresh loopback ports, short HTTP deadlines, a 420-second total ceiling, and separate process groups.
 - A `finally` block terminates frontend and backend groups; SIGTERM escalates to SIGKILL after five seconds.
-- Offline mode removes the three credential variables and denies proxy-aware outbound HTTP while permitting localhost. It does not claim a kernel-level network sandbox.
+- Offline mode removes all four scoped credential variables and overwrites both cases of HTTP/HTTPS/ALL proxy variables while permitting localhost through both no-proxy cases. It does not claim a kernel-level network sandbox.
 
 ## Residual risks
 
