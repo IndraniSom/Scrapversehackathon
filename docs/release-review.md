@@ -2,7 +2,7 @@
 
 Status: **NOT_READY - FINAL FIX WAVE IN PROGRESS**
 
-Reviewed: 2026-08-20, Asia/Kolkata. Frozen contract SHA-256: `7256e33df529de365bdc1263a188a17a8d3d3c4035c905d067ded286e7333a3e`.
+Reviewed: 2026-08-21, Asia/Kolkata. Frozen contract SHA-256: `bb7df948805027b7325d243a094e48f290371547ae39c2dfd27de093414ca2b1`.
 
 ## Skeptical findings recorded before integration fixes
 
@@ -85,7 +85,7 @@ Prior browser evidence remains useful for layout/failure states but the changed 
 
 ## Final fix wave A handoff
 
-- Frozen contract hash: `7256e33df529de365bdc1263a188a17a8d3d3c4035c905d067ded286e7333a3e`.
+- Frozen contract hash: `bb7df948805027b7325d243a094e48f290371547ae39c2dfd27de093414ca2b1`.
 - Truthful frozen outcome: base `NO_BID` with one FAIL/three UNKNOWN; amended `REVIEW` with zero FAIL/three UNKNOWN.
 - ISO 9001, ISO 27001, and CMMI predicates carry required `valid_at: null`; evidence is preserved and no authority validity anchor is invented.
 - Applicability is a closed operator-discriminated union; verified nested opportunities are recorded-mode constrained; proof hash equality and opportunity total equality are runtime validator invariants.

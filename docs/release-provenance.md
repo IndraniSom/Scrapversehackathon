@@ -1,6 +1,6 @@
 # BidRadar Release Provenance
 
-Frozen API SHA-256: `7256e33df529de365bdc1263a188a17a8d3d3c4035c905d067ded286e7333a3e`.
+Frozen API SHA-256: `bb7df948805027b7325d243a094e48f290371547ae39c2dfd27de093414ca2b1`.
 
 ## Opportunity inventory
 
@@ -40,7 +40,7 @@ Revised frozen handoff below is pending B artifact rebuild; the digest table tha
 
 ## Immutable bundle digests
 
-**SUPERSEDED / REBUILD PENDING:** These digests identify the last BID bundle and must be replaced after backend consumption of contract hash `7256e33df529de365bdc1263a188a17a8d3d3c4035c905d067ded286e7333a3e`.
+**SUPERSEDED / REBUILD PENDING:** These digests identify the last BID bundle and must be replaced after backend consumption of contract hash `bb7df948805027b7325d243a094e48f290371547ae39c2dfd27de093414ca2b1`.
 
 | Manifest key | Path | SHA-256 |
 |---|---|---|

@@ -5,7 +5,7 @@ Release state: **NOT_READY - FINAL FIX CONSUMPTION AND HUMAN REHEARSAL PENDING**
 ## Preconditions
 
 - Run from the repository root with Python 3.13/uv, Node.js, pnpm, and the frozen locks installed.
-- Contract SHA-256 must be `7256e33df529de365bdc1263a188a17a8d3d3c4035c905d067ded286e7333a3e`.
+- Contract SHA-256 must be `bb7df948805027b7325d243a094e48f290371547ae39c2dfd27de093414ca2b1`.
 - The runtime does not require Bright Data or model credentials. Do not place credentials in commands or logs.
 - Demo data is immutable under `backend/data/demo/`; selected ID is `ocac-pond-monitoring-26001`.
 
