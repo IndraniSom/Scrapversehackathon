@@ -37,7 +37,7 @@ These deferred findings are not silently reclassified as release passes. Browser
 
 | Initial finding | Disposition |
 |---|---|
-| Frozen `app.openapi` can mask concrete drift | Tool addressed. It never calls `app.openapi`; it compares concrete route/method/operation surface and normalized reachable response-schema graphs. Six required/enum/nullability/closure/envelope/ref mutations fail. The real application now correctly fails this gate. |
+| Frozen `app.openapi` can mask concrete drift | Tool addressed. It never calls `app.openapi`; it compares concrete route/method/operation surface and normalized reachable response-schema graphs. Eleven structural/semantic mutations fail. Executable `not`, `if`/`then`/`else`, and `oneOf` exclusivity remain comparison semantics; only annotation keys and a proven typed-null representation normalize away. The real application still correctly fails this gate. |
 | Contract release command absent | Tool addressed, application blocked. Runtime instances/examples still validate, but independently generated success schemas drift from frozen schemas. |
 | Two-process smoke absent | Addressed. Normal and offline proxy-denied modes build, start, verify, and terminate both groups in bounded time with credentials absent. |
 | Path/rule-only scanner absent | Addressed. Scanner tests prove secret text is absent from formatted output and exact generated/private exclusions do not hide authored paths. Final staged self-scan passes. |
@@ -59,14 +59,14 @@ IMPORTANT - `backend/src/backend` generated response schemas: `getLiveness` and 
 | Next.js production build | PASS - root and two product routes dynamic; not-found static |
 | pnpm audit | PASS - no known vulnerabilities at high severity |
 | Code-file policy | PASS - zero files at 200+ lines |
-| Contract checker TDD mutations | PASS - required, enum, nullability, closure, envelope, and response-ref drift rejected |
+| Contract checker TDD mutations | PASS - six structural plus five dot-guard/conditional/exclusive-union mutations rejected |
 | Contract checker real application | **FAIL - four success-operation schema graphs drift** |
 | Required/enum mutation probes | PASS - missing authority and unknown source rejected |
 | Sensitive scanner | PASS - 177 tracked paths considered, path/rule-only output |
 | Provider proof verify-only | PASS - chosen run `j_mt0i928kyu57telkk` |
 | Extraction verify-only | PASS - 2 reviewed extractions |
-| Normal smoke | PASS - final 4.04 seconds, four credentials absent |
-| Offline proxy-denied smoke | PASS - final 3.98 seconds, four credentials absent and both proxy cases overridden |
+| Normal smoke | PASS - round-2 final 4.99 seconds, four credentials absent |
+| Offline proxy-denied smoke | PASS - round-2 final 4.27 seconds, four credentials absent and both proxy cases overridden |
 | Seven-minute automated ceiling | PASS - both rehearsals under 420 seconds |
 
 ## Remaining STOP-RELEASE browser gate

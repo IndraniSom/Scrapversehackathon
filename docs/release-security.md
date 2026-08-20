@@ -37,7 +37,7 @@ Fresh results on 2026-08-20:
 - pnpm audit at high severity: no known vulnerabilities;
 - tracked sensitive scan: pass across 177 paths after Task 7 files were staged;
 - dangerous runtime routes/patterns: none found;
-- Task 7 TDD harness: 3 passed, including scanner redaction/exclusion behavior and real process-group cleanup;
+- Task 7 TDD harness: 7 passed, including eleven schema mutations, scanner redaction/exclusion behavior, structured payload mutations, and real process-group cleanup;
 - Ruff, ESLint, TypeScript, Python/React tests, production build, line gate, and diff checks: pass.
 - Contract checker implementation/mutation tests pass, but its real application gate correctly fails on generated response-schema drift in four API operations. Release remains blocked pending a B-owned fix.
 

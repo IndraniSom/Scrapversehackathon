@@ -95,21 +95,18 @@ def _normalize(value: object, document: Mapping[str, object], seen: frozenset[st
     if isinstance(reference, str):
         if reference in seen: return {"$recursive": True}
         return _normalize(_resolve(reference, document), document, seen | {reference})
-    skipped = {"default", "description", "discriminator", "else", "example", "examples", "if", "not", "then", "title"}
+    skipped = {"default", "description", "discriminator", "example", "examples", "title"}
     normalized = {
         key: _normalize(child, document, seen, key)
         for key, child in sorted(value.items())
         if key not in skipped
     }
-    for key in ("allOf",):
+    for key in ("allOf", "anyOf", "oneOf"):
         branches = normalized.get(key)
         if isinstance(branches, list):
             normalized[key] = [branch for branch in branches if branch != {}]
             if not normalized[key]:
                 del normalized[key]
-    variants = normalized.pop("oneOf", None)
-    if variants is None: variants = normalized.pop("anyOf", None)
-    if isinstance(variants, list): normalized["variants"] = variants
     enum = normalized.get("enum")
     if isinstance(enum, list) and len(enum) == 1:
         normalized["const"] = enum[0]

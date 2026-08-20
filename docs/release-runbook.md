@@ -29,8 +29,8 @@ Both modes remove `BRIGHT_DATA_API_TOKEN`, `BRIGHT_DATA_COLLECTOR_ID`, `DEEPSEEK
 
 Observed on 2026-08-20:
 
-- final fix-round normal: 4.04 seconds (earlier fix rehearsal: 5.05 seconds);
-- final fix-round offline proxy-denied: 3.98 seconds (earlier fix rehearsal: 4.40 seconds);
+- round-2 final normal: 4.99 seconds;
+- round-2 final offline proxy-denied: 4.27 seconds;
 - ceiling enforced by the tool: 420 seconds.
 
 ## Manual server start
