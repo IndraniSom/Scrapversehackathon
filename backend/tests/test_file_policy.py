@@ -19,24 +19,19 @@ TARGETS = {
 
 class Checker(Protocol):
     """Describe the public line-checker callable consumed by these tests."""
-
     def __call__(self, paths: list[Path], limit: int = 199) -> list[object]:
         """Return policy violations for the supplied paths."""
 
 
 class ExampleTarget(TypedDict):
     """Pair a response schema name with one loaded example document."""
-
     schema_name: str
     instance: object
 
 
 class Validator(Protocol):
     """Describe the shared contract validator callable consumed by tests."""
-
-    def __call__(
-        self, contract: dict[str, object], examples: dict[str, ExampleTarget]
-    ) -> None:
+    def __call__(self, contract: dict[str, object], examples: dict[str, ExampleTarget]) -> None:
         """Validate the OpenAPI document and named response examples."""
 
 
@@ -53,15 +48,11 @@ def load_contract_validator() -> tuple[Validator, type[ValueError]]:
 
 def load_contract_fixtures() -> tuple[dict[str, object], dict[str, ExampleTarget]]:
     """Load independent copies of the frozen contract and named examples."""
-    contract = json.loads(
-        (ROOT / "contracts/api-v1.openapi.json").read_text(encoding="utf-8")
-    )
+    contract = json.loads((ROOT / "contracts/api-v1.openapi.json").read_text(encoding="utf-8"))
     examples = {
         name: {
             "schema_name": schema,
-            "instance": json.loads(
-                (ROOT / "contracts/examples" / name).read_text(encoding="utf-8")
-            ),
+            "instance": json.loads((ROOT / "contracts/examples" / name).read_text(encoding="utf-8")),
         }
         for name, schema in TARGETS.items()
     }
@@ -131,15 +122,13 @@ def test_validates_frozen_examples_and_a_separate_unknown_input() -> None:
         view["rule_results"][0]["children"][0]["evaluation"] = "UNKNOWN"
         view["unknown_applicable_rule_count"] = 1
         view["failed_hard_rule_count"] = 0
-    assessment["data"]["company_profile"]["projects"] = [
-        {
-            "id": "project-001", "title": "Completed platform migration",
-            "client": "Example Client", "value_inr": "5000000.00",
-            "completion_state": "COMPLETED", "completed_at": "2026-01-01",
-            "similar_work_confirmed": True,
-            "evidence_reference": "completion-certificate-001",
-        }
-    ]
+    project = {
+        "id": "project-001", "title": "Completed platform migration",
+        "client": "Example Client", "value_inr": "5000000.00",
+        "completion_state": "COMPLETED", "completed_at": "2026-01-01",
+        "similar_work_confirmed": True, "evidence_reference": "completion-certificate-001",
+    }
+    assessment["data"]["company_profile"]["projects"] = [project]
     validate(contract, examples)
     validate(contract, unknown_examples)
 
@@ -196,3 +185,13 @@ def test_rejects_schema_drift_and_invalid_rule_shapes() -> None:
     impact["authority_statement"].update(actor="BIDDER", disposition="REJECTED", effective_change=False, replaces_document_id=None)
     with pytest.raises(validation_error, match="alternate-transition.contract-test.json"):
         validate(contract, alternate)
+    for unsafe_id in (".", ".."):
+        unsafe = deepcopy(examples)
+        opportunity = unsafe["opportunities.manual.json"]["instance"]["data"]["items"][0]
+        opportunity["id"] = unsafe_id
+        with pytest.raises(validation_error, match="opportunities.manual.json"):
+            validate(contract, unsafe)
+    for safe_id in ("a/b", "a?b", "a#b", "a%b", "a b"):
+        safe = deepcopy(examples)
+        safe["opportunities.manual.json"]["instance"]["data"]["items"][0]["id"] = safe_id
+        validate(contract, safe)

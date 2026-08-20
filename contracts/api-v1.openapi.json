@@ -89,7 +89,7 @@
         "name": "opportunity_id",
         "in": "path",
         "required": true,
-        "schema": { "type": "string", "minLength": 1, "maxLength": 160 }
+        "schema": { "$ref": "#/components/schemas/OpportunityId" }
       }
     },
     "responses": {
@@ -110,6 +110,13 @@
         "properties": { "status": { "type": "string", "enum": ["ok"] } }
       },
       "RequestId": { "type": "string", "format": "uuid" },
+      "OpportunityId": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 160,
+        "not": { "enum": [".", ".."] },
+        "description": "A route-safe identifier. Literal dot segments are forbidden; other characters are encoded once by clients."
+      },
       "Sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
       "HttpsUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
       "DataMode": { "type": "string", "enum": ["LIVE", "RECORDED_BRIGHT_DATA_SNAPSHOT", "MANUAL_FIXTURE"] },
@@ -146,7 +153,7 @@
         "additionalProperties": false,
         "required": ["id", "source", "source_tender_id", "reference_number", "authority", "title", "category", "published_at", "closes_at", "canonical_url", "data_mode", "snapshot_sha256"],
         "properties": {
-          "id": { "type": "string", "minLength": 1 },
+          "id": { "$ref": "#/components/schemas/OpportunityId" },
           "source": { "type": "string", "enum": ["CPPP", "WEST_BENGAL", "NTPC"] },
           "source_tender_id": { "type": "string", "minLength": 1 },
           "reference_number": { "type": ["string", "null"] },
