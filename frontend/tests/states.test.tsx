@@ -42,7 +42,7 @@ describe("honest view states", () => {
     expect(document.body).not.toHaveTextContent("null");
   });
 
-  test("discloses every verified source-proof field and raw-to-normalized linkage", () => {
+  test("discloses and contains every verified source-proof field at narrow widths", () => {
     const normalized = opportunityListEnvelopeSchema.parse(readFixture("opportunities.manual.json")).data.items[0];
     const verified = sourceProofEnvelopeSchema.parse({
       request_id: "55555555-5555-4555-8555-555555555555",
@@ -68,9 +68,18 @@ describe("honest view states", () => {
     expect(screen.getByText("2026-08-20T07:58:00Z")).toBeVisible();
     expect(screen.getByText("2026-08-20T08:00:00Z")).toBeVisible();
     expect(screen.getByText("SUCCESS")).toBeVisible();
-    expect(screen.getByText(/"raw_tender_id": "CPPP-2026-001"/)).toBeVisible();
+    const rawRecord = screen.getByText(/"raw_tender_id": "CPPP-2026-001"/);
+    expect(rawRecord).toBeVisible();
     expect(screen.getByText(/"title": "Cloud operations support services"/)).toBeVisible();
-    expect(screen.getByText(/raw snapshot .* was normalized as opportunity cppp-cloud-001/i)).toBeVisible();
+    const linkage = screen.getByText(/raw snapshot .* was normalized as opportunity cppp-cloud-001/i);
+    expect(linkage).toBeVisible();
+    const details = screen.getByRole("group", { name: /source proof details/i });
+    const records = rawRecord.closest(".proof-records");
+    if (records === null) throw new Error("Expected proof records container");
+    expect(details).toHaveClass("proof-disclosure");
+    expect(records).toHaveClass("proof-records");
+    expect(rawRecord).toHaveClass("proof-record");
+    expect(linkage).toHaveClass("proof-linkage");
   });
 
   test("shows a rejected bidder request as no effective recommendation change", () => {

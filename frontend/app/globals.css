@@ -55,13 +55,15 @@ code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; fo
 .primary-action:hover { background: var(--action-hover); }
 
 .proof-panel, .profile-summary, .authority-block { margin-bottom: 2.5rem; padding: 1.25rem; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.proof-panel, .proof-disclosure, .proof-records, .proof-record { width: 100%; min-width: 0; max-width: 100%; }
+.proof-panel code, .proof-linkage, .proof-record { overflow-wrap: anywhere; word-break: break-word; }
 .section-heading-row { display: flex; align-items: start; justify-content: space-between; gap: 1.5rem; margin-bottom: 1rem; }
 .section-heading-row p { margin: 0; color: var(--muted); }
 details { border-top: 1px solid var(--border); }
 summary { min-height: 44px; padding: 0.75rem 0; color: var(--action); font-weight: 700; cursor: pointer; }
 .definition-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.8rem 1.5rem; margin: 0.5rem 0 1rem; }
 .definition-grid div, .decision-counts div { min-width: 0; }
-.proof-records pre { margin: 0 0 1rem; padding: 0.8rem; overflow-wrap: anywhere; background: var(--surface-subtle); white-space: pre-wrap; }
+.proof-record { margin: 0 0 1rem; padding: 0.8rem; background: var(--surface-subtle); white-space: pre-wrap; }
 dt { color: var(--muted); font-size: 0.78rem; font-weight: 650; }
 dd { margin: 0.18rem 0 0; overflow-wrap: anywhere; font-weight: 620; }
 .status-badge { display: inline-flex; width: fit-content; min-height: 28px; align-items: center; gap: 0.35rem; border-radius: 999px; padding: 0.2rem 0.55rem; background: var(--surface-strong); color: var(--text); font-size: 0.75rem; font-weight: 780; letter-spacing: 0.02em; white-space: nowrap; }

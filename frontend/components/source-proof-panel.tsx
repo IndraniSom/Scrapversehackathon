@@ -22,7 +22,7 @@ export function SourceProofPanel({ proof }: { proof: SourceProof }) {
       </div>
       <p className="proof-mode"><strong>Data mode:</strong> <code>{proof.data_mode}</code></p>
       {unavailable && <p className="proof-reason">{unavailableReason[proof.reason_code]}</p>}
-      <details aria-label="Source proof details">
+      <details className="proof-disclosure" aria-label="Source proof details">
         <summary>Source proof details</summary>
         <dl className="definition-grid">
           {unavailable ? (
@@ -42,11 +42,11 @@ export function SourceProofPanel({ proof }: { proof: SourceProof }) {
         </dl>
         {!unavailable && (
           <div className="proof-records">
-            <p>Raw snapshot {proof.raw_snapshot_sha256} was normalized as opportunity {proof.normalized_record.id}.</p>
+            <p className="proof-linkage">Raw snapshot {proof.raw_snapshot_sha256} was normalized as opportunity {proof.normalized_record.id}.</p>
             <h3>Raw provider record</h3>
-            <pre>{JSON.stringify(proof.raw_record, null, 2)}</pre>
+            <pre className="proof-record">{JSON.stringify(proof.raw_record, null, 2)}</pre>
             <h3>Normalized opportunity record</h3>
-            <pre>{JSON.stringify(proof.normalized_record, null, 2)}</pre>
+            <pre className="proof-record">{JSON.stringify(proof.normalized_record, null, 2)}</pre>
           </div>
         )}
       </details>
