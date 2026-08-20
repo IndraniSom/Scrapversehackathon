@@ -1,97 +1,174 @@
-"""Prepare one approved provider run or verify an existing proof offline."""
+"""Stage one approved provider run, finalize three captures, or verify offline."""
 
 import argparse
 import os
 import sys
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from time import sleep
 
 import httpx
+from pydantic import ValidationError
 
 from backend.bright_data import BrightDataScraperStudioClient
-from backend.source_proof import ProofVerificationError, verify_source_proof
-from backend.source_runs import CollectionLimits, PortalReview, collect_source
+from backend.source_attempts import CollectionAttemptSuccess
+from backend.source_finalize import finalize_source_proof
+from backend.source_policy import (
+    ApprovalError,
+    PortalReview,
+    validate_collection_inputs,
+)
+from backend.source_proof import (
+    FinalizationError,
+    ProofVerificationError,
+    verify_source_proof,
+)
+from backend.source_runs import CollectionLimits, collect_source
 
 
-def _parse_args() -> argparse.Namespace:
-    """Parse verification or single-run preparation options without accepting secrets."""
-    parser = argparse.ArgumentParser()
+@dataclass(frozen=True, slots=True)
+class CliOptions:
+    """Hold typed non-secret preparation options parsed from the command line."""
+
+    verify_only: Path | None
+    collect: str | None
+    finalize: list[Path] | None
+    chosen_run_id: str | None
+    review: Path | None
+    staging_directory: Path
+    demo_directory: Path
+    collector_name: str
+    collector_version: str
+
+
+def _parse_args() -> CliOptions:
+    """Parse three exclusive preparation modes without accepting credentials."""
+    parser = argparse.ArgumentParser(allow_abbrev=False)
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--verify-only", type=Path, metavar="PROOF")
-    mode.add_argument("--input-url")
+    mode.add_argument("--collect", metavar="URL")
+    mode.add_argument("--finalize", nargs=3, type=Path, metavar="CAPTURE")
+    parser.add_argument("--chosen-run-id")
     parser.add_argument("--review", type=Path)
-    parser.add_argument("--raw-directory", type=Path, default=Path("data/demo/raw"))
+    parser.add_argument(
+        "--staging-directory", type=Path, default=Path("data/preparation/source-runs")
+    )
+    parser.add_argument("--demo-directory", type=Path, default=Path("data/demo"))
     parser.add_argument("--collector-name", default="bidradar-ntpc-public-tenders")
     parser.add_argument("--collector-version", default="manual-draft-1")
-    return parser.parse_args()
+    values = parser.parse_args()
+    return CliOptions(
+        verify_only=values.verify_only,
+        collect=values.collect,
+        finalize=values.finalize,
+        chosen_run_id=values.chosen_run_id,
+        review=values.review,
+        staging_directory=values.staging_directory,
+        demo_directory=values.demo_directory,
+        collector_name=values.collector_name,
+        collector_version=values.collector_version,
+    )
+
+
+def _read_review(path: Path | None) -> PortalReview:
+    """Load a closed named-human review required by collection and finalization."""
+    if path is None:
+        raise ProofVerificationError("--review is required")
+    try:
+        return PortalReview.model_validate_json(path.read_bytes())
+    except (OSError, ValidationError) as error:
+        raise ProofVerificationError("review record is missing or invalid") from error
 
 
 def _verify(path: Path) -> int:
-    """Return a safe status code after network-free proof verification."""
+    """Return a safe status after network-free proof verification."""
     try:
         proof = verify_source_proof(path)
     except ProofVerificationError as error:
-        print(f"STOP-PROVIDER: {error}", file=sys.stderr)
-        return 2
+        return _stop(str(error))
     print(f"VERIFIED provider_run_id={proof.provider_run_id}")
     return 0
 
 
-def _read_review(path: Path | None) -> PortalReview:
-    """Load the human-authored closed review record required before collection."""
-    if path is None:
-        raise ProofVerificationError("--review is required for collection")
+def _collect_one(options: CliOptions) -> int:
+    """Validate approval before reading runtime credentials and staging one run."""
     try:
-        return PortalReview.model_validate_json(path.read_bytes())
-    except (OSError, ValueError) as error:
-        raise ProofVerificationError("review record is missing or invalid") from error
-
-
-def _collect_one(args: argparse.Namespace) -> int:
-    """Read credentials only at runtime and print non-secret single-run metadata."""
+        review = _read_review(options.review)
+        validate_collection_inputs(
+            [{"url": options.collect or ""}], review, datetime.now(UTC)
+        )
+    except (ApprovalError, ProofVerificationError):
+        return _stop("collection approval does not cover input")
+    if options.staging_directory.resolve().is_relative_to(
+        options.demo_directory.resolve()
+    ):
+        return _stop("staging must be outside demo")
     token = os.environ.get("BRIGHT_DATA_API_TOKEN")
     collector_id = os.environ.get("BRIGHT_DATA_COLLECTOR_ID")
     if not token or not collector_id:
-        print("STOP-PROVIDER: required provider environment is absent", file=sys.stderr)
-        return 2
-    try:
-        review = _read_review(args.review)
-    except ProofVerificationError as error:
-        print(f"STOP-PROVIDER: {error}", file=sys.stderr)
-        return 2
+        return _stop("required provider environment is absent")
     limits = CollectionLimits(
-        max_polls=36,
-        poll_interval_seconds=5,
-        raw_directory=args.raw_directory,
-        collector_name=args.collector_name,
-        collector_config_version=args.collector_version,
+        staging_directory=options.staging_directory,
+        collector_name=options.collector_name,
+        collector_config_version=options.collector_version,
         review=review,
     )
-    headers = {"Authorization": f"Bearer {token}"}
     with httpx.Client(
-        base_url="https://api.brightdata.com", headers=headers, timeout=30
+        base_url="https://api.brightdata.com",
+        headers={"Authorization": f"Bearer {token}"},
+        timeout=30,
     ) as http:
-        proof = collect_source(
+        attempt = collect_source(
             BrightDataScraperStudioClient(http, collector_id),
-            [{"url": args.input_url, "legal_decision": "ALLOW"}],
+            [{"url": options.collect or ""}],
             lambda: datetime.now(UTC),
             sleep,
             limits,
         )
+    if not isinstance(attempt, CollectionAttemptSuccess):
+        return _stop(f"collection failed ({attempt.failure_code})")
     print(
-        f"status={proof.status} provider_run_id={proof.provider_run_id} "
-        f"terminal_state={proof.terminal_state} failure_code={proof.failure_code}"
+        f"STAGED capture={attempt.capture_path} provider_run_id={attempt.provider_run_id} "
+        f"started_at={attempt.started_at.isoformat()} "
+        f"completed_at={attempt.completed_at.isoformat()} "
+        f"raw_snapshot_sha256={attempt.raw_snapshot_sha256}"
     )
-    return 0 if proof.status == "VERIFIED" else 2
+    return 0
+
+
+def _finalize(options: CliOptions) -> int:
+    """Finalize exactly three staged captures without credentials or network access."""
+    if options.finalize is None or not options.chosen_run_id:
+        return _stop("three captures and --chosen-run-id are required")
+    try:
+        review = _read_review(options.review)
+        proof_path = finalize_source_proof(
+            options.finalize,
+            options.chosen_run_id,
+            review,
+            options.demo_directory,
+        )
+    except (FinalizationError, ProofVerificationError) as error:
+        return _stop(str(error))
+    print(f"FINALIZED proof={proof_path}")
+    return 0
+
+
+def _stop(reason: str) -> int:
+    """Print one sanitized stop reason and return the non-success status."""
+    print(f"STOP-PROVIDER: {reason}", file=sys.stderr)
+    return 2
 
 
 def main() -> int:
-    """Dispatch offline verification or one externally authorized preparation run."""
-    args = _parse_args()
-    if args.verify_only is not None:
-        return _verify(args.verify_only)
-    return _collect_one(args)
+    """Dispatch collect, finalize, or verify-only preparation mode."""
+    options = _parse_args()
+    if options.verify_only is not None:
+        return _verify(options.verify_only)
+    if options.collect is not None:
+        return _collect_one(options)
+    return _finalize(options)
 
 
 if __name__ == "__main__":

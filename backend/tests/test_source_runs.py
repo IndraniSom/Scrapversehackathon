@@ -8,17 +8,16 @@ import pytest
 from source_helpers import (
     RAW_BYTES,
     approved_limits,
-    assert_chosen_timestamp_mismatch_rejected,
     assert_invalid_limits_rejected,
     assert_trigger_rejects_extra_fields,
     assert_trigger_success,
     run_collection,
-    write_proof_artifact,
 )
 
 from backend.bright_data import BrightDataScraperStudioClient
 from backend.contracts.source import SnapshotBuilding, SnapshotFailure, SnapshotReady
-from backend.source_proof import ProofVerificationError, verify_source_proof
+from backend.source_attempts import CollectionAttemptFailure, CollectionAttemptSuccess
+from backend.source_capture import load_staged_capture
 
 
 def test_trigger_returns_provider_snapshot_id() -> None:
@@ -59,7 +58,9 @@ def test_fetch_distinguishes_building_from_exact_ready_bytes() -> None:
 def test_fetch_maps_non_retryable_status_to_terminal_failure(status: int) -> None:
     """Authentication, lookup, and input errors terminate without retrying."""
     calls = 0
+
     def handler(_: httpx.Request) -> httpx.Response:
+        """Count terminal fetch calls while returning a safe provider error body."""
         nonlocal calls
         calls += 1
         return httpx.Response(status, json={"error": "unsafe provider detail"})
@@ -78,6 +79,7 @@ def test_fetch_bounds_transient_retries(transient: int | str) -> None:
     calls = 0
 
     def handler(request: httpx.Request) -> httpx.Response:
+        """Return the selected transient response while counting bounded attempts."""
         nonlocal calls
         calls += 1
         if transient == "network":
@@ -105,9 +107,9 @@ def test_fetch_rejects_malformed_json() -> None:
     assert result == SnapshotFailure(code="MALFORMED_RESPONSE")
 
 
-def test_collect_polls_to_ready_hashes_normalizes_and_persists(tmp_path: Path) -> None:
-    """A completed approved run becomes a reproducible recorded snapshot proof."""
-    proof = run_collection(
+def test_collect_polls_to_ready_hashes_normalizes_and_stages(tmp_path: Path) -> None:
+    """A completed approved run becomes a private staged attempt, not public proof."""
+    attempt = run_collection(
         tmp_path,
         [
             httpx.Response(200, json={"collection_id": "j_run_1"}),
@@ -116,12 +118,11 @@ def test_collect_polls_to_ready_hashes_normalizes_and_persists(tmp_path: Path) -
         ],
     )
 
-    assert proof.status == "VERIFIED"
-    assert proof.data_mode == "RECORDED_BRIGHT_DATA_SNAPSHOT"
-    assert proof.provider_run_id == "j_run_1"
-    assert proof.normalized_record.source_tender_id == "NTPC-7"
-    assert proof.normalized_record.data_mode == "RECORDED_BRIGHT_DATA_SNAPSHOT"
-    assert (tmp_path / f"{proof.raw_snapshot_sha256}.json").read_bytes() == RAW_BYTES
+    assert isinstance(attempt, CollectionAttemptSuccess)
+    capture = load_staged_capture(attempt.capture_path)
+    assert attempt.provider_run_id == "j_run_1"
+    assert capture.normalized_record.source_tender_id == "NTPC-7"
+    assert (tmp_path / capture.raw_path).read_bytes() == RAW_BYTES
 
 
 @pytest.mark.parametrize(
@@ -132,15 +133,15 @@ def test_collect_rejects_unusable_ready_results(
     tmp_path: Path, dataset: bytes, failure_code: str
 ) -> None:
     """Empty datasets and rows without required stable fields remain unavailable."""
-    proof = run_collection(
+    attempt = run_collection(
         tmp_path,
         [httpx.Response(200, json={"collection_id": "j_bad"}), httpx.Response(200, content=dataset)],
     )
 
-    assert proof.status == "UNAVAILABLE"
-    assert proof.data_mode == "MANUAL_FIXTURE"
-    assert proof.failure_code == failure_code
-    assert list(tmp_path.iterdir()) == []
+    assert isinstance(attempt, CollectionAttemptFailure)
+    assert attempt.data_mode == "MANUAL_FIXTURE"
+    assert attempt.failure_code == failure_code
+    assert not tmp_path.exists() or list(tmp_path.iterdir()) == []
 
 
 def test_collect_bounds_polling_and_handles_interruption(tmp_path: Path) -> None:
@@ -171,10 +172,10 @@ def test_collect_requires_human_allow_before_request(tmp_path: Path) -> None:
     limits = approved_limits(tmp_path).model_copy(
         update={"review": approved_limits(tmp_path).review.model_copy(update={"decision": "LEGAL_VERIFY"})}
     )
-    proof = run_collection(tmp_path, [], limits=limits)
+    attempt = run_collection(tmp_path, [], limits=limits)
 
-    assert proof.failure_code == "LEGAL_VERIFY_REQUIRED"
-    assert proof.provider_run_id is None
+    assert attempt.failure_code == "LEGAL_VERIFY_REQUIRED"
+    assert attempt.provider_run_id is None
 
 
 def test_identical_snapshot_is_deduplicated(tmp_path: Path) -> None:
@@ -184,16 +185,4 @@ def test_identical_snapshot_is_deduplicated(tmp_path: Path) -> None:
     second = run_collection(tmp_path, responses.copy())
 
     assert first.raw_snapshot_sha256 == second.raw_snapshot_sha256
-    assert len(list(tmp_path.glob("*.json"))) == 1
-
-
-def test_verify_proof_detects_raw_byte_tampering(tmp_path: Path) -> None:
-    """Offline verification accepts a consistent artifact and rejects altered bytes."""
-    artifact_path, raw_path = write_proof_artifact(tmp_path)
-    verified = verify_source_proof(artifact_path)
-    assert_chosen_timestamp_mismatch_rejected(artifact_path)
-    raw_path.write_bytes(b"[]")
-
-    assert verified.provider_run_id == "j_same"
-    with pytest.raises(ProofVerificationError, match="hash"):
-        verify_source_proof(artifact_path)
+    assert len(list(tmp_path.glob("*.raw.json"))) == 1

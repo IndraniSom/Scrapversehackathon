@@ -1,13 +1,37 @@
 """Closed source-collection contracts used by the preparation workflow."""
 
-from datetime import datetime
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, JsonValue, StringConstraints
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    BeforeValidator,
+    ConfigDict,
+    HttpUrl,
+    JsonValue,
+    StringConstraints,
+    TypeAdapter,
+    field_validator,
+    model_validator,
+)
+
+
+def _validate_https_url(value: str) -> str:
+    """Return a normalized credential-free HTTPS URL with a real host."""
+    url = TypeAdapter(HttpUrl).validate_python(value)
+    if url.scheme != "https" or url.username or url.password:
+        raise ValueError("URL must be credential-free HTTPS")
+    return str(url)
 
 Sha256 = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{64}$")]
-HttpsUrl = Annotated[str, StringConstraints(pattern=r"^https://")]
-NonEmpty = Annotated[str, StringConstraints(min_length=1)]
+HttpsUrl = Annotated[str, BeforeValidator(_validate_https_url)]
+NonEmpty = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+MetadataText = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=256)
+]
+OpportunityId = Annotated[
+    str, StringConstraints(strip_whitespace=True, min_length=1, max_length=160)
+]
 DataMode = Literal["LIVE", "RECORDED_BRIGHT_DATA_SNAPSHOT", "MANUAL_FIXTURE"]
 
 
@@ -72,17 +96,33 @@ class RawOpportunity(ClosedModel):
         "DEVOPS",
         "OTHER",
     ]
-    published_at: datetime | None
-    closes_at: datetime | None
+    published_at: AwareDatetime | None
+    closes_at: AwareDatetime | None
     canonical_url: HttpsUrl
+
+    @field_validator("source_tender_id")
+    @classmethod
+    def reject_dot_segment_id(cls, value: str) -> str:
+        """Reject identifiers that collapse as URL dot-segment route components."""
+        if value in {".", ".."}:
+            raise ValueError("source_tender_id cannot be a dot segment")
+        return value
 
 
 class OpportunitySummary(RawOpportunity):
     """Represent one frozen API opportunity with provenance and data mode."""
 
-    id: NonEmpty
+    id: OpportunityId
     data_mode: DataMode
     snapshot_sha256: Sha256
+
+    @field_validator("id")
+    @classmethod
+    def reject_dot_segment_route_id(cls, value: str) -> str:
+        """Reject literal dot segments forbidden by the frozen route contract."""
+        if value in {".", ".."}:
+            raise ValueError("id cannot be a dot segment")
+        return value
 
 
 class VerifiedSourceProof(ClosedModel):
@@ -90,16 +130,24 @@ class VerifiedSourceProof(ClosedModel):
 
     status: Literal["VERIFIED"] = "VERIFIED"
     data_mode: Literal["RECORDED_BRIGHT_DATA_SNAPSHOT"]
-    collector_name: str
-    collector_config_version: str
-    provider_run_id: str
-    started_at: datetime
-    completed_at: datetime
+    reason_code: None = None
+    collector_name: MetadataText
+    collector_config_version: MetadataText
+    provider_run_id: MetadataText
+    started_at: AwareDatetime
+    completed_at: AwareDatetime
     raw_snapshot_sha256: Sha256
     raw_record: dict[str, JsonValue]
     normalized_record: OpportunitySummary
     terminal_state: Literal["SUCCESS"] = "SUCCESS"
     failure_code: None = None
+
+    @model_validator(mode="after")
+    def validate_chronology(self) -> "VerifiedSourceProof":
+        """Reject a provider run that completes before it starts."""
+        if self.completed_at < self.started_at:
+            raise ValueError("completed_at precedes started_at")
+        return self
 
 
 class UnavailableSourceProof(ClosedModel):
@@ -107,16 +155,22 @@ class UnavailableSourceProof(ClosedModel):
 
     status: Literal["UNAVAILABLE"] = "UNAVAILABLE"
     data_mode: Literal["MANUAL_FIXTURE"] = "MANUAL_FIXTURE"
-    collector_name: str
-    collector_config_version: str
-    provider_run_id: str | None = None
-    started_at: datetime | None = None
-    completed_at: datetime | None = None
+    reason_code: Literal[
+        "NOT_CONFIGURED",
+        "LEGAL_VERIFY_REQUIRED",
+        "PROVIDER_UNAVAILABLE",
+        "PROOF_NOT_CAPTURED",
+    ]
+    collector_name: None = None
+    collector_config_version: None = None
+    provider_run_id: None = None
+    started_at: None = None
+    completed_at: None = None
     raw_snapshot_sha256: None = None
     raw_record: None = None
     normalized_record: None = None
-    terminal_state: Literal["FAILURE"] = "FAILURE"
-    failure_code: str
+    terminal_state: None = None
+    failure_code: None = None
 
 
 SourceProof = VerifiedSourceProof | UnavailableSourceProof

@@ -1,21 +1,23 @@
 """Offline verification for real-run source-proof artifacts."""
 
-from datetime import datetime
 from hashlib import sha256
 from pathlib import Path
 from typing import Literal
 
 from pydantic import (
+    AwareDatetime,
     BaseModel,
     ConfigDict,
     Field,
     JsonValue,
     TypeAdapter,
     ValidationError,
+    model_validator,
 )
 
-from backend.contracts.source import VerifiedSourceProof
-from backend.source_runs import PortalReview, normalize_record
+from backend.contracts.source import MetadataText, VerifiedSourceProof
+from backend.source_policy import PortalReview
+from backend.source_runs import normalize_record
 
 _RECORDS = TypeAdapter(list[dict[str, JsonValue]])
 
@@ -24,28 +26,51 @@ class ProviderRunMetadata(BaseModel):
     """Record one non-secret provider run identifier and terminal outcome."""
 
     model_config = ConfigDict(extra="forbid")
-    provider_run_id: str
+    provider_run_id: MetadataText
     terminal_state: Literal["SUCCESS", "FAILURE"]
-    started_at: datetime
-    completed_at: datetime
+    started_at: AwareDatetime
+    completed_at: AwareDatetime
     failure_code: str | None
+
+    @model_validator(mode="after")
+    def validate_outcome(self) -> "ProviderRunMetadata":
+        """Require ordered aware time and failure detail only for failed runs."""
+        if self.completed_at < self.started_at:
+            raise ValueError("completed_at precedes started_at")
+        if self.terminal_state == "SUCCESS" and self.failure_code is not None:
+            raise ValueError("successful run cannot have failure_code")
+        if self.terminal_state == "FAILURE" and not self.failure_code:
+            raise ValueError("failed run requires failure_code")
+        return self
 
 
 class SourceProofArtifact(BaseModel):
     """Bind three compliant runs to one chosen exact-byte proof."""
 
     model_config = ConfigDict(extra="forbid")
-    collector_name: str
-    collector_config_version: str
+    collector_name: MetadataText
+    collector_config_version: MetadataText
     runs: list[ProviderRunMetadata] = Field(min_length=3, max_length=3)
-    chosen_proof_id: str
+    chosen_proof_id: MetadataText
     source_review: PortalReview
     raw_snapshot_path: str
     proof: VerifiedSourceProof
 
+    @model_validator(mode="after")
+    def validate_raw_layout(self) -> "SourceProofArtifact":
+        """Require the single normalized public raw path for the chosen digest."""
+        expected = f"raw/{self.proof.raw_snapshot_sha256}.json"
+        if self.raw_snapshot_path != expected:
+            raise ValueError("raw_snapshot_path does not match required layout")
+        return self
+
 
 class ProofVerificationError(ValueError):
     """Indicate a safe offline proof-integrity failure."""
+
+
+class FinalizationError(ValueError):
+    """Report a safe staged-capture or publication gate failure."""
 
 
 def verify_source_proof(path: Path) -> VerifiedSourceProof:
@@ -66,6 +91,12 @@ def verify_source_proof(path: Path) -> VerifiedSourceProof:
         raise ProofVerificationError("source collection lacks human ALLOW")
     if artifact.source_review.retention_decision != "ALLOW":
         raise ProofVerificationError("source retention lacks human ALLOW")
+    if proof.normalized_record.source != artifact.source_review.portal:
+        raise ProofVerificationError("normalized source does not match approved portal")
+    if artifact.source_review.reviewed_at > min(
+        run.started_at.date() for run in artifact.runs
+    ):
+        raise ProofVerificationError("source approval postdates provider run")
     successful_ids = {
         run.provider_run_id
         for run in artifact.runs

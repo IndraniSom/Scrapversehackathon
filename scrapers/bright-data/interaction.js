@@ -1,11 +1,8 @@
 /**
- * Run one explicitly approved, bounded NTPC listing input without forms or pagination.
- * The human review decision is required in every input so a draft cannot run by accident.
+ * Run one prevalidated, bounded NTPC listing input without forms or pagination.
+ * The preparation CLI enforces human approval before it triggers this draft collector.
  */
 function collectApprovedListing() {
-  if (input.legal_decision !== "ALLOW") {
-    throw new Error("LEGAL_VERIFY_REQUIRED");
-  }
   const target = new URL(input.url);
   const isApprovedListing =
     target.protocol === "https:" &&

@@ -10,14 +10,36 @@ function classify(title) {
   return "OTHER";
 }
 
+/** Resolve a detail URL for validation before the row becomes provider output. */
+function validateDetailUrl(value) {
+  let url;
+  try {
+    url = new URL(value, "https://ntpctender.ntpc.co.in");
+  } catch (error) {
+    if (error instanceof TypeError) return null;
+    throw error;
+  }
+  const supported =
+    url.protocol === "https:" &&
+    url.hostname === "ntpctender.ntpc.co.in" &&
+    url.port === "" &&
+    url.username === "" &&
+    url.password === "" &&
+    url.search === "" &&
+    url.hash === "" &&
+    /^\/NITDetails\/NITs\/[1-9]\d*$/.test(url.pathname);
+  return supported ? url.href : null;
+}
+
 /** Convert one server-rendered NTPC row to the bounded collector output schema. */
 function parseRow(element) {
   const cells = $(element).find("td");
   const reference = cells.eq(1).text_sane();
   const title = cells.eq(3).text_sane();
   const detailPath = cells.eq(6).find("a").attr("href");
-  const stableId = detailPath?.split("/").filter(Boolean).at(-1);
-  if (!stableId || !reference || !title || !detailPath) return null;
+  const canonicalUrl = detailPath ? validateDetailUrl(detailPath) : null;
+  const stableId = canonicalUrl?.split("/").filter(Boolean).at(-1);
+  if (!stableId || !reference || !title || !canonicalUrl) return null;
   return {
     source: "NTPC",
     source_tender_id: stableId,
@@ -27,8 +49,14 @@ function parseRow(element) {
     category: classify(title),
     published_at: null,
     closes_at: null,
-    canonical_url: new URL(detailPath, "https://ntpctender.ntpc.co.in").href,
+    canonical_url: canonicalUrl,
   };
 }
 
-return $("#TenderLists tbody tr").toArray().map(parseRow).filter(Boolean);
+/** Parse all bounded tender rows from the current listing page. */
+function parseRows() {
+  return $("#TenderLists tbody tr").toArray().map(parseRow).filter(Boolean);
+}
+
+if (typeof module !== "undefined") module.exports = {validateDetailUrl};
+else return parseRows();

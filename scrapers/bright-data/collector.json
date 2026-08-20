@@ -7,8 +7,7 @@
   "max_records_per_input": 3,
   "target": "https://ntpctender.ntpc.co.in/Index/Search",
   "input_schema": {
-    "url": "string",
-    "legal_decision": "ALLOW"
+    "url": "string"
   },
   "restrictions": [
     "NO_LOGIN",
