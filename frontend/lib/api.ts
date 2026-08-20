@@ -4,7 +4,7 @@ import type { ZodType } from "zod";
 
 import { amendmentImpactEnvelopeSchema, assessmentEnvelopeSchema, type AmendmentImpactEnvelope, type AssessmentEnvelope } from "../schemas/assessment";
 import { sourceProofEnvelopeSchema, type SourceProofEnvelope } from "../schemas/envelopes";
-import { opportunityListEnvelopeSchema, type OpportunityListEnvelope } from "../schemas/opportunities";
+import { opportunityIdSchema, opportunityListEnvelopeSchema, type OpportunityListEnvelope } from "../schemas/opportunities";
 
 export type ApiFailureKind = "transport" | "schema" | "not-found";
 type Fetcher = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
@@ -65,11 +65,15 @@ export function getSourceProof(options?: RequestOptions): Promise<SourceProofEnv
 }
 
 /** Returns a validated opportunity assessment by its wire identifier. */
-export function getAssessment(opportunityId: string, options?: RequestOptions): Promise<AssessmentEnvelope> {
-  return request(`/api/v1/opportunities/${encodeURIComponent(opportunityId)}`, assessmentEnvelopeSchema, options);
+export async function getAssessment(opportunityId: string, options?: RequestOptions): Promise<AssessmentEnvelope> {
+  const parsedId = opportunityIdSchema.safeParse(opportunityId);
+  if (!parsedId.success) throw new ApiFailure("schema");
+  return request(`/api/v1/opportunities/${encodeURIComponent(parsedId.data)}`, assessmentEnvelopeSchema, options);
 }
 
 /** Returns validated amendment impact by its wire opportunity identifier. */
-export function getAmendmentImpact(opportunityId: string, options?: RequestOptions): Promise<AmendmentImpactEnvelope> {
-  return request(`/api/v1/opportunities/${encodeURIComponent(opportunityId)}/amendment-impact`, amendmentImpactEnvelopeSchema, options);
+export async function getAmendmentImpact(opportunityId: string, options?: RequestOptions): Promise<AmendmentImpactEnvelope> {
+  const parsedId = opportunityIdSchema.safeParse(opportunityId);
+  if (!parsedId.success) throw new ApiFailure("schema");
+  return request(`/api/v1/opportunities/${encodeURIComponent(parsedId.data)}/amendment-impact`, amendmentImpactEnvelopeSchema, options);
 }

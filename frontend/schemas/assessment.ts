@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { dataModeSchema, documentVersionSchema, evidenceSpanSchema, recommendationSchema, requestIdSchema } from "./common";
-import { opportunitySummarySchema } from "./opportunities";
+import { opportunityIdSchema, opportunitySummarySchema } from "./opportunities";
 import { companyProfileSchema } from "./profile";
 import { ruleNodeSchema, rulePredicateSchema, ruleResultSchema } from "./rules";
 
@@ -38,7 +38,7 @@ const authorityStatementSchema = z.strictObject({
 });
 
 const amendmentImpactSchema = z.strictObject({
-  opportunity_id: z.string().min(1),
+  opportunity_id: opportunityIdSchema,
   data_mode: dataModeSchema,
   base_document: documentVersionSchema,
   amendment_document: documentVersionSchema,

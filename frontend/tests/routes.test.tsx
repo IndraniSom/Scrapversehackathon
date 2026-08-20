@@ -90,7 +90,7 @@ describe("server-rendered routes", () => {
     await expect(OpportunityPage({ params: Promise.resolve({ opportunityId: "missing" }), searchParams: Promise.resolve({}) })).rejects.toThrow(/NEXT_HTTP_ERROR_FALLBACK;404/);
   });
 
-  test.each(["notice/2026", "notice?revision=2", "notice#award", "notice%draft", "notice 2026"])("encodes the hostile route id %s in links and backend paths", async (opportunityId) => {
+  test.each(["notice/2026", "notice?revision=2", "notice#award", "notice%draft", "notice 2026"])("keeps valid hostile id %s schema-valid and encoded once in links and backend paths", async (opportunityId) => {
     const encoded = encodeURIComponent(opportunityId);
     const listCopy = cloneFixture(opportunities);
     const firstItem = objectValue(arrayProperty(objectProperty(listCopy, "data"), "items")[0]);

@@ -2,8 +2,10 @@ import { z } from "zod";
 
 import { dataModeSchema, dateTimeSchema, httpsUrlSchema, requestIdSchema, sha256Schema } from "./common";
 
+export const opportunityIdSchema = z.string().min(1).max(160).refine((value) => value !== "." && value !== "..", "literal dot segments are forbidden");
+
 export const opportunitySummarySchema = z.strictObject({
-  id: z.string().min(1),
+  id: opportunityIdSchema,
   source: z.enum(["CPPP", "WEST_BENGAL", "NTPC"]),
   source_tender_id: z.string().min(1),
   reference_number: z.string().nullable(),

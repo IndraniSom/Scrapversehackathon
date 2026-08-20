@@ -43,6 +43,23 @@ describe("typed API boundary", () => {
     await expect(getAmendmentImpact("wb-hci-063", { fetcher: respondingWith(amendment) })).resolves.toMatchObject({ data: { authority_change_applied: true } });
   });
 
+  test.each([".", ".."])("rejects literal dot segment %s in opportunity summary responses", async (opportunityId) => {
+    const invalid = cloneFixture(opportunities);
+    objectValue(arrayProperty(objectProperty(invalid, "data"), "items")[0]).id = opportunityId;
+    await expect(getOpportunities({ fetcher: respondingWith(invalid) })).rejects.toMatchObject({ kind: "schema" });
+  });
+
+  test.each([".", ".."])("rejects literal dot segment %s in amendment impact responses", async (opportunityId) => {
+    const invalid = cloneFixture(amendment);
+    objectProperty(invalid, "data").opportunity_id = opportunityId;
+    await expect(getAmendmentImpact("wb-hci-063", { fetcher: respondingWith(invalid) })).rejects.toMatchObject({ kind: "schema" });
+  });
+
+  test.each([".", ".."])("rejects literal dot segment %s before dynamic API requests", async (opportunityId) => {
+    await expect(getAssessment(opportunityId, { fetcher: respondingWith(assessment) })).rejects.toMatchObject({ kind: "schema" });
+    await expect(getAmendmentImpact(opportunityId, { fetcher: respondingWith(amendment) })).rejects.toMatchObject({ kind: "schema" });
+  });
+
   test.each([
     ["BID", "REVIEW"], ["BID", "NO_BID"], ["REVIEW", "BID"],
     ["REVIEW", "NO_BID"], ["NO_BID", "BID"], ["NO_BID", "REVIEW"],
