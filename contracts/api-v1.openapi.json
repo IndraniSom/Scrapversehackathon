@@ -1,0 +1,578 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BidRadar Read-Only API",
+    "version": "1.0.0",
+    "description": "Frozen offline-first contract for source proof, eligibility, and amendment impact. Missing or unresolved hard evidence evaluates to UNKNOWN."
+  },
+  "servers": [{ "url": "http://127.0.0.1:8000" }],
+  "paths": {
+    "/health/live": {
+      "get": {
+        "operationId": "getLiveness",
+        "responses": {
+          "200": {
+            "description": "Process is alive",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HealthResponse" } } }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "getReadiness",
+        "responses": {
+          "200": {
+            "description": "Immutable demo artifacts are loaded",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HealthResponse" } } }
+          },
+          "503": { "$ref": "#/components/responses/ServiceUnavailable" }
+        }
+      }
+    },
+    "/api/v1/opportunities": {
+      "get": {
+        "operationId": "listOpportunities",
+        "responses": {
+          "200": {
+            "description": "Normalized opportunity list",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/OpportunityListEnvelope" } } }
+          },
+          "503": { "$ref": "#/components/responses/ServiceUnavailable" }
+        }
+      }
+    },
+    "/api/v1/opportunities/{opportunity_id}": {
+      "get": {
+        "operationId": "getAssessment",
+        "parameters": [{ "$ref": "#/components/parameters/OpportunityId" }],
+        "responses": {
+          "200": {
+            "description": "Base and amended deterministic assessments",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AssessmentViewEnvelope" } } }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "503": { "$ref": "#/components/responses/ServiceUnavailable" }
+        }
+      }
+    },
+    "/api/v1/opportunities/{opportunity_id}/amendment-impact": {
+      "get": {
+        "operationId": "getAmendmentImpact",
+        "parameters": [{ "$ref": "#/components/parameters/OpportunityId" }],
+        "responses": {
+          "200": {
+            "description": "Authority-backed amendment impact",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AmendmentImpactViewEnvelope" } } }
+          },
+          "404": { "$ref": "#/components/responses/NotFound" },
+          "503": { "$ref": "#/components/responses/ServiceUnavailable" }
+        }
+      }
+    },
+    "/api/v1/source-proof": {
+      "get": {
+        "operationId": "getSourceProof",
+        "responses": {
+          "200": {
+            "description": "Verified provider proof or honest unavailable state",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SourceProofViewEnvelope" } } }
+          },
+          "503": { "$ref": "#/components/responses/ServiceUnavailable" }
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "OpportunityId": {
+        "name": "opportunity_id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string", "minLength": 1, "maxLength": 160 }
+      }
+    },
+    "responses": {
+      "NotFound": {
+        "description": "Opportunity was not found",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } }
+      },
+      "ServiceUnavailable": {
+        "description": "Validated demo data is unavailable",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorEnvelope" } } }
+      }
+    },
+    "schemas": {
+      "HealthResponse": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status"],
+        "properties": { "status": { "type": "string", "enum": ["ok"] } }
+      },
+      "RequestId": { "type": "string", "format": "uuid" },
+      "Sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+      "HttpsUrl": { "type": "string", "format": "uri", "pattern": "^https://" },
+      "DataMode": { "type": "string", "enum": ["LIVE", "RECORDED_BRIGHT_DATA_SNAPSHOT", "MANUAL_FIXTURE"] },
+      "Evaluation": { "type": "string", "enum": ["PASS", "FAIL", "UNKNOWN", "NOT_APPLICABLE"] },
+      "Recommendation": { "type": "string", "enum": ["BID", "REVIEW", "NO_BID"] },
+      "ExtractionState": { "type": "string", "enum": ["PROPOSED", "EVIDENCE_VERIFIED", "INVALID"] },
+      "ReviewState": { "type": "string", "enum": ["UNREVIEWED", "HUMAN_CONFIRMED", "HUMAN_REJECTED", "HUMAN_EDITED"] },
+      "DocumentRole": { "type": "string", "enum": ["BASE_TENDER", "CORRIGENDUM", "CLARIFICATION", "PRE_BID_RESPONSE", "REPLACEMENT"] },
+      "AuthorityActor": { "type": "string", "enum": ["AUTHORITY", "BIDDER", "THIRD_PARTY"] },
+      "AuthorityDisposition": { "type": "string", "enum": ["ACCEPTED", "REJECTED", "CLARIFIED", "UNCHANGED", "AMBIGUOUS"] },
+      "RuleOperator": { "type": "string", "enum": ["ALL", "ANY", "AT_LEAST_N"] },
+      "RuleKind": { "type": "string", "enum": ["TURNOVER_AVERAGE", "CERTIFICATION", "PROJECT_EXPERIENCE", "EMD", "DEADLINE"] },
+      "ErrorCode": { "type": "string", "enum": ["OPPORTUNITY_NOT_FOUND", "DEMO_DATA_UNAVAILABLE", "CONTRACT_VALIDATION_FAILED", "INTERNAL_ERROR"] },
+      "ErrorDetail": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "message"],
+        "properties": {
+          "code": { "$ref": "#/components/schemas/ErrorCode" },
+          "message": { "type": "string", "minLength": 1 }
+        }
+      },
+      "ErrorEnvelope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["request_id", "error"],
+        "properties": {
+          "request_id": { "$ref": "#/components/schemas/RequestId" },
+          "error": { "$ref": "#/components/schemas/ErrorDetail" }
+        }
+      },
+      "OpportunitySummary": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "source", "source_tender_id", "reference_number", "authority", "title", "category", "published_at", "closes_at", "canonical_url", "data_mode", "snapshot_sha256"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "source": { "type": "string", "enum": ["CPPP", "WEST_BENGAL", "NTPC"] },
+          "source_tender_id": { "type": "string", "minLength": 1 },
+          "reference_number": { "type": ["string", "null"] },
+          "authority": { "type": "string", "minLength": 1 },
+          "title": { "type": "string", "minLength": 1 },
+          "category": { "type": "string", "enum": ["CLOUD", "CYBERSECURITY", "SOFTWARE", "DATA_CENTER", "MANAGED_IT", "NETWORKING", "ERP", "DEVOPS", "OTHER"] },
+          "published_at": { "type": ["string", "null"], "format": "date-time" },
+          "closes_at": { "type": ["string", "null"], "format": "date-time" },
+          "canonical_url": { "$ref": "#/components/schemas/HttpsUrl" },
+          "data_mode": { "$ref": "#/components/schemas/DataMode" },
+          "snapshot_sha256": { "$ref": "#/components/schemas/Sha256" }
+        }
+      },
+      "OpportunityList": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["items", "total", "generated_at"],
+        "properties": {
+          "items": { "type": "array", "items": { "$ref": "#/components/schemas/OpportunitySummary" } },
+          "total": { "type": "integer", "minimum": 0 },
+          "generated_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "DocumentVersion": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "role", "source_url", "sha256", "physical_page_count", "text_quality"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "role": { "$ref": "#/components/schemas/DocumentRole" },
+          "source_url": { "$ref": "#/components/schemas/HttpsUrl" },
+          "sha256": { "$ref": "#/components/schemas/Sha256" },
+          "physical_page_count": { "type": "integer", "minimum": 1 },
+          "text_quality": { "type": "string", "enum": ["SUPPORTED", "NEEDS_OCR", "INVALID"] }
+        }
+      },
+      "EvidenceSpan": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["source_url", "source_snapshot_sha256", "document_sha256", "document_version_id", "physical_page_number", "printed_page_label", "section_heading", "excerpt", "normalized_page_text_sha256", "extraction_model", "extraction_prompt_version", "extraction_schema_version", "extraction_state", "review_state"],
+        "properties": {
+          "source_url": { "$ref": "#/components/schemas/HttpsUrl" },
+          "source_snapshot_sha256": { "$ref": "#/components/schemas/Sha256" },
+          "document_sha256": { "$ref": "#/components/schemas/Sha256" },
+          "document_version_id": { "type": "string", "minLength": 1 },
+          "physical_page_number": { "type": "integer", "minimum": 1 },
+          "printed_page_label": { "type": ["string", "null"] },
+          "section_heading": { "type": "string", "minLength": 1 },
+          "excerpt": { "type": "string", "minLength": 1, "maxLength": 1200 },
+          "normalized_page_text_sha256": { "$ref": "#/components/schemas/Sha256" },
+          "extraction_model": { "type": "string", "minLength": 1 },
+          "extraction_prompt_version": { "type": "string", "minLength": 1 },
+          "extraction_schema_version": { "type": "string", "minLength": 1 },
+          "extraction_state": { "$ref": "#/components/schemas/ExtractionState" },
+          "review_state": { "$ref": "#/components/schemas/ReviewState" }
+        }
+      },
+      "TurnoverEvidence": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["financial_year", "amount_inr", "audited", "legal_entity_id", "evidence_reference"],
+        "properties": {
+          "financial_year": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}$" },
+          "amount_inr": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]{1,2})?$" },
+          "audited": { "type": "boolean" },
+          "legal_entity_id": { "type": "string", "minLength": 1 },
+          "evidence_reference": { "type": ["string", "null"] }
+        }
+      },
+      "CertificationEvidence": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "valid_from", "valid_until", "evidence_reference"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1 },
+          "valid_from": { "type": ["string", "null"], "format": "date" },
+          "valid_until": { "type": ["string", "null"], "format": "date" },
+          "evidence_reference": { "type": ["string", "null"] }
+        }
+      },
+      "ProjectEvidence": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "title", "client", "value_inr", "completion_state", "completed_at", "similar_work_confirmed", "evidence_reference"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "title": { "type": "string", "minLength": 1 },
+          "client": { "type": "string", "minLength": 1 },
+          "value_inr": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]{1,2})?$" },
+          "completion_state": { "type": "string", "enum": ["COMPLETED", "IN_PROGRESS", "UNKNOWN"] },
+          "completed_at": { "type": ["string", "null"], "format": "date" },
+          "similar_work_confirmed": { "type": ["boolean", "null"] },
+          "evidence_reference": { "type": ["string", "null"] }
+        }
+      },
+      "EmdExemptionEvidence": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["scheme", "qualified", "evidence_reference"],
+        "properties": {
+          "scheme": { "type": "string", "minLength": 1 },
+          "qualified": { "type": ["boolean", "null"] },
+          "evidence_reference": { "type": ["string", "null"] }
+        }
+      },
+      "CompanyProfile": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "bidder_legal_entity_id", "turnover_evidence", "certifications", "projects", "emd_exemptions"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "name": { "type": "string", "minLength": 1 },
+          "bidder_legal_entity_id": { "type": "string", "minLength": 1 },
+          "turnover_evidence": { "type": "array", "items": { "$ref": "#/components/schemas/TurnoverEvidence" } },
+          "certifications": { "type": "array", "items": { "$ref": "#/components/schemas/CertificationEvidence" } },
+          "projects": { "type": "array", "items": { "$ref": "#/components/schemas/ProjectEvidence" } },
+          "emd_exemptions": { "type": "array", "items": { "$ref": "#/components/schemas/EmdExemptionEvidence" } }
+        }
+      },
+      "ApplicabilityCondition": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["field", "operator", "expected_value", "evidence"],
+        "properties": {
+          "field": { "type": "string", "minLength": 1 },
+          "operator": { "type": "string", "enum": ["EQUALS", "IN", "EXISTS"] },
+          "expected_value": { "type": ["string", "boolean", "array", "null"], "items": { "type": "string" } },
+          "evidence": { "$ref": "#/components/schemas/EvidenceSpan" }
+        }
+      },
+      "TurnoverAveragePredicate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "required_financial_years", "minimum_average_inr", "audited_only", "legal_entity_scope"],
+        "properties": {
+          "kind": { "const": "TURNOVER_AVERAGE" },
+          "required_financial_years": { "type": "array", "minItems": 1, "uniqueItems": true, "items": { "type": "string", "pattern": "^[0-9]{4}-[0-9]{2}$" } },
+          "minimum_average_inr": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]{1,2})?$" },
+          "audited_only": { "const": true },
+          "legal_entity_scope": { "const": "BIDDER_ONLY" }
+        }
+      },
+      "CertificationPredicate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "certificate_name", "valid_at"],
+        "properties": {
+          "kind": { "const": "CERTIFICATION" },
+          "certificate_name": { "type": "string", "minLength": 1 },
+          "valid_at": { "type": "string", "format": "date-time" }
+        }
+      },
+      "ProjectExperiencePredicate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "value_basis", "required_count", "minimum_value_inr", "completion_requirement", "completed_from", "completed_through", "date_window_inclusive"],
+        "properties": {
+          "kind": { "const": "PROJECT_EXPERIENCE" },
+          "value_basis": { "type": "string", "enum": ["SINGLE_PROJECT", "EACH_OF_N_PROJECTS", "AGGREGATE_PROJECTS"] },
+          "required_count": { "type": "integer", "minimum": 1 },
+          "minimum_value_inr": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]{1,2})?$" },
+          "completion_requirement": { "const": "COMPLETED" },
+          "completed_from": { "type": ["string", "null"], "format": "date" },
+          "completed_through": { "type": ["string", "null"], "format": "date" },
+          "date_window_inclusive": { "const": true }
+        }
+      },
+      "EmdPredicate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "amount_inr", "exemption_available", "qualification_field"],
+        "properties": {
+          "kind": { "const": "EMD" },
+          "amount_inr": { "type": "string", "pattern": "^[0-9]+(?:\\.[0-9]{1,2})?$" },
+          "exemption_available": { "type": "boolean" },
+          "qualification_field": { "type": ["string", "null"] }
+        }
+      },
+      "DeadlinePredicate": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["kind", "closes_at", "timezone", "timezone_assumed"],
+        "properties": {
+          "kind": { "const": "DEADLINE" },
+          "closes_at": { "type": "string", "format": "date-time" },
+          "timezone": { "type": "string", "minLength": 1 },
+          "timezone_assumed": { "type": "boolean" }
+        }
+      },
+      "RulePredicate": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/TurnoverAveragePredicate" },
+          { "$ref": "#/components/schemas/CertificationPredicate" },
+          { "$ref": "#/components/schemas/ProjectExperiencePredicate" },
+          { "$ref": "#/components/schemas/EmdPredicate" },
+          { "$ref": "#/components/schemas/DeadlinePredicate" }
+        ],
+        "discriminator": { "propertyName": "kind" }
+      },
+      "RuleLeaf": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["node_type", "id", "kind", "title", "hardness", "predicate", "applicability", "evidence"],
+        "properties": {
+          "node_type": { "const": "LEAF" },
+          "id": { "type": "string", "minLength": 1 },
+          "kind": { "$ref": "#/components/schemas/RuleKind" },
+          "title": { "type": "string", "minLength": 1 },
+          "hardness": { "const": "HARD" },
+          "predicate": { "$ref": "#/components/schemas/RulePredicate" },
+          "applicability": { "oneOf": [{ "$ref": "#/components/schemas/ApplicabilityCondition" }, { "type": "null" }] },
+          "evidence": { "type": "array", "minItems": 1, "items": { "$ref": "#/components/schemas/EvidenceSpan" } }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "kind": { "const": "TURNOVER_AVERAGE" } }, "required": ["kind"] },
+            "then": { "properties": { "predicate": { "$ref": "#/components/schemas/TurnoverAveragePredicate" } } }
+          },
+          {
+            "if": { "properties": { "kind": { "const": "CERTIFICATION" } }, "required": ["kind"] },
+            "then": { "properties": { "predicate": { "$ref": "#/components/schemas/CertificationPredicate" } } }
+          },
+          {
+            "if": { "properties": { "kind": { "const": "PROJECT_EXPERIENCE" } }, "required": ["kind"] },
+            "then": { "properties": { "predicate": { "$ref": "#/components/schemas/ProjectExperiencePredicate" } } }
+          },
+          {
+            "if": { "properties": { "kind": { "const": "EMD" } }, "required": ["kind"] },
+            "then": { "properties": { "predicate": { "$ref": "#/components/schemas/EmdPredicate" } } }
+          },
+          {
+            "if": { "properties": { "kind": { "const": "DEADLINE" } }, "required": ["kind"] },
+            "then": { "properties": { "predicate": { "$ref": "#/components/schemas/DeadlinePredicate" } } }
+          }
+        ]
+      },
+      "RuleGroup": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "ALL and ANY require null minimum_matches. AT_LEAST_N requires 1 <= minimum_matches <= child count.",
+        "required": ["node_type", "id", "operator", "minimum_matches", "children"],
+        "properties": {
+          "node_type": { "const": "GROUP" },
+          "id": { "type": "string", "minLength": 1 },
+          "operator": { "$ref": "#/components/schemas/RuleOperator" },
+          "minimum_matches": { "type": ["integer", "null"], "minimum": 1 },
+          "children": { "type": "array", "minItems": 1, "items": { "$ref": "#/components/schemas/RuleNode" } }
+        },
+        "oneOf": [
+          {
+            "properties": {
+              "operator": { "enum": ["ALL", "ANY"] },
+              "minimum_matches": { "type": "null" }
+            }
+          },
+          {
+            "properties": {
+              "operator": { "const": "AT_LEAST_N" },
+              "minimum_matches": { "type": "integer", "minimum": 1 }
+            }
+          }
+        ]
+      },
+      "RuleNode": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/RuleGroup" },
+          { "$ref": "#/components/schemas/RuleLeaf" }
+        ],
+        "discriminator": { "propertyName": "node_type" }
+      },
+      "RuleResult": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["rule_id", "title", "evaluation", "explanation", "company_value", "requirement_value", "evidence", "children"],
+        "properties": {
+          "rule_id": { "type": "string", "minLength": 1 },
+          "title": { "type": "string", "minLength": 1 },
+          "evaluation": { "$ref": "#/components/schemas/Evaluation" },
+          "explanation": { "type": "string", "minLength": 1 },
+          "company_value": { "type": ["string", "null"] },
+          "requirement_value": { "type": ["string", "null"] },
+          "evidence": { "type": "array", "items": { "$ref": "#/components/schemas/EvidenceSpan" } },
+          "children": { "type": "array", "items": { "$ref": "#/components/schemas/RuleResult" } }
+        }
+      },
+      "Assessment": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["document", "requirements", "recommendation", "rule_results", "unknown_applicable_rule_count", "failed_hard_rule_count"],
+        "properties": {
+          "document": { "$ref": "#/components/schemas/DocumentVersion" },
+          "requirements": { "$ref": "#/components/schemas/RuleGroup" },
+          "recommendation": { "$ref": "#/components/schemas/Recommendation" },
+          "rule_results": { "type": "array", "minItems": 1, "items": { "$ref": "#/components/schemas/RuleResult" } },
+          "unknown_applicable_rule_count": { "type": "integer", "minimum": 0 },
+          "failed_hard_rule_count": { "type": "integer", "minimum": 0 }
+        }
+      },
+      "AssessmentView": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["opportunity", "company_profile", "base_assessment", "amended_assessment", "disclaimer"],
+        "properties": {
+          "opportunity": { "$ref": "#/components/schemas/OpportunitySummary" },
+          "company_profile": { "$ref": "#/components/schemas/CompanyProfile" },
+          "base_assessment": { "$ref": "#/components/schemas/Assessment" },
+          "amended_assessment": { "$ref": "#/components/schemas/Assessment" },
+          "disclaimer": { "type": "string", "minLength": 1 }
+        }
+      },
+      "AuthorityStatement": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["actor", "disposition", "effective_change", "replaces_document_id", "evidence"],
+        "properties": {
+          "actor": { "$ref": "#/components/schemas/AuthorityActor" },
+          "disposition": { "$ref": "#/components/schemas/AuthorityDisposition" },
+          "effective_change": { "type": "boolean" },
+          "replaces_document_id": { "type": ["string", "null"] },
+          "evidence": { "$ref": "#/components/schemas/EvidenceSpan" }
+        }
+      },
+      "AmendmentImpactView": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["opportunity_id", "data_mode", "base_document", "amendment_document", "authority_statement", "changed_rule_id", "old_clause", "new_clause", "old_predicate", "new_predicate", "base_recommendation", "amended_recommendation", "authority_change_applied", "transition_reason"],
+        "properties": {
+          "opportunity_id": { "type": "string", "minLength": 1 },
+          "data_mode": { "$ref": "#/components/schemas/DataMode" },
+          "base_document": { "$ref": "#/components/schemas/DocumentVersion" },
+          "amendment_document": { "$ref": "#/components/schemas/DocumentVersion" },
+          "authority_statement": { "$ref": "#/components/schemas/AuthorityStatement" },
+          "changed_rule_id": { "type": "string", "minLength": 1 },
+          "old_clause": { "$ref": "#/components/schemas/EvidenceSpan" },
+          "new_clause": { "$ref": "#/components/schemas/EvidenceSpan" },
+          "old_predicate": { "$ref": "#/components/schemas/RulePredicate" },
+          "new_predicate": { "$ref": "#/components/schemas/RulePredicate" },
+          "base_recommendation": { "$ref": "#/components/schemas/Recommendation" },
+          "amended_recommendation": { "$ref": "#/components/schemas/Recommendation" },
+          "authority_change_applied": { "type": "boolean" },
+          "transition_reason": { "type": "string", "minLength": 1 }
+        }
+      },
+      "VerifiedSourceProof": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "data_mode", "reason_code", "collector_name", "collector_config_version", "provider_run_id", "started_at", "completed_at", "raw_snapshot_sha256", "raw_record", "normalized_record", "terminal_state", "failure_code"],
+        "properties": {
+          "status": { "const": "VERIFIED" },
+          "data_mode": { "const": "RECORDED_BRIGHT_DATA_SNAPSHOT" },
+          "reason_code": { "type": "null" },
+          "collector_name": { "type": "string", "minLength": 1 },
+          "collector_config_version": { "type": "string", "minLength": 1 },
+          "provider_run_id": { "type": "string", "minLength": 1 },
+          "started_at": { "type": "string", "format": "date-time" },
+          "completed_at": { "type": "string", "format": "date-time" },
+          "raw_snapshot_sha256": { "$ref": "#/components/schemas/Sha256" },
+          "raw_record": { "type": "object" },
+          "normalized_record": { "$ref": "#/components/schemas/OpportunitySummary" },
+          "terminal_state": { "const": "SUCCESS" },
+          "failure_code": { "type": "null" }
+        }
+      },
+      "UnavailableSourceProof": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["status", "data_mode", "reason_code", "collector_name", "collector_config_version", "provider_run_id", "started_at", "completed_at", "raw_snapshot_sha256", "raw_record", "normalized_record", "terminal_state", "failure_code"],
+        "properties": {
+          "status": { "const": "UNAVAILABLE" },
+          "data_mode": { "const": "MANUAL_FIXTURE" },
+          "reason_code": { "type": "string", "enum": ["NOT_CONFIGURED", "LEGAL_VERIFY_REQUIRED", "PROVIDER_UNAVAILABLE", "PROOF_NOT_CAPTURED"] },
+          "collector_name": { "type": "null" },
+          "collector_config_version": { "type": "null" },
+          "provider_run_id": { "type": "null" },
+          "started_at": { "type": "null" },
+          "completed_at": { "type": "null" },
+          "raw_snapshot_sha256": { "type": "null" },
+          "raw_record": { "type": "null" },
+          "normalized_record": { "type": "null" },
+          "terminal_state": { "type": "null" },
+          "failure_code": { "type": "null" }
+        }
+      },
+      "SourceProofView": {
+        "oneOf": [
+          { "$ref": "#/components/schemas/VerifiedSourceProof" },
+          { "$ref": "#/components/schemas/UnavailableSourceProof" }
+        ],
+        "discriminator": { "propertyName": "status" }
+      },
+      "OpportunityListEnvelope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["request_id", "data"],
+        "properties": {
+          "request_id": { "$ref": "#/components/schemas/RequestId" },
+          "data": { "$ref": "#/components/schemas/OpportunityList" }
+        }
+      },
+      "AssessmentViewEnvelope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["request_id", "data"],
+        "properties": {
+          "request_id": { "$ref": "#/components/schemas/RequestId" },
+          "data": { "$ref": "#/components/schemas/AssessmentView" }
+        }
+      },
+      "AmendmentImpactViewEnvelope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["request_id", "data"],
+        "properties": {
+          "request_id": { "$ref": "#/components/schemas/RequestId" },
+          "data": { "$ref": "#/components/schemas/AmendmentImpactView" }
+        }
+      },
+      "SourceProofViewEnvelope": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["request_id", "data"],
+        "properties": {
+          "request_id": { "$ref": "#/components/schemas/RequestId" },
+          "data": { "$ref": "#/components/schemas/SourceProofView" }
+        }
+      }
+    }
+  }
+}

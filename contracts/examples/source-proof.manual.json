@@ -1,0 +1,18 @@
+{
+  "request_id": "44444444-4444-4444-8444-444444444444",
+  "data": {
+    "status": "UNAVAILABLE",
+    "data_mode": "MANUAL_FIXTURE",
+    "reason_code": "PROOF_NOT_CAPTURED",
+    "collector_name": null,
+    "collector_config_version": null,
+    "provider_run_id": null,
+    "started_at": null,
+    "completed_at": null,
+    "raw_snapshot_sha256": null,
+    "raw_record": null,
+    "normalized_record": null,
+    "terminal_state": null,
+    "failure_code": null
+  }
+}

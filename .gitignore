@@ -1,2 +1,38 @@
+# Environment files; checked-in examples contain variable names only.
 .env
+.env.*
+!.env.example
 
+# Secrets and signing material
+*.key
+*.pem
+*.crt
+*.cer
+*.p12
+*.pfx
+
+# Python caches and local environments
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+
+# Node dependencies and generated framework output
+node_modules/
+.next/
+coverage/
+*.tsbuildinfo
+
+# Private and generated preparation artifacts; deterministic demo data is tracked.
+backend/data/private-demo/
+backend/data/preparation/
+backend/data/generated/
+backend/data/snapshots/
+backend/data/**/*.tmp
+backend/data/**/.tmp/
+
+# Temporary snapshots
+*.snapshot.tmp
+*.snapshot.partial

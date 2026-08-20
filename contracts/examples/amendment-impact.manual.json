@@ -1,0 +1,96 @@
+{
+  "request_id": "33333333-3333-4333-8333-333333333333",
+  "data": {
+    "opportunity_id": "wb-hci-063",
+    "data_mode": "MANUAL_FIXTURE",
+    "base_document": {
+      "id": "wb-hci-063-base-v1",
+      "role": "BASE_TENDER",
+      "source_url": "https://wbtenders.gov.in/nicgep/app?page=Web",
+      "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "physical_page_count": 12,
+      "text_quality": "SUPPORTED"
+    },
+    "amendment_document": {
+      "id": "wb-hci-063-corrigendum-v2",
+      "role": "CORRIGENDUM",
+      "source_url": "https://wbtenders.gov.in/nicgep/app?page=Web",
+      "sha256": "9999999999999999999999999999999999999999999999999999999999999999",
+      "physical_page_count": 2,
+      "text_quality": "SUPPORTED"
+    },
+    "authority_statement": {
+      "actor": "AUTHORITY",
+      "disposition": "ACCEPTED",
+      "effective_change": true,
+      "replaces_document_id": "wb-hci-063-base-v1",
+      "evidence": {
+        "source_url": "https://wbtenders.gov.in/nicgep/app?page=Web",
+        "source_snapshot_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "document_sha256": "9999999999999999999999999999999999999999999999999999999999999999",
+        "document_version_id": "wb-hci-063-corrigendum-v2",
+        "physical_page_number": 1,
+        "printed_page_label": "1",
+        "section_heading": "Corrigendum",
+        "excerpt": "The authority replaces the turnover requirement with INR 1 crore for FY 2025-26.",
+        "normalized_page_text_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+        "extraction_model": "manual-review",
+        "extraction_prompt_version": "manual-v1",
+        "extraction_schema_version": "api-v1",
+        "extraction_state": "EVIDENCE_VERIFIED",
+        "review_state": "HUMAN_CONFIRMED"
+      }
+    },
+    "changed_rule_id": "turnover-average",
+    "old_clause": {
+      "source_url": "https://wbtenders.gov.in/nicgep/app?page=Web",
+      "source_snapshot_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "document_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "document_version_id": "wb-hci-063-base-v1",
+      "physical_page_number": 4,
+      "printed_page_label": "3",
+      "section_heading": "Eligibility Criteria",
+      "excerpt": "The bidder shall have average audited turnover of INR 2 crore for FY 2025-26.",
+      "normalized_page_text_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "extraction_model": "manual-review",
+      "extraction_prompt_version": "manual-v1",
+      "extraction_schema_version": "api-v1",
+      "extraction_state": "EVIDENCE_VERIFIED",
+      "review_state": "HUMAN_CONFIRMED"
+    },
+    "new_clause": {
+      "source_url": "https://wbtenders.gov.in/nicgep/app?page=Web",
+      "source_snapshot_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "document_sha256": "9999999999999999999999999999999999999999999999999999999999999999",
+      "document_version_id": "wb-hci-063-corrigendum-v2",
+      "physical_page_number": 1,
+      "printed_page_label": "1",
+      "section_heading": "Corrigendum",
+      "excerpt": "The turnover requirement is replaced with average audited turnover of INR 1 crore for FY 2025-26.",
+      "normalized_page_text_sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+      "extraction_model": "manual-review",
+      "extraction_prompt_version": "manual-v1",
+      "extraction_schema_version": "api-v1",
+      "extraction_state": "EVIDENCE_VERIFIED",
+      "review_state": "HUMAN_CONFIRMED"
+    },
+    "old_predicate": {
+      "kind": "TURNOVER_AVERAGE",
+      "required_financial_years": ["2025-26"],
+      "minimum_average_inr": "20000000.00",
+      "audited_only": true,
+      "legal_entity_scope": "BIDDER_ONLY"
+    },
+    "new_predicate": {
+      "kind": "TURNOVER_AVERAGE",
+      "required_financial_years": ["2025-26"],
+      "minimum_average_inr": "10000000.00",
+      "audited_only": true,
+      "legal_entity_scope": "BIDDER_ONLY"
+    },
+    "base_recommendation": "NO_BID",
+    "amended_recommendation": "BID",
+    "authority_change_applied": true,
+    "transition_reason": "The authority lowered the verified turnover threshold; the same bidder evidence now passes while the unchanged certification rule remains satisfied."
+  }
+}
