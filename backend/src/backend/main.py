@@ -15,7 +15,6 @@ from backend.artifacts import load_demo_bundle
 from backend.config import Settings
 from backend.contracts.api import ErrorCode, failure
 from backend.routes import (
-    ContractViolation,
     DemoUnavailable,
     OpportunityNotFound,
     router,
@@ -71,17 +70,6 @@ def _load_frozen_contract() -> dict[str, object]:
 
 def _install_handlers(app: FastAPI) -> None:
     """Install safe UUID error envelopes without internal paths or stack details."""
-
-    @app.exception_handler(ContractViolation)
-    async def raw_contract_violation(
-        _request: Request, _error: ContractViolation
-    ) -> JSONResponse:
-        """Map raw-path decoding or OpportunityId failure to the safe 422 branch."""
-        return _error_response(
-            422,
-            "CONTRACT_VALIDATION_FAILED",
-            "Request did not match the API contract.",
-        )
 
     @app.exception_handler(RequestValidationError)
     async def contract_validation_failed(
