@@ -13,6 +13,38 @@ function readExample(name: string): unknown {
 }
 
 describe("frozen API examples", () => {
+  test("keeps the seven-row inventory aligned with the official Odisha tender", () => {
+    const example = readExample("opportunities.manual.json");
+
+    expect(example).toMatchObject({
+      data: {
+        total: 7,
+        items: [
+          { source: "CPPP" },
+          { source: "CPPP" },
+          { source: "WEST_BENGAL" },
+          { source: "WEST_BENGAL" },
+          { source: "NTPC" },
+          { source: "NTPC" },
+          {
+            id: "ocac-pond-monitoring-26001",
+            source: "ODISHA",
+            source_tender_id: "OCAC-SASCI-CPMU-0001-2025-26001",
+            reference_number: "OCAC-SASCI-CPMU-0001-2025-26001",
+            authority: "Odisha Computer Application Centre",
+            title: "RFP for Selection of System Integrator for Development, Implementation, Operation & Maintenance Support of AI-enabled IoT-based Pond Monitoring and Advisory System for Fish Farming.",
+            category: "SOFTWARE",
+            published_at: null,
+            closes_at: null,
+            canonical_url: "https://odisha.gov.in/sites/default/files/2026-01/RFP-26001_03.01.2026_1.pdf",
+            data_mode: "MANUAL_FIXTURE",
+            snapshot_sha256: "f1bc41678cd71b0d20cd2432cf579b840af7a52152b72d8c55a5ee129b927afd",
+          },
+        ],
+      },
+    });
+  });
+
   test("keeps the deterministic assessment transition free of unknown applicable rules", () => {
     const example = readExample("assessment.manual.json");
 

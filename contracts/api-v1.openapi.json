@@ -154,7 +154,7 @@
         "required": ["id", "source", "source_tender_id", "reference_number", "authority", "title", "category", "published_at", "closes_at", "canonical_url", "data_mode", "snapshot_sha256"],
         "properties": {
           "id": { "$ref": "#/components/schemas/OpportunityId" },
-          "source": { "type": "string", "enum": ["CPPP", "WEST_BENGAL", "NTPC"] },
+          "source": { "type": "string", "enum": ["CPPP", "WEST_BENGAL", "NTPC", "ODISHA"] },
           "source_tender_id": { "type": "string", "minLength": 1 },
           "reference_number": { "type": ["string", "null"] },
           "authority": { "type": "string", "minLength": 1 },
