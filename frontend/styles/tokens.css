@@ -3,7 +3,6 @@
  * One green accent, paper-white surfaces, stone borders, ink text.
  * Typography: Newsreader (display), IBM Plex Sans (UI), IBM Plex Mono (hashes).
  */
-@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@500;600;700&family=Newsreader:opsz,wght@6..72,600;6..72,700&display=swap");
 
 :root {
   /* Surfaces — warm paper, not pure white */

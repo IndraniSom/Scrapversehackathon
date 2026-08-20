@@ -1,0 +1,36 @@
+{
+  "datasetVersion": "extraction-v1",
+  "feature": "extraction",
+  "cases": [
+    {
+      "id": "ext-001",
+      "inputRef": "odisha-26001-p1",
+      "expectedFacts": "turnover 3y avg 12cr audited BIDDER_ONLY",
+      "expectedStructure": "TURNOVER_AVERAGE leaf hard",
+      "expectedCitedIds": ["chunk-001"],
+      "hard_clause": true,
+      "requires_abstention": false,
+      "requiresCitation": true
+    },
+    {
+      "id": "ext-002",
+      "inputRef": "odisha-26001-p2",
+      "expectedFacts": "ISO 9001 valid_at null",
+      "expectedStructure": "CERTIFICATION leaf hard",
+      "expectedCitedIds": ["chunk-002"],
+      "hard_clause": true,
+      "requires_abstention": false,
+      "requiresCitation": true
+    },
+    {
+      "id": "ext-003",
+      "inputRef": "odisha-26001-ambig",
+      "expectedFacts": "ambiguous similar work -> UNSUPPORTED UNKNOWN",
+      "expectedStructure": "UNSUPPORTED leaf",
+      "expectedCitedIds": ["chunk-003"],
+      "hard_clause": false,
+      "requires_abstention": false,
+      "requiresCitation": true
+    }
+  ]
+}

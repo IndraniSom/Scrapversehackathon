@@ -1,8 +1,8 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import AmendmentPage from "../app/opportunities/[opportunityId]/amendment/page";
-import OpportunityPage from "../app/opportunities/[opportunityId]/page";
+import AmendmentPage from "../app/(product)/opportunities/[opportunityId]/amendments/page";
+import OpportunityPage from "../app/(product)/opportunities/[opportunityId]/page";
 import HomePage from "../app/page";
 import { arrayProperty, cloneFixture, jsonResponse, objectProperty, objectValue, readFixture } from "./fixtures";
 

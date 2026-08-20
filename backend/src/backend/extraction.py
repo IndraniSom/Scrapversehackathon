@@ -1,6 +1,7 @@
 """Public provider-independent extraction orchestration interface."""
 
 from collections.abc import Sequence
+from hashlib import sha256
 from typing import Protocol
 
 from backend.contracts.extraction import (
@@ -12,14 +13,14 @@ from backend.contracts.extraction import (
     VerifiedExtraction,
 )
 from backend.documents import PageText, ParsedDocument
-from backend.extraction_requests import build_extraction_request
+from backend.extraction_requests import INSTRUCTIONS, build_extraction_request
 from backend.extraction_verification import (
     EvidenceVerificationError,
+    needs_human_review,
+    persist_verification_metadata,
     reset_review_for_material_change,
 )
-from backend.extraction_verification import (
-    verify_extraction as _verify_extraction,
-)
+from backend.extraction_verification import verify_extraction as _verify_extraction
 
 
 class ExtractionError(ValueError):
@@ -43,14 +44,30 @@ def extract_requirements(
     return envelope.output
 
 
-def verify_extraction(
-    document: ParsedDocument, proposed: ProposedExtraction
-) -> VerifiedExtraction:
+def verify_extraction(document: ParsedDocument, proposed: ProposedExtraction) -> VerifiedExtraction:
     """Expose local verification through the stable extraction error boundary."""
     try:
         return _verify_extraction(document, proposed)
     except EvidenceVerificationError as error:
         raise ExtractionError(str(error)) from error
+
+
+def run_runtime_extraction(document: ParsedDocument, client: ExtractionClient, previous: ProposedExtraction | None = None) -> tuple[VerifiedExtraction, dict[str, object]]:
+    """Extract, verify location, and persist hashes/tokens; queue review if material."""
+    proposed = extract_requirements(document.pages, client)
+    verified = verify_extraction(document, proposed)
+    prompt_sha = sha256(INSTRUCTIONS.encode()).hexdigest()
+    tokens = getattr(client, "last_usage", None)
+    model = getattr(client, "model", "deepseek-v4-flash")
+    meta = persist_verification_metadata(proposed, document, prompt_sha, "rules-v1", model, tokens)
+    if needs_human_review(previous, proposed):
+        verified = verified.model_copy(update={"review_state": "UNREVIEWED"})
+    return verified, meta
+
+
+def runtime_needs_review(previous: ProposedExtraction | None, current: ProposedExtraction) -> bool:
+    """Return true when a new material revision must queue human review."""
+    return needs_human_review(previous, current)
 
 
 __all__ = [

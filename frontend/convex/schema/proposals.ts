@@ -11,21 +11,31 @@ export const proposalTables = {
     title: v.string(),
     body: v.string(),
     tags: v.optional(v.array(v.string())),
+    categories: v.optional(v.array(v.string())),
+    capabilityArea: v.optional(v.string()),
     evidenceId: v.optional(v.string()),
+    citations: v.optional(v.array(v.string())),
+    attachments: v.optional(v.array(v.string())),
     ownerId: v.string(),
-    freshnessState: v.union(v.literal("fresh"), v.literal("stale"), v.literal("expired")),
+    reviewCadenceDays: v.optional(v.number()),
+    usageCount: v.optional(v.number()),
+    lastUsedAt: v.optional(v.number()),
+    status: v.union(v.literal("draft"), v.literal("review"), v.literal("approved"), v.literal("expired")),
+    freshnessState: v.optional(v.union(v.literal("fresh"), v.literal("stale"), v.literal("expired"))),
     createdAt: v.number(),
     updatedAt: v.number(),
   })
     .index("by_organization", ["organizationId"])
-    .index("by_organization_and_id", ["organizationId", "ownerId"]),
+    .index("by_organization_and_id", ["organizationId", "ownerId"])
+    .index("by_organization_status", ["organizationId", "status"]),
 
   contentEntryRevisions: defineTable({
     organizationId: v.string(),
     entryId: v.id("contentEntries"),
     body: v.string(),
     evidence: v.optional(v.string()),
-    status: v.string(),
+    citations: v.optional(v.array(v.string())),
+    status: v.union(v.literal("draft"), v.literal("review"), v.literal("approved"), v.literal("expired")),
     createdAt: v.number(),
   })
     .index("by_organization", ["organizationId"])

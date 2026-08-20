@@ -1,0 +1,30 @@
+{
+  "datasetVersion": "amendment-v1",
+  "feature": "amendment_mapping",
+  "cases": [
+    {
+      "id": "amd-001",
+      "inputRef": "corrigendum-1-clause-4",
+      "expectedFacts": "turnover 12cr -> 6cr AUTHORITY ACCEPTED",
+      "expectedCitedIds": ["chunk-020", "chunk-021"],
+      "hard_clause": true,
+      "requires_abstention": false
+    },
+    {
+      "id": "amd-002",
+      "inputRef": "clarification-no-change",
+      "expectedFacts": "no effective change",
+      "expectedCitedIds": ["chunk-022"],
+      "hard_clause": false,
+      "requires_abstention": false
+    },
+    {
+      "id": "amd-003",
+      "inputRef": "bidder-request-rejected",
+      "expectedFacts": "BIDDER disposition REJECTED not effective",
+      "expectedCitedIds": ["chunk-023"],
+      "hard_clause": false,
+      "requires_abstention": false
+    }
+  ]
+}

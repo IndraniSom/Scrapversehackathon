@@ -1,0 +1,127 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BidRadar Worker API",
+    "version": "1.0.0",
+    "description": "Internal Convex-FastAPI job contract. One-time exchange token, signed result callback, idempotency and trace propagation."
+  },
+  "servers": [{ "url": "http://127.0.0.1:8000" }],
+  "security": [],
+  "paths": {
+    "/health/live": {
+      "get": {
+        "operationId": "getWorkerLiveness",
+        "responses": {
+          "200": {
+            "description": "Process alive",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Health" } } }
+          }
+        }
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "getWorkerReadiness",
+        "responses": {
+          "200": { "description": "Ready", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Health" } } } },
+          "503": { "description": "Not ready", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/internal/v1/jobs/{job_id}/execute": {
+      "post": {
+        "operationId": "executeJob",
+        "description": "Fetch bounded job input via one-time exchange token. Token is hashed, 5m expiry, constant-time verification.",
+        "parameters": [
+          { "name": "job_id", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$" } }
+        ],
+        "security": [{ "bearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Job input", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkerJobRequest" } } } },
+          "401": { "description": "Invalid or expired token", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "404": { "description": "Job not found", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "409": { "description": "Stale or replayed", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    },
+    "/internal/v1/jobs/{job_id}/result": {
+      "post": {
+        "operationId": "submitJobResult",
+        "description": "Submit signed result. Signature is HMAC-SHA256 over canonical JSON, verified constant-time. Stale inputRevision rejected.",
+        "parameters": [
+          { "name": "job_id", "in": "path", "required": true, "schema": { "type": "string", "pattern": "^[A-Za-z0-9_-]+$" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkerJobResult" } } }
+        },
+        "responses": {
+          "200": { "description": "Accepted", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/WorkerJobResultAck" } } } },
+          "400": { "description": "Invalid signature or schema", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } },
+          "409": { "description": "Stale result", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } } }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": { "type": "http", "scheme": "bearer", "bearerFormat": "opaque" }
+    },
+    "schemas": {
+      "Health": {
+        "type": "object",
+        "required": ["status"],
+        "properties": { "status": { "type": "string", "enum": ["ok"] } }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["code", "message"],
+        "properties": {
+          "code": { "type": "string", "enum": ["UNAUTHORIZED", "NOT_FOUND", "STALE_RESULT", "INVALID_SIGNATURE", "REPLAYED_TOKEN", "EXPIRED_TOKEN"] },
+          "message": { "type": "string" }
+        }
+      },
+      "WorkerJobRequest": {
+        "type": "object",
+        "required": ["jobId", "organizationId", "kind", "status", "idempotencyKey", "inputRevision", "inputHashes", "attempt", "maxAttempts", "traceId", "requestedBy", "createdAt"],
+        "properties": {
+          "jobId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "kind": { "type": "string", "enum": ["SOURCE_COLLECTION", "DOCUMENT_PARSE", "DOCUMENT_OCR", "REQUIREMENT_EXTRACTION", "EMBEDDING", "ASSESSMENT", "AMENDMENT_DIFF", "TENDER_BRIEF", "TENDER_QA", "COMPLIANCE_MATRIX", "PROPOSAL_OUTLINE", "PROPOSAL_DRAFT", "CLAIM_REVIEW", "EXPORT", "SUBMISSION_PACKAGE", "NOTIFICATION"] },
+          "status": { "type": "string", "enum": ["QUEUED", "DISPATCHED", "RUNNING", "NEEDS_REVIEW", "SUCCEEDED", "RETRYABLE_FAILURE", "FAILED", "CANCELLED"] },
+          "idempotencyKey": { "type": "string" },
+          "inputRevision": { "type": "string" },
+          "inputHashes": { "type": "array", "items": { "type": "string", "pattern": "^[a-f0-9]{64}$" } },
+          "attempt": { "type": "integer" },
+          "maxAttempts": { "type": "integer" },
+          "traceId": { "type": "string" },
+          "requestedBy": { "type": "string" },
+          "createdAt": { "type": "integer" }
+        }
+      },
+      "WorkerJobResult": {
+        "type": "object",
+        "required": ["jobId", "organizationId", "kind", "inputRevision", "inputHashes", "traceId", "status", "outputDigest", "signature"],
+        "properties": {
+          "jobId": { "type": "string" },
+          "organizationId": { "type": "string" },
+          "kind": { "type": "string", "enum": ["SOURCE_COLLECTION", "DOCUMENT_PARSE", "DOCUMENT_OCR", "REQUIREMENT_EXTRACTION", "EMBEDDING", "ASSESSMENT", "AMENDMENT_DIFF", "TENDER_BRIEF", "TENDER_QA", "COMPLIANCE_MATRIX", "PROPOSAL_OUTLINE", "PROPOSAL_DRAFT", "CLAIM_REVIEW", "EXPORT", "SUBMISSION_PACKAGE", "NOTIFICATION"] },
+          "inputRevision": { "type": "string" },
+          "inputHashes": { "type": "array", "items": { "type": "string" } },
+          "traceId": { "type": "string" },
+          "status": { "type": "string", "enum": ["SUCCEEDED", "RETRYABLE_FAILURE", "FAILED", "NEEDS_REVIEW"] },
+          "outputDigest": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "signature": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+        }
+      },
+      "WorkerJobResultAck": {
+        "type": "object",
+        "required": ["jobId", "status"],
+        "properties": {
+          "jobId": { "type": "string" },
+          "status": { "type": "string" }
+        }
+      }
+    }
+  }
+}

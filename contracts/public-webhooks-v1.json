@@ -1,0 +1,281 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "BidRadar Public Webhooks v1",
+    "version": "1.0.0",
+    "description": "Signed outbound events with HMAC timestamp, endpoint verification, SSRF protection, hashed API keys, and .ics/CSV/JSON exports."
+  },
+  "paths": {
+    "/webhooks": {
+      "post": {
+        "summary": "Outbound webhook delivery (server -> customer endpoint)",
+        "description": "Delivered only to verified HTTPS endpoints. SSRF: allowlist, DNS/IP private block, redirect revalidation, metadata 169.254.169.254 blocked, 1MB bound.",
+        "responses": {
+          "200": {
+            "description": "Accepted 2xx"
+          }
+        }
+      }
+    },
+    "/integrations/verify": {
+      "post": {
+        "summary": "Endpoint verification",
+        "description": "POST {url} -> GET url with x-verify-challenge, expects 2xx. SSRF checks applied to initial and redirect URLs.",
+        "responses": {
+          "200": {
+            "description": "Verified"
+          }
+        }
+      }
+    },
+    "/exports": {
+      "get": {
+        "summary": "Generic exports authenticated by hashed API key",
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "enum": [
+                "csv",
+                "json",
+                "ics"
+              ]
+            }
+          },
+          {
+            "name": "x-api-key",
+            "in": "header",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "File download tenant-scoped"
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "WebhookEnvelopeV1": {
+        "type": "object",
+        "required": [
+          "id",
+          "organizationId",
+          "type",
+          "occurredAt",
+          "data",
+          "traceId",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^evt_[a-f0-9-]+$",
+            "description": "Unique event ID"
+          },
+          "organizationId": {
+            "type": "string",
+            "pattern": "^org_[a-zA-Z0-9]+$",
+            "description": "Tenant organization"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "opportunity.created",
+              "opportunity.updated",
+              "assessment.completed",
+              "amendment.detected",
+              "review.decided",
+              "proposal.locked",
+              "submission.prepared"
+            ]
+          },
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "data": {
+            "type": "object",
+            "required": [
+              "id",
+              "revision"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "description": "Primary data ID (opportunity/assessment/etc)"
+              },
+              "revision": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "Revision for idempotency"
+              }
+            }
+          },
+          "traceId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "version": {
+            "type": "string",
+            "const": "v1"
+          }
+        }
+      },
+      "WebhookHeaders": {
+        "type": "object",
+        "required": [
+          "x-bidradar-timestamp",
+          "x-bidradar-signature"
+        ],
+        "properties": {
+          "x-bidradar-timestamp": {
+            "type": "string",
+            "description": "Unix millis as string"
+          },
+          "x-bidradar-signature": {
+            "type": "string",
+            "pattern": "^t=\\d+,v1=[a-f0-9]{64}$",
+            "description": "t=timestamp,v1=HMAC-SHA256 hex of 'timestamp.body' with endpoint secret"
+          }
+        }
+      },
+      "ApiKeyRecord": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "hash",
+          "state"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "hash": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$",
+            "description": "SHA-256 hex of raw key bdr_..., raw shown once only"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled"
+            ]
+          }
+        }
+      },
+      "WebhookDelivery": {
+        "type": "object",
+        "required": [
+          "id",
+          "organizationId",
+          "event",
+          "destination",
+          "attempt",
+          "status",
+          "createdAt"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "organizationId": {
+            "type": "string"
+          },
+          "event": {
+            "type": "string"
+          },
+          "destination": {
+            "type": "string",
+            "format": "uri",
+            "description": "HTTPS only, SSRF-validated"
+          },
+          "attempt": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "signatureId": {
+            "type": "string",
+            "description": "Event ID for idempotency"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "delivered",
+              "failed"
+            ]
+          },
+          "createdAt": {
+            "type": "integer"
+          }
+        }
+      }
+    },
+    "securitySchemes": {
+      "ApiKeyHash": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "x-api-key",
+        "description": "Raw key bdr_... verified against stored SHA-256 hash via constant-time compare; admin-only creation/revocation"
+      }
+    }
+  },
+  "x-bidradar": {
+    "signing": {
+      "algorithm": "HMAC-SHA256",
+      "header": "x-bidradar-signature: t=<timestamp>,v1=<hex>",
+      "payload": "timestamp + '.' + raw JSON body",
+      "toleranceMs": 300000,
+      "replayProtection": "Reject if |now - timestamp| > 5m or signature mismatch (constant-time)",
+      "rotation": "New secret generated, old hash invalidated after grace; deliveries during grace try new then old",
+      "example": {
+        "timestamp": "1713600000000",
+        "body": "{\"id\":\"evt_...\",\"organizationId\":\"org_123\",\"type\":\"opportunity.created\",\"occurredAt\":\"2026-08-21T00:00:00.000Z\",\"data\":{\"id\":\"opp_1\",\"revision\":1},\"traceId\":\"...\",\"version\":\"v1\"}",
+        "header": "t=1713600000000,v1=placeholder_64_hex_example_only_no_secret_shown",
+        "note": "Verify by recomputing HMAC-SHA256 of 'timestamp.body' with endpoint secret; no secret in example"
+      }
+    },
+    "ssrf": {
+      "policy": "HTTPS allowlist only",
+      "checks": [
+        "protocol https:",
+        "no user:password",
+        "DNS/IP Private block: 10/8, 172.16/12, 192.168/16, 127/8, 169.254/16, ::1, fc00::/7, fe80::/10, localhost, *.internal, metadata 169.254.169.254",
+        "redirect revalidation (each Location re-checked, max 3)",
+        "bounded response 1MB",
+        "timeout 5s"
+      ],
+      "verification": "GET destination with x-verify-challenge random UUID, expect 2xx within timeout"
+    },
+    "retry": {
+      "backoffMs": "min(60000, 1000 * 2^attempt)",
+      "retryOn": [
+        429,
+        408,
+        500,
+        502,
+        503,
+        504
+      ],
+      "deadLetterAfter": 5,
+      "disabledSkip": true
+    },
+    "exports": {
+      "ics": "VCALENDAR 2.0 with UID, DTSTAMP, DTSTART, DTEND, SUMMARY, DESCRIPTION (escaped)",
+      "csv": "Header row + quoted values, tenant-scoped",
+      "json": "Pretty 2-space, tenant-scoped"
+    }
+  }
+}

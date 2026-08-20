@@ -1,0 +1,30 @@
+{
+  "datasetVersion": "citations-v1",
+  "feature": "citations",
+  "cases": [
+    {
+      "id": "cit-001",
+      "inputRef": "tender-brief-pg18",
+      "expectedFacts": "EMD Rs 5 lakh via DD",
+      "expectedCitedIds": ["chunk-010", "chunk-011"],
+      "hard_clause": true,
+      "requires_abstention": false
+    },
+    {
+      "id": "cit-002",
+      "inputRef": "tender-brief-pg20",
+      "expectedFacts": "deadline 2026-02-02 IST",
+      "expectedCitedIds": ["chunk-012"],
+      "hard_clause": true,
+      "requires_abstention": false
+    },
+    {
+      "id": "cit-003",
+      "inputRef": "no-evidence-claim",
+      "expectedFacts": "no evidence for capability X",
+      "expectedCitedIds": [],
+      "hard_clause": false,
+      "requires_abstention": true
+    }
+  ]
+}

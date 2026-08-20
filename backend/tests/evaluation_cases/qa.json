@@ -1,0 +1,30 @@
+{
+  "datasetVersion": "qa-v1",
+  "feature": "qa",
+  "cases": [
+    {
+      "id": "qa-001",
+      "inputRef": "q: turnover threshold?",
+      "expectedFacts": "12cr avg 3y",
+      "expectedCitedIds": ["chunk-001"],
+      "hard_clause": false,
+      "requires_abstention": false
+    },
+    {
+      "id": "qa-002",
+      "inputRef": "q: is DSC required?",
+      "expectedFacts": "Not established by reviewed documents",
+      "expectedCitedIds": [],
+      "hard_clause": false,
+      "requires_abstention": true
+    },
+    {
+      "id": "qa-003",
+      "inputRef": "q: EMD amount cross-doc",
+      "expectedFacts": "5 lakh",
+      "expectedCitedIds": ["chunk-010"],
+      "hard_clause": false,
+      "requires_abstention": false
+    }
+  ]
+}

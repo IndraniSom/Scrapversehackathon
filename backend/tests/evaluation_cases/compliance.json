@@ -1,0 +1,30 @@
+{
+  "datasetVersion": "compliance-v1",
+  "feature": "compliance",
+  "cases": [
+    {
+      "id": "comp-001",
+      "inputRef": "req-turnover",
+      "expectedFacts": "row cites turnover evidence",
+      "expectedCitedIds": ["chunk-001"],
+      "hard_clause": true,
+      "requires_abstention": false
+    },
+    {
+      "id": "comp-002",
+      "inputRef": "req-cert-missing",
+      "expectedFacts": "gap MISSING_DOCUMENT",
+      "expectedCitedIds": [],
+      "hard_clause": true,
+      "requires_abstention": false
+    },
+    {
+      "id": "comp-003",
+      "inputRef": "req-unsupported",
+      "expectedFacts": "row UNKNOWN_SEMANTICS",
+      "expectedCitedIds": ["chunk-003"],
+      "hard_clause": false,
+      "requires_abstention": false
+    }
+  ]
+}

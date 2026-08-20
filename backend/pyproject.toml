@@ -41,3 +41,8 @@ testpaths = ["tests"]
 
 [tool.ruff]
 target-version = "py313"
+
+[tool.ruff.lint]
+# Keep backend lint focused on correctness (E/F) and allow intentional
+# broad-except / cleanup patterns in pipeline/OCR and test scaffolding.
+ignore = ["BLE001", "S110", "FURB162", "F841", "SIM103", "SIM117", "SIM222", "C408"]

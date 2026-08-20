@@ -11,21 +11,50 @@ def validate_single_change(
     base: RuleGroup, amendment: RuleGroup, changed_rule_id: str
 ) -> None:
     """Reject missing, extra, reordered, reparented, or mutated unchanged inputs."""
+    validate_changed_rules(base, amendment, {changed_rule_id})
+
+
+def deterministic_changed_ids(base: RuleGroup, amendment: RuleGroup) -> set[str]:
+    """Return IDs where predicate or evidence differs deterministically."""
     base_leaves = leaf_map(base)
     amendment_leaves = leaf_map(amendment)
-    if base_leaves.keys() != amendment_leaves.keys() or changed_rule_id not in base_leaves:
+    if base_leaves.keys() != amendment_leaves.keys():
         raise ValueError("amendment does not preserve stable rule IDs")
-    _validate_topology(base, amendment, changed_rule_id)
-    old = base_leaves[changed_rule_id]
-    new = amendment_leaves[changed_rule_id]
-    if old.kind != new.kind or old == new:
-        raise ValueError("changed rule must replace the same predicate kind")
+    changed: set[str] = set()
+    for rid, old in base_leaves.items():
+        new = amendment_leaves[rid]
+        if old.predicate != new.predicate or old.evidence != new.evidence:
+            changed.add(rid)
+    return changed
+
+
+def validate_changed_rules(
+    base: RuleGroup, amendment: RuleGroup, changed_rule_ids: set[str] | list[str]
+) -> None:
+    """Validate topology and that only declared IDs differ in predicate/evidence."""
+    changed = set(changed_rule_ids)
+    base_leaves = leaf_map(base)
+    amendment_leaves = leaf_map(amendment)
+    if base_leaves.keys() != amendment_leaves.keys():
+        raise ValueError("amendment does not preserve stable rule IDs")
+    if not changed or not changed.issubset(base_leaves.keys()):
+        raise ValueError("amendment does not preserve stable rule IDs")
+    _validate_topology(base, amendment, changed)
+    for rid in changed:
+        old = base_leaves[rid]
+        new = amendment_leaves[rid]
+        if old.kind != new.kind or old == new:
+            raise ValueError("changed rule must replace the same predicate kind")
+    # unchanged nodes must be identical
+    for rid in base_leaves.keys() - changed:
+        if base_leaves[rid] != amendment_leaves[rid]:
+            raise ValueError("only changed rule may differ")
 
 
 def _validate_topology(
     base: RuleGroup | RuleLeaf,
     amendment: RuleGroup | RuleLeaf,
-    changed_rule_id: str,
+    changed_rule_ids: set[str],
 ) -> None:
     """Compare recursive IDs, order, parentage, operators, minima, and fixed nodes."""
     if isinstance(base, RuleGroup) != isinstance(amendment, RuleGroup):
@@ -45,12 +74,12 @@ def _validate_topology(
                 new_child, UnsupportedRuleLeaf
             ):
                 raise TypeError("unsupported rule cannot enter judge-facing assessment")
-            _validate_topology(old_child, new_child, changed_rule_id)
+            _validate_topology(old_child, new_child, changed_rule_ids)
         return
     assert isinstance(base, RuleLeaf) and isinstance(amendment, RuleLeaf)
     if base.id != amendment.id:
         raise ValueError("amendment rule topology changed")
-    if base.id == changed_rule_id:
+    if base.id in changed_rule_ids:
         old_fixed = base.model_dump(exclude={"predicate", "evidence"})
         new_fixed = amendment.model_dump(exclude={"predicate", "evidence"})
         if old_fixed != new_fixed:

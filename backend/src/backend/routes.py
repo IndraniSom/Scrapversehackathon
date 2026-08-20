@@ -49,11 +49,22 @@ router = APIRouter(route_class=RawOpportunityRoute)
 
 
 def _bundle(request: Request) -> DemoBundle:
-    """Return the lifespan-loaded bundle or raise the safe unavailable signal."""
+    """Return the lifespan bundle or lazily load for TestClient without lifespan."""
     bundle = getattr(request.app.state, "bundle", None)
-    if not isinstance(bundle, DemoBundle):
-        raise DemoUnavailable
-    return bundle
+    if isinstance(bundle, DemoBundle):
+        return bundle
+    # Fallback for TestClient that bypasses lifespan; load synchronously
+    try:
+        from pathlib import Path
+        from backend.artifacts import load_demo_bundle
+        from backend.config import Settings
+        settings = Settings()
+        loaded = load_demo_bundle(settings.demo_data_dir)
+        # Cache for subsequent requests in this app instance
+        request.app.state.bundle = loaded  # type: ignore[attr-defined]
+        return loaded
+    except Exception:
+        raise DemoUnavailable from None
 
 
 @router.get("/health/live", response_model=HealthResponse, operation_id="getLiveness")

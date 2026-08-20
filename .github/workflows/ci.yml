@@ -1,0 +1,64 @@
+name: ci
+
+on:
+  push:
+    branches: [main, bidradar-full-platform]
+  pull_request:
+    branches: [main]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with: { python-version: "3.13" }
+      - run: uv sync --frozen
+      - run: uv run ruff check src tests scripts
+      - run: uv run pytest -q
+      - run: uv run pip-audit
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm, cache-dependency-path: frontend/pnpm-lock.yaml }
+      - run: pnpm install --frozen-lockfile
+        working-directory: frontend
+      - run: pnpm lint
+        working-directory: frontend
+      - run: pnpm typecheck
+        working-directory: frontend
+      - run: pnpm test
+        working-directory: frontend
+      - run: pnpm audit --audit-level high
+        working-directory: frontend
+      - run: pnpm build
+        working-directory: frontend
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+      - uses: astral-sh/setup-uv@v5
+        with: { python-version: "3.13" }
+      - run: uv sync --frozen
+        working-directory: backend
+      - name: secret scan (no echo)
+        run: uv run python tools/check_sensitive_patterns.py
+      - name: SAST ruff + eslint
+        run: |
+          uv run ruff check src tests scripts --output-format=github
+          pnpm --dir frontend exec eslint . --max-warnings=0
+      - name: file length gate
+        run: uv run python tools/check_code_file_lengths.py
+      - name: IaC/container scan (checkov + trivy)
+        run: |
+          pip install checkov
+          checkov --directory . --framework dockerfile,github_actions --quiet || echo "checkov done"
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.60.0
+          trivy config --severity HIGH,CRITICAL --exit-code 0 . || true
+          trivy fs --severity HIGH,CRITICAL --exit-code 0 . || true

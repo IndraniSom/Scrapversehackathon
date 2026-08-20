@@ -1,0 +1,30 @@
+{
+  "datasetVersion": "claims-v1",
+  "feature": "claims",
+  "cases": [
+    {
+      "id": "claim-001",
+      "inputRef": "proposal-para-1",
+      "expectedFacts": "supported claim with accepted evidence",
+      "expectedCitedIds": ["doc-evidence-1"],
+      "hard_clause": false,
+      "requires_abstention": false
+    },
+    {
+      "id": "claim-002",
+      "inputRef": "proposal-para-2",
+      "expectedFacts": "unsupported fact -> AUTHOR_INPUT_REQUIRED",
+      "expectedCitedIds": [],
+      "hard_clause": false,
+      "requires_abstention": true
+    },
+    {
+      "id": "claim-003",
+      "inputRef": "proposal-para-3",
+      "expectedFacts": "stale certificate flagged",
+      "expectedCitedIds": ["doc-evidence-2"],
+      "hard_clause": true,
+      "requires_abstention": false
+    }
+  ]
+}
