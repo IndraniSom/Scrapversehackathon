@@ -70,14 +70,16 @@ def build_assessment_input(root: Path, as_of: datetime) -> AssessmentInput:
         (root / "company-profile.json").read_bytes()
     )
     base, amendment = verify_extraction_directory(root / "extractions")
-    validate_demo_opportunity(opportunity, base.document.source_url)
+    validate_demo_opportunity(
+        opportunity, base.document.source_url, base.document_sha256
+    )
     return assessment_input_from_caches(
         opportunity, company, base, amendment, as_of
     )
 
 
 def validate_demo_opportunity(
-    opportunity: OpportunitySummary, base_url: str
+    opportunity: OpportunitySummary, base_url: str, base_sha256: str
 ) -> None:
     """Bind the manual OCAC selector semantically to the selected official base PDF."""
     if (
@@ -87,7 +89,12 @@ def validate_demo_opportunity(
         opportunity.reference_number,
         opportunity.authority,
         opportunity.title,
+        opportunity.category,
+        opportunity.published_at,
+        opportunity.closes_at,
         opportunity.canonical_url,
+        opportunity.data_mode,
+        opportunity.snapshot_sha256,
     ) != (
         DEMO_OPPORTUNITY_ID,
         "ODISHA",
@@ -95,6 +102,11 @@ def validate_demo_opportunity(
         OCAC_REFERENCE,
         OCAC_AUTHORITY,
         OCAC_TITLE,
+        "SOFTWARE",
+        None,
+        None,
         base_url,
+        "MANUAL_FIXTURE",
+        base_sha256,
     ):
         raise ValueError("demo opportunity semantic lineage is invalid")

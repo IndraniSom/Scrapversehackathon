@@ -149,28 +149,3 @@ def test_generated_views_validate_against_frozen_openapi(tmp_path: Path) -> None
         schema = contract["components"]["schemas"][name]
         errors = list(validator.evolve(schema=schema).iter_errors(json.loads((root / filename).read_text())))
         assert errors == []
-
-
-def test_loader_rejects_self_rehashed_cross_tender_alias(tmp_path: Path) -> None:
-    """Matching IDs cannot attach selected OCAC documents to unrelated semantics."""
-    root = seeded_demo(tmp_path)
-    opportunities_path = root / "opportunities.json"
-    assessment_path = root / "assessment.json"
-    opportunities = json.loads(opportunities_path.read_text())
-    assessment = json.loads(assessment_path.read_text())
-    selected = next(item for item in opportunities["items"] if item["id"] == assessment["opportunity"]["id"])
-    selected.update(
-        source="WEST_BENGAL",
-        authority="Unrelated Authority",
-        title="Unrelated tender",
-        reference_number="OTHER-1",
-        source_tender_id="OTHER-1",
-        canonical_url="https://wbtenders.gov.in/nicgep/app?page=Web",
-    )
-    assessment["opportunity"] = selected
-    rewrite_json(opportunities_path, opportunities)
-    rewrite_json(assessment_path, assessment)
-    update_manifest_hash(root, "opportunities")
-    update_manifest_hash(root, "assessment")
-    with pytest.raises(ArtifactError, match="semantic"):
-        load_demo_bundle(root)

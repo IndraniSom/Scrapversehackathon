@@ -26,7 +26,7 @@ def _validate_https_url(value: str) -> str:
 
 
 def _validate_opportunity_id(value: str) -> str:
-    """Reject literal route dot segments after length/whitespace normalization."""
+    """Reject only exact route dot segments without transforming other IDs."""
     if value in {".", ".."}:
         raise ValueError("opportunity ID cannot be a dot segment")
     return value
@@ -39,7 +39,7 @@ MetadataText = Annotated[
 ]
 OpportunityId = Annotated[
     str,
-    StringConstraints(strip_whitespace=True, min_length=1, max_length=160),
+    StringConstraints(min_length=1, max_length=160),
     AfterValidator(_validate_opportunity_id),
 ]
 DataMode = Literal["LIVE", "RECORDED_BRIGHT_DATA_SNAPSHOT", "MANUAL_FIXTURE"]

@@ -101,3 +101,13 @@ def test_amendment_impact_retains_valid_hostile_route_characters() -> None:
         values | {"opportunity_id": "ocac /?# % identifier"}
     )
     assert validated.opportunity_id == "ocac /?# % identifier"
+
+
+@pytest.mark.parametrize("identifier", [" x ", " . "])
+def test_amendment_impact_preserves_opportunity_id_whitespace(identifier: str) -> None:
+    """Contract-valid surrounding whitespace is preserved without transformation."""
+    values = assess_versions(assessment_input()).impact_view.model_dump()
+    validated = AmendmentImpactView.model_validate(
+        values | {"opportunity_id": identifier}
+    )
+    assert validated.opportunity_id == identifier
