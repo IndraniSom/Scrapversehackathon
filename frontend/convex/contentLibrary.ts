@@ -3,6 +3,7 @@
  *
  * States draft/review/approved/expired; revisions never mutate approved text
  * directly. Freshness creates review tasks instead of auto-editing.
+ * Tenant-isolated via requireOrganization; viewers see approved only.
  */
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
