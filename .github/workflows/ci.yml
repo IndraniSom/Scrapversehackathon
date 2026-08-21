@@ -3,7 +3,7 @@ name: ci
 on:
   workflow_call:
   push:
-    branches: [main, bidradar-full-platform]
+    branches: [main]
   pull_request:
     branches: [main]
 
@@ -14,8 +14,8 @@ jobs:
   backend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
         with: { python-version: "3.13" }
       - run: uv sync --frozen
         working-directory: backend
@@ -28,11 +28,11 @@ jobs:
   frontend:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with: { version: 10 }
-      - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: pnpm, cache-dependency-path: frontend/pnpm-lock.yaml }
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with: { version: 10.30.1 }
+      - uses: actions/setup-node@v7
+        with: { node-version: 24, cache: pnpm, cache-dependency-path: frontend/pnpm-lock.yaml }
       - run: pnpm install --frozen-lockfile
         working-directory: frontend
       - name: Verify committed Convex generated types
@@ -63,12 +63,12 @@ jobs:
   security:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: 20, cache: pnpm, cache-dependency-path: frontend/pnpm-lock.yaml }
-      - uses: pnpm/action-setup@v4
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
         with: { version: 10.30.1 }
-      - uses: astral-sh/setup-uv@v5
+      - uses: actions/setup-node@v7
+        with: { node-version: 24, cache: pnpm, cache-dependency-path: frontend/pnpm-lock.yaml }
+      - uses: astral-sh/setup-uv@v10
         with: { python-version: "3.13" }
       - run: uv sync --frozen
         working-directory: backend
@@ -84,8 +84,8 @@ jobs:
         run: uv run --project backend python tools/check_code_file_lengths.py
       - name: IaC/container scan (checkov + trivy)
         run: |
-          pip install checkov
+          pip install checkov==3.3.13
           checkov --directory . --framework dockerfile,github_actions --quiet
-          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.60.0
+          curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sh -s -- -b /usr/local/bin v0.74.0
           trivy config --severity HIGH,CRITICAL --exit-code 1 .
           trivy fs --severity HIGH,CRITICAL --exit-code 1 .
