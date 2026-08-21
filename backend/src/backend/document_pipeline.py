@@ -49,13 +49,25 @@ PipelineResult = ParsedDocument | NeedsOcr | InvalidDocument
 
 
 def _emit(stage: PipelineStage, handler: Callable[[PipelineStage], None] | None) -> None:
-    """Invoke the progress handler with one bounded stage name."""
+    """Invoke the progress handler with one bounded stage name.
+
+    Args:
+        stage: Bounded stage literal to report.
+        handler: Optional callback receiving the stage.
+    """
     if handler is not None:
         handler(stage)
 
 
 def _build_needs_ocr(path: Path) -> NeedsOcr:
-    """Derive OCR marker from local bytes and page count safely."""
+    """Derive OCR marker from local bytes and page count safely.
+
+    Args:
+        path: Local file path that required OCR.
+
+    Returns:
+        Marker with document SHA-256, byte length, and page count.
+    """
     try:
         raw = path.read_bytes()
     except OSError:
@@ -78,7 +90,18 @@ def run_document_pipeline(
     on_stage: Callable[[PipelineStage], None] | None = None,
     ocr_timeout: float = 8.0,
 ) -> PipelineResult:
-    """Run DOWNLOADING→VALIDATING→PARSING→[OCR]→CHUNKING→COMPLETE pipeline."""
+    """Run bounded DOWNLOADING→VALIDATING→PARSING→[OCR]→CHUNKING→COMPLETE pipeline.
+
+    Args:
+        path: Local PDF path to validate and parse.
+        limits: Bounded bytes, page count, and per-page char limits.
+        ocr_engine: Optional OCR adapter for blank scans.
+        on_stage: Optional progress callback receiving stage literals.
+        ocr_timeout: Bounded time for isolated OCR in seconds.
+
+    Returns:
+        ParsedDocument on success, NeedsOcr for blank scan, or InvalidDocument.
+    """
     _emit("DOWNLOADING", on_stage)
     _emit("VALIDATING", on_stage)
     _emit("PARSING", on_stage)
@@ -96,8 +119,9 @@ def run_document_pipeline(
             try:
                 from backend.ocr import OcrTimeoutError, run_ocr_and_parse
 
-                # Isolated OCR with CPU/memory/time/page limits, re-parse, finally cleanup
-                parsed_ocr = run_ocr_and_parse(path, limits, ocr_engine, timeout=ocr_timeout)  # type: ignore[arg-type]
+                parsed_ocr = run_ocr_and_parse(
+                    path, limits, ocr_engine, timeout=ocr_timeout  # type: ignore[arg-type]
+                )
                 _emit("PARSING", on_stage)
                 _emit("CHUNKING", on_stage)
                 _emit("COMPLETE", on_stage)
@@ -128,7 +152,14 @@ process_document = run_document_pipeline
 
 
 def chunk_pages(parsed: ParsedDocument) -> list[list[str]]:
-    """Split parsed pages into bounded chunks separately from public excerpts."""
+    """Split parsed pages into bounded chunks separately from public excerpts.
+
+    Args:
+        parsed: Valid parsed document with page texts.
+
+    Returns:
+        List of per-page chunks, each as a single-element list.
+    """
     chunks: list[list[str]] = []
     for page in parsed.pages:
         chunks.append([page.text])
