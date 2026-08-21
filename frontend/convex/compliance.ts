@@ -54,7 +54,7 @@ export function isApprovalBlocked(rows: ComplianceRow[]): boolean {
 /** Exports deterministic CSV with header and escaped fields for submission package. */
 export function exportComplianceCsv(rows: ComplianceRow[]): string {
   const header = ["requirement_id","citation","response_location","evidence","owner_id","status","gap_category","is_mandatory"];
-  const esc = (v: string) => (v.includes(",")||v.includes('"')||v.includes("\n") ? `"${v.replaceAll('"','""')}"` : v);
+  const esc = (v: string) => (v.includes(",")||v.includes('"')||v.includes("\n")||v.includes("\r") ? `"${v.replaceAll('"','""')}"` : v);
   const lines = [header.join(",")];
   for (const row of [...rows].sort((a,b)=>a.requirementId.localeCompare(b.requirementId))) {
     lines.push([esc(row.requirementId),esc(row.citation),esc(row.responseLocation??""),esc(row.evidence??""),esc(row.ownerId??""),row.status,row.gapCategory??"",String(row.isMandatory)].join(","));

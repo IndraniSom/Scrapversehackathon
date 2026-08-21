@@ -74,16 +74,22 @@ export function NotificationCenter({ alerts, onDismiss, digestEnabled }: Props) 
   );
 }
 
+/** Groups alerts by day and type for digest view. */
 function groupDigest(items: AlertItem[]): AlertItem[] {
+  const counts = new Map<string, number>();
+  for (const item of items) {
+    const day = new Date(item.createdAt).toISOString().slice(0, 10);
+    const key = `${day}:${item.type}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
   const map = new Map<string, AlertItem>();
   for (const item of items) {
     const day = new Date(item.createdAt).toISOString().slice(0, 10);
     const key = `${day}:${item.type}`;
-    if (!map.has(key)) map.set(key, { ...item, id: key, digestKey: key, message: `${item.message} (+${countFor(items, key) - 1} more)` });
+    if (map.has(key)) continue;
+    const total = counts.get(key) ?? 1;
+    const suffix = total > 1 ? ` (+${total - 1} more)` : "";
+    map.set(key, { ...item, id: key, digestKey: key, message: `${item.message}${suffix}` });
   }
   return Array.from(map.values());
-}
-function countFor(items: AlertItem[], key: string): number {
-  const [day, type] = key.split(":");
-  return items.filter((i) => new Date(i.createdAt).toISOString().slice(0, 10) === day && i.type === type).length;
 }

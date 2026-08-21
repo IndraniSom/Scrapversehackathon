@@ -42,8 +42,9 @@ export const sendEmail = action({
 export const recordSend = internalMutation({
   args: { eventId: v.id("notificationEvents"), recipientId: v.string(), status: v.union(v.literal("delivered"), v.literal("failed")), providerId: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    await ctx.db.query("notificationDeliveries").withIndex("by_organization_and_id", (q) => q.eq("organizationId", args.recipientId)).unique();
-    // fallback: update by event lookup; keep simple for now
+    const all = await ctx.db.query("notificationDeliveries").collect();
+    const target = all.find((d) => String((d as { eventId: unknown }).eventId) === String(args.eventId) && (d as { recipientId: string }).recipientId === args.recipientId);
+    if (target) await ctx.db.patch((target as unknown as { _id: string })._id as never, { status: args.status, providerId: args.providerId, attempts: ((target as { attempts: number }).attempts ?? 0) + 1 } as never);
     return { ok: true as const, eventId: args.eventId, status: args.status, providerId: args.providerId };
   },
 });

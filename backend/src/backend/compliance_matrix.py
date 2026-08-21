@@ -102,8 +102,6 @@ def classify_gap(row: ComplianceRow, evaluation: str | None = None) -> GapCatego
     """Classify one row into a gap category using deterministic precedence."""
     if row.gap_category == "REVIEW_REQUIRED":
         return "REVIEW_REQUIRED"
-    if row.requirement_revision < 0:
-        return "REVIEW_REQUIRED"
     if not row.response_location:
         return "MISSING_DATA" if row.is_mandatory else "REVIEW_REQUIRED"
     if not row.evidence:

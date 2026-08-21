@@ -56,7 +56,11 @@ def changed_deadline(old: dict, new: dict) -> bool:
 
 
 def build_ics(events: list[dict], calendar_name: str = "BidRadar Deadlines") -> str:
-    """Generate an .ics calendar from verified events with UTC stamps."""
+    """Generate an .ics calendar from verified events with UTC stamps.
+
+    Handles explicit timezone in event or closesAt offset and escapes
+    ICS text per RFC 5545 for SUMMARY and DESCRIPTION.
+    """
     lines = [
         "BEGIN:VCALENDAR",
         "VERSION:2.0",
@@ -66,16 +70,26 @@ def build_ics(events: list[dict], calendar_name: str = "BidRadar Deadlines") -> 
     for ev in events:
         uid = hashlib.sha256(f"{ev['id']}{ev['closesAt']}".encode()).hexdigest()[:16]
         try:
-            dt = datetime.fromisoformat(ev["closesAt"].replace("Z", "+00:00"))
+            raw = ev["closesAt"].replace("Z", "+00:00")
+            dt = datetime.fromisoformat(raw)
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=UTC)
+                tz_name = ev.get("timezone", "Asia/Kolkata")
+                try:
+                    zone = ZoneInfo(tz_name)
+                except Exception as exc:
+                    raise ValueError("invalid timezone") from exc
+                dt = dt.replace(tzinfo=zone)
             dt_utc = dt.astimezone(UTC)
         except Exception as exc:
             raise ValueError("invalid event closesAt") from exc
         dtstamp = datetime.now(UTC).strftime(ICS_DATE_FMT)
         dtstart = dt_utc.strftime(ICS_DATE_FMT)
         dtend = (dt_utc + timedelta(hours=1)).strftime(ICS_DATE_FMT)
-        safe_title = re.sub(r"[\r\n,;]", " ", ev.get("title", "Deadline"))
+        raw_title = ev.get("title", "Deadline")
+        safe_title = re.sub(r"[\r\n]", " ", raw_title)
+        safe_title = safe_title.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,")
+        safe_desc = f"Opportunity {ev['id']} closes {ev['closesAt']}"
+        safe_desc = safe_desc.replace("\\", "\\\\").replace(";", "\\;").replace(",", "\\,")
         lines.extend(
             [
                 "BEGIN:VEVENT",
@@ -84,7 +98,7 @@ def build_ics(events: list[dict], calendar_name: str = "BidRadar Deadlines") -> 
                 f"DTSTART:{dtstart}",
                 f"DTEND:{dtend}",
                 f"SUMMARY:{safe_title}",
-                f"DESCRIPTION:Opportunity {ev['id']} closes {ev['closesAt']}",
+                f"DESCRIPTION:{safe_desc}",
                 "END:VEVENT",
             ]
         )
