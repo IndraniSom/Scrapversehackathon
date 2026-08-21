@@ -5,6 +5,7 @@
  */
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
 import { requireOrganization } from "./lib/authorization";
 import { throwConflict, throwForbidden, throwNotFound, throwValidation } from "./lib/errors";
 
@@ -104,9 +105,8 @@ export const generateOutline = mutation({
     const now = Date.now(); const ids: string[] = [];
     for (let i=0;i<sections.length;i++) {
       const sec = sections[i];
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const parentId: any = sec.parentOrder !== null ? (ids[sec.parentOrder] as unknown) : undefined;
-      const id = await ctx.db.insert("proposalSections", { organizationId: auth.organizationId, proposalId: args.proposalId, parentId: parentId as never, title: sec.title, instructionCitation: sec.citation, state: "NOT_STARTED", order: sec.order, createdAt: now });
+      const parentId = sec.parentOrder !== null ? (ids[sec.parentOrder] as Id<"proposalSections">) : undefined;
+      const id = await ctx.db.insert("proposalSections", { organizationId: auth.organizationId, proposalId: args.proposalId, parentId, title: sec.title, instructionCitation: sec.citation, state: "NOT_STARTED", order: sec.order, createdAt: now });
       ids.push(String(id));
     }
     await ctx.db.patch(args.proposalId, { updatedAt: now });
