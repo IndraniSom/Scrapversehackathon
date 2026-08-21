@@ -1,87 +1,125 @@
-# Deploy — staged with smoke and automatic rollback
 name: deploy
+
 on:
   push:
     branches: [main]
   workflow_dispatch:
-    inputs:
-      environment:
-        description: "Target environment"
-        required: true
-        default: "staging"
-        type: choice
-        options: [preview, staging, production]
+
+permissions:
+  contents: read
+  packages: write
 
 concurrency:
-  group: deploy-${{ inputs.environment || 'production' }}
+  group: deploy-${{ github.event_name == 'workflow_dispatch' && 'staging' || 'production' }}
   cancel-in-progress: false
 
 jobs:
   ci-gate:
     uses: ./.github/workflows/ci.yml
+    secrets: inherit
 
   deploy-staging:
     needs: ci-gate
-    if: github.ref == 'refs/heads/main' || inputs.environment != 'production'
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
-    environment:
-      name: staging
-      url: https://staging.bidradar.example.com
+    environment: staging
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_STAGING }}
+      FLY_APP: ${{ vars.FLY_APP_STAGING }}
+      FRONTEND_URL: ${{ vars.STAGING_FRONTEND_URL }}
+      API_URL: ${{ vars.STAGING_API_URL }}
     steps:
       - uses: actions/checkout@v4
-      - name: Deploy Convex staging
-        run: npx convex deploy --prod --preview-name staging
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.30.1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm, cache-dependency-path: frontend/pnpm-lock.yaml }
+      - uses: astral-sh/setup-uv@v5
+        with: { python-version: "3.13" }
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        with: { version: 0.4.87 }
+      - run: pnpm install --frozen-lockfile
         working-directory: frontend
-        env: { CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY_STAGING }} }
+      - run: uv sync --frozen
+        working-directory: backend
+      - name: Deploy Convex staging
+        run: pnpm exec convex deploy --preview-name staging
+        working-directory: frontend
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY_STAGING }}
       - name: Build and push FastAPI image
         run: |
-          docker build -t ghcr.io/bidradar/api:${{ github.sha }} -f backend/Dockerfile backend
-          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          docker push ghcr.io/bidradar/api:${{ github.sha }}
+          docker build -t ghcr.io/indranisom/bidradar-api:${{ github.sha }} .
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker push ghcr.io/indranisom/bidradar-api:${{ github.sha }}
+        working-directory: backend
       - name: Deploy FastAPI staging
-        run: flyctl deploy --image ghcr.io/bidradar/api:${{ github.sha }} --config fly.staging.toml
-        env: { FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }} }
-      - name: Deploy Next.js staging
-        run: npx vercel --prod --token ${{ secrets.VERCEL_TOKEN }} --scope bidradar
+        run: flyctl deploy --config fly.toml --app "$FLY_APP" --image ghcr.io/indranisom/bidradar-api:${{ github.sha }} --remote-only
+        working-directory: backend
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - name: Build and deploy Next.js staging
+        run: |
+          pnpm dlx vercel@59.3.0 pull --yes --environment=preview --token="${{ secrets.VERCEL_TOKEN }}"
+          pnpm dlx vercel@59.3.0 build --token="${{ secrets.VERCEL_TOKEN }}"
+          pnpm dlx vercel@59.3.0 deploy --prebuilt --token="${{ secrets.VERCEL_TOKEN }}"
         working-directory: frontend
       - name: Smoke staging
-        run: |
-          curl -fsS https://staging.bidradar.example.com/health/ready
-          uv run python tools/smoke_demo.py --mode normal --base-url https://staging.bidradar.example.com
-      - name: Rollback staging on failure
-        if: failure()
-        run: |
-          npx vercel rollback --token ${{ secrets.VERCEL_TOKEN }}
-          flyctl deploy --image ghcr.io/bidradar/api:previous --config fly.staging.toml
+        run: uv run --project backend python tools/smoke_platform.py
+        env:
+          BIDRADAR_API_BASE_URL: ${{ env.API_URL }}
+          BIDRADAR_FRONTEND_URL: ${{ env.FRONTEND_URL }}
 
   deploy-production:
-    needs: deploy-staging
-    if: inputs.environment == 'production' || github.ref == 'refs/heads/main'
+    needs: ci-gate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
-    environment:
-      name: production
-      url: https://bidradar.example.com
+    environment: production
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID_PRODUCTION }}
+      FLY_APP: ${{ vars.FLY_APP_PRODUCTION }}
+      FRONTEND_URL: ${{ vars.PRODUCTION_FRONTEND_URL }}
+      API_URL: ${{ vars.PRODUCTION_API_URL }}
     steps:
       - uses: actions/checkout@v4
-      - name: Deploy Convex production
-        run: npx convex deploy --prod
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.30.1 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 20, cache: pnpm, cache-dependency-path: frontend/pnpm-lock.yaml }
+      - uses: astral-sh/setup-uv@v5
+        with: { python-version: "3.13" }
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+        with: { version: 0.4.87 }
+      - run: pnpm install --frozen-lockfile
         working-directory: frontend
-        env: { CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY_PROD }} }
+      - run: uv sync --frozen
+        working-directory: backend
+      - name: Deploy Convex production
+        run: pnpm exec convex deploy
+        working-directory: frontend
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.CONVEX_DEPLOY_KEY_PRODUCTION }}
+      - name: Build and push FastAPI image
+        run: |
+          docker build -t ghcr.io/indranisom/bidradar-api:${{ github.sha }} .
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker push ghcr.io/indranisom/bidradar-api:${{ github.sha }}
+        working-directory: backend
       - name: Deploy FastAPI production
-        run: flyctl deploy --image ghcr.io/bidradar/api:${{ github.sha }} --config fly.toml
-        env: { FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }} }
-      - name: Deploy Next.js production
-        run: npx vercel --prod --token ${{ secrets.VERCEL_TOKEN }} --scope bidradar
+        run: flyctl deploy --config fly.toml --app "$FLY_APP" --image ghcr.io/indranisom/bidradar-api:${{ github.sha }} --remote-only
+        working-directory: backend
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+      - name: Build and deploy Next.js production
+        run: |
+          pnpm dlx vercel@59.3.0 pull --yes --environment=production --token="${{ secrets.VERCEL_TOKEN }}"
+          pnpm dlx vercel@59.3.0 build --prod --token="${{ secrets.VERCEL_TOKEN }}"
+          pnpm dlx vercel@59.3.0 deploy --prebuilt --prod --token="${{ secrets.VERCEL_TOKEN }}"
         working-directory: frontend
       - name: Smoke production
-        run: |
-          curl -fsS https://bidradar.example.com/health/ready
-          curl -fsS https://bidradar.example.com/api/v1/opportunities | grep -q "opportunities"
-      - name: Rollback production on failure
-        if: failure()
-        run: |
-          npx vercel rollback --token ${{ secrets.VERCEL_TOKEN }}
-          flyctl deploy --image ghcr.io/bidradar/api:previous --config fly.toml
-      - name: Alert on failure
-        if: failure()
-        run: echo "ALERT: production deploy failed, rollback triggered" | tee -a deploy.log
+        run: uv run --project backend python tools/smoke_platform.py
+        env:
+          BIDRADAR_API_BASE_URL: ${{ env.API_URL }}
+          BIDRADAR_FRONTEND_URL: ${{ env.FRONTEND_URL }}
