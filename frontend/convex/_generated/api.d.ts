@@ -52,6 +52,7 @@ import type * as sourceProvider from "../sourceProvider.js";
 import type * as sourceRuns from "../sourceRuns.js";
 import type * as sources from "../sources.js";
 import type * as submissions from "../submissions.js";
+import type * as tenderIntelligence from "../tenderIntelligence.js";
 import type * as users from "../users.js";
 import type * as watchlists from "../watchlists.js";
 
@@ -106,6 +107,7 @@ declare const fullApi: ApiFromModules<{
   sourceRuns: typeof sourceRuns;
   sources: typeof sources;
   submissions: typeof submissions;
+  tenderIntelligence: typeof tenderIntelligence;
   users: typeof users;
   watchlists: typeof watchlists;
 }>;

@@ -19,6 +19,7 @@ from backend.config import Settings
 from backend.contracts.api import ErrorCode, failure
 from backend.observability import ObservabilityMiddleware
 from backend.routes import DemoUnavailable, OpportunityNotFound, router
+from backend.tender_intelligence_api import router as tender_intelligence_router
 from backend.worker_callback import router as worker_callback_router
 from backend.worker_routes import router as worker_router
 
@@ -132,6 +133,7 @@ def create_app(settings: Settings) -> FastAPI:
     app.include_router(router)
     app.include_router(worker_router)
     app.include_router(worker_callback_router)
+    app.include_router(tender_intelligence_router)
     _install_handlers(app)
     frozen = _load_frozen_contract()
 

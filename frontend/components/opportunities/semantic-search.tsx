@@ -7,15 +7,9 @@
  * capabilities, clauses, and source excerpts.
  */
 import { useMemo, useState } from "react";
-
-type OpportunityFilters = {
-  category?: string;
-  source?: string;
-  region?: string;
-  lifecycle?: string;
-  closesAfter?: string;
-  closesBefore?: string;
-};
+import { useAction } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import type { OpportunityFilters } from "../../convex/semanticSearch";
 
 type SearchResult = {
   id: string;
@@ -43,27 +37,18 @@ function parseFilters(input: string): OpportunityFilters {
   else if (lower.includes("cppp")) filters.source = "CPPP";
   if (lower.includes("closed")) filters.lifecycle = "closed";
   else if (lower.includes("open")) filters.lifecycle = "open";
-  if (lower.includes("closing next month") || lower.includes("next month")) {
-    filters.closesAfter = "next_month_start";
-    filters.closesBefore = "next_month_end";
-  }
   return filters;
 }
 
 /**
  * Semantic search panel with filter chips preview and hydrated results.
  */
-export function SemanticSearch({
-  organizationId,
-  onSearch,
-}: {
-  organizationId: string;
-  onSearch?: (args: { query: string; filters: OpportunityFilters }) => Promise<SearchResult[]>;
-}) {
+export function SemanticSearch() {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const runSearch = useAction(api.semanticSearch.semanticSearch);
 
   const parsed = useMemo(() => parseFilters(query), [query]);
   const hasFilters = Object.keys(parsed).length > 0;
@@ -80,13 +65,8 @@ export function SemanticSearch({
     setError(null);
     setLoading(true);
     try {
-      if (onSearch) {
-        const items = await onSearch({ query: truncated, filters });
-        const tenantFiltered = items.filter(() => Boolean(organizationId));
-        setResults(tenantFiltered);
-      } else {
-        setResults([]);
-      }
+      const response = await runSearch({ query: truncated, filters, limit: 10 });
+      setResults(response.items);
     } catch {
       setError("Search failed. Try again.");
     } finally {

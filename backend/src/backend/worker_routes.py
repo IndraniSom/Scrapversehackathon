@@ -1,10 +1,14 @@
 """Authenticated FastAPI execution boundary for registered worker jobs."""
 
+import hashlib
+import hmac
+import json
 import os
 from collections.abc import Callable, Mapping
 from pathlib import Path
 
-from fastapi import APIRouter, Header, HTTPException
+from fastapi import APIRouter, Header, HTTPException, Request
+from pydantic import BaseModel, ConfigDict, ValidationError
 
 from backend.document_pipeline import run_document_pipeline
 from backend.documents import DocumentLimits
@@ -21,6 +25,14 @@ JobHandler = Callable[[WorkerJobRequest, JobPayload], JobOutput]
 _JOB_STORE: dict[str, WorkerJobRequest] = {}
 _PAYLOAD_STORE: dict[str, dict[str, object]] = {}
 _HANDLERS: dict[JobKind, JobHandler] = {}
+
+
+class EmbeddingRequest(BaseModel):
+    """Closed signed request for query or passage embeddings."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    text: str
+    mode: str = "query"
 
 
 def _extract_bearer(authorization: str | None, worker_token: str | None) -> str:
@@ -85,6 +97,30 @@ def _ocr_handler(_job: WorkerJobRequest, payload: JobPayload) -> JobOutput:
 register_handler("EMBEDDING", _embedding_handler)
 register_handler("DOCUMENT_PARSE", _document_handler)
 register_handler("DOCUMENT_OCR", _ocr_handler)
+
+
+@router.post("/internal/v1/embeddings")
+async def create_embedding(
+    request: Request,
+    worker_signature: str | None = Header(default=None, alias="X-Worker-Signature"),
+) -> dict[str, object]:
+    """Verify exact-body HMAC and return one bounded worker embedding."""
+    secret = os.getenv("BIDRADAR_WORKER_HMAC_SECRET")
+    if not secret or not worker_signature:
+        raise HTTPException(status_code=401, detail={"code": "UNAUTHORIZED"})
+    body = await request.body()
+    expected = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, worker_signature):
+        raise HTTPException(status_code=401, detail={"code": "UNAUTHORIZED"})
+    try:
+        payload = EmbeddingRequest.model_validate(json.loads(body))
+    except (json.JSONDecodeError, ValidationError) as error:
+        raise HTTPException(status_code=422, detail={"code": "INVALID_EMBEDDING_INPUT"}) from error
+    output = _embedding_handler(
+        WorkerJobRequest.model_construct(kind="EMBEDDING"),
+        {"text": payload.text, "mode": payload.mode},
+    )
+    return output
 
 
 @router.post("/internal/v1/jobs/{job_id}/execute")

@@ -1,5 +1,8 @@
 """Runtime tests for mounted authenticated worker execution."""
 
+import hashlib
+import hmac
+import json
 from datetime import UTC, datetime
 
 import pytest
@@ -80,3 +83,20 @@ def test_readiness_fails_closed_without_worker_secret(monkeypatch: pytest.Monkey
     with TestClient(create_app(Settings())) as client:
         response = client.get("/health/ready")
     assert response.status_code == 503
+
+
+def test_signed_embedding_endpoint_returns_worker_vector(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Convex can request embeddings through exact-body signed worker boundary."""
+    secret = "worker-hmac-secret"
+    monkeypatch.setenv("BIDRADAR_WORKER_HMAC_SECRET", secret)
+    monkeypatch.setattr(embedding_module, "_model", FakeEmbeddingModel())
+    body = json.dumps({"text": "secure cloud tender", "mode": "query"}, separators=(",", ":")).encode()
+    signature = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    with TestClient(create_app(Settings())) as client:
+        response = client.post(
+            "/internal/v1/embeddings",
+            content=body,
+            headers={"Content-Type": "application/json", "X-Worker-Signature": signature},
+        )
+    assert response.status_code == 200
+    assert len(response.json()["embedding"]) == 768

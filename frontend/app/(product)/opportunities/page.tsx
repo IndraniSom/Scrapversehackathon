@@ -5,6 +5,7 @@
  * filters and table to client island with URL Zod validation.
  */
 import { DiscoveryClient } from "../../../components/opportunities/discovery-client";
+import { SemanticSearch } from "../../../components/opportunities/semantic-search";
 
 export const dynamic = "force-dynamic";
 
@@ -17,6 +18,7 @@ export default function OpportunitiesPage() {
         <p>Search tenders by keyword and filter by source, authority, category, location, budget, dates, lifecycle, data mode, assessment, and amendment.</p>
       </header>
       <DiscoveryClient />
+      <SemanticSearch />
     </main>
   );
 }

@@ -50,6 +50,21 @@ export const extractionTables = {
       filterFields: ["organizationId", "documentId", "contentKind", "language"],
     }),
 
+  tenderIntelligence: defineTable({
+    organizationId: v.string(),
+    opportunityId: v.id("opportunities"),
+    kind: v.union(v.literal("qa"), v.literal("brief"), v.literal("translation")),
+    question: v.optional(v.string()),
+    language: v.optional(v.string()),
+    status: v.union(v.literal("queued"), v.literal("succeeded"), v.literal("needs_review"), v.literal("failed")),
+    resultJson: v.optional(v.string()),
+    failureCode: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_organization_and_id", ["organizationId", "opportunityId"]),
+
   requirementSets: defineTable({
     organizationId: v.string(),
     documentId: v.id("opportunityDocuments"),
