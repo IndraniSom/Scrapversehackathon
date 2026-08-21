@@ -45,7 +45,7 @@ Override via `organizationProfiles.retentionPolicy {snapshotsDays, artifactsDays
 
 ## Vectors, files, artifacts, webhooks
 
-Vectors and storage are counted separately from table rows; export manifest lists every `storageId`/`embeddingId`/`destination`. Deletion verifies: vector search no results, storage fetch 404, webhook status absent, file-length gate still passes.
+Vectors and storage are counted separately from table rows; export manifest lists every `storageId`/`embeddingId`/`destination`. Deletion verifies: vector search no results, storage fetch 404, webhook status absent, file-length gate still passes. Verified deletion handles vectors, storage files, generated artifacts, webhook deliveries and validates none remain.
 
 ## Operational notes
 

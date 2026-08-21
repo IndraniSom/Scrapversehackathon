@@ -27,6 +27,7 @@ export const identityTables = {
     locale: v.optional(v.string()),
     timezone: v.string(),
     retentionPolicy: v.optional(v.object({ snapshotsDays: v.number(), artifactsDays: v.number() })),
+    legalHoldUntil: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   })

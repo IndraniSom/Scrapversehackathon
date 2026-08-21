@@ -132,7 +132,7 @@ def test_prompt_injection_payload_not_executed() -> None:
     if not pdf_path.exists():
         pytest.skip("demo pdf missing")
     limits = DocumentLimits()
-    # Ensure parse does not raise unexpected and does not contain eval()
+    # Ensure parse does not raise unexpected and avoids dynamic evaluation
     result = parse_pdf(pdf_path, limits)
     # Pages must be bounded strings, not code
     for page in result.pages:

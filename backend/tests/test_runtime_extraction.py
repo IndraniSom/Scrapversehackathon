@@ -19,6 +19,7 @@ from backend.extraction_verification import (
     persist_verification_metadata,
 )
 
+
 class FakeUsage:
     """Store token counts."""
 
