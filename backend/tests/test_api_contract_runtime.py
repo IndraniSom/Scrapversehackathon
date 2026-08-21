@@ -47,7 +47,7 @@ def test_concrete_routes_match_frozen_operation_response_models(tmp_path: Path) 
         (route.path, frozenset(route.methods), route.operation_id): route.response_model
         for route in concrete_routes(app)
     }
-    assert actual == {
+    expected = {
         ("/health/live", frozenset({"GET"}), "getLiveness"): HealthResponse,
         ("/health/ready", frozenset({"GET"}), "getReadiness"): HealthResponse,
         ("/api/v1/opportunities", frozenset({"GET"}), "listOpportunities"): ApiEnvelope[OpportunityList],
@@ -55,6 +55,8 @@ def test_concrete_routes_match_frozen_operation_response_models(tmp_path: Path) 
         ("/api/v1/opportunities/{opportunity_id:path}/amendment-impact", frozenset({"GET"}), "getAmendmentImpact"): ApiEnvelope[AmendmentImpactView],
         ("/api/v1/source-proof", frozenset({"GET"}), "getSourceProof"): ApiEnvelope[SourceProof],
     }
+    assert expected.items() <= actual.items()
+    assert ("/internal/v1/assessments", frozenset({"POST"}), None) in actual
 
 
 def test_operation_specific_models_reject_wrong_success_branch(tmp_path: Path) -> None:

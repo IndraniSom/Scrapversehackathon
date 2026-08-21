@@ -8,6 +8,7 @@ import { isAllowedPortal, isOfficialUrl, isSha256 } from "../../convex/integrati
 
 const integrationsPath = path.resolve(__dirname, "../../convex/integrations.ts");
 const submissionsPath = path.resolve(__dirname, "../../convex/submissions.ts");
+const verificationPath = path.resolve(__dirname, "../../convex/submissionVerification.ts");
 const checklistPath = path.resolve(__dirname, "../../components/submissions/submission-checklist.tsx");
 const receiptPath = path.resolve(__dirname, "../../components/submissions/receipt-form.tsx");
 const integrationsPagePath = path.resolve(__dirname, "../../app/(product)/integrations/page.tsx");
@@ -20,13 +21,11 @@ function read(p: string): string {
 }
 
 describe("submission connector boundary", () => {
-  test("integrations exposes prepare/status only, no submit", () => {
+  test("submission boundary exposes status and verified actions, never submit", () => {
     const txt = read(integrationsPath);
-    expect(txt).toMatch(/export const prepare/);
     expect(txt).toMatch(/export const status/);
     expect(txt).not.toMatch(/\bsubmit\s*\(/i);
-    expect(txt).toMatch(/SubmissionConnector/);
-    expect(txt).toMatch(/prepare[\s\S]*status/);
+    expect(read(verificationPath)).toMatch(/verifiedActor/);
   });
 
   test("checklist requires official link, server-clock warning, EMD, signing", () => {
@@ -36,7 +35,7 @@ describe("submission connector boundary", () => {
     expect(txt).toMatch(/EMD/i);
     expect(txt).toMatch(/signing/i);
     expect(txt).toMatch(/Filenames/i);
-    expect(txt).toMatch(/stepUpVerified/i);
+    expect(txt).toMatch(/Recent Clerk verification/i);
     expect(txt).toMatch(/approvalVerified/i);
   });
 
@@ -51,8 +50,8 @@ describe("submission connector boundary", () => {
   test("integrations page shows official link and server-clock warning", () => {
     const txt = read(integrationsPagePath);
     expect(txt).toMatch(/eprocure\.gov\.in/);
-    expect(txt).toMatch(/Server/);
-    expect(txt).toMatch(/SubmissionConnector/);
+    expect(txt).toMatch(/server-side reverification/i);
+    expect(txt).toMatch(/Submission boundary/);
   });
 
   test("portal allowlist rejects unauthorized connector", () => {
@@ -74,30 +73,29 @@ describe("submission connector boundary", () => {
     expect(isSha256("g".repeat(64))).toBe(false);
   });
 
-  test("submissions enforces audit and AI guard text", () => {
+  test("submissions enforces audit and human-session guard", () => {
     const txt = read(submissionsPath);
     expect(txt).toMatch(/auditEvents/);
-    expect(txt).toMatch(/AI cannot change submission state/);
+    expect(read(verificationPath)).toMatch(/startsWith\("ai_"\)/);
     expect(txt).toMatch(/Duplicate receipt/);
     expect(txt).toMatch(/Stale package/);
-    expect(txt).toMatch(/Step-up authentication required/);
-    expect(txt).toMatch(/Approval required/);
+    expect(read(verificationPath)).toMatch(/factors\[0\].*10/);
+    expect(txt).toMatch(/Approved valid package required/);
   });
 
   test("incomplete checklist is rejected", () => {
-    const txt = read(integrationsPath);
+    const txt = read(submissionsPath);
     expect(txt).toMatch(/Checklist incomplete/);
   });
 
   test("stale package detection present", () => {
-    const txt = read(integrationsPath) + read(submissionsPath);
+    const txt = read(submissionsPath);
     expect(txt).toMatch(/Stale package/);
     expect(txt).toMatch(/manifest/);
   });
 
-  test("missing step-up and approval are distinct errors", () => {
-    const txt = read(integrationsPath);
-    expect(txt).toMatch(/Step-up authentication required/);
-    expect(txt).toMatch(/Approval required/);
+  test("reverification and approval are enforced at separate layers", () => {
+    expect(read(integrationsPagePath)).toMatch(/useReverification/);
+    expect(read(submissionsPath)).toMatch(/Approved valid package required/);
   });
 });

@@ -6,16 +6,17 @@
  */
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
+import type { MutationCtx } from "./_generated/server";
 import { requireOrganization, requirePermission } from "./lib/authorization";
 
 /** Checks webhookDeliveries for duplicate eventId. */
 async function isDuplicate(
-  ctx: { db: { query: (t: string) => { filter: (fn: unknown) => { first: () => Promise<unknown> } } } },
+  ctx: MutationCtx,
   eventId: string,
 ): Promise<boolean> {
   const existing = await ctx.db
     .query("webhookDeliveries")
-    .filter((q: { eq: (f: unknown, v: string) => unknown; field: (n: string) => unknown }) =>
+    .filter((q) =>
       q.eq(q.field("signatureId"), eventId))
     .first();
   return existing !== null;
@@ -25,7 +26,7 @@ async function isDuplicate(
 export const internalSyncOrganization = internalMutation({
   args: { clerkOrganizationId: v.string(), slug: v.string(), displayName: v.string(), eventId: v.string() },
   handler: async (ctx, args) => {
-    if (await isDuplicate(ctx as unknown as never, args.eventId)) return { duplicate: true };
+    if (await isDuplicate(ctx, args.eventId)) return { duplicate: true };
     const existing = await ctx.db.query("organizationProfiles").withIndex("by_clerkOrganizationId", (q) => q.eq("clerkOrganizationId", args.clerkOrganizationId)).unique();
     const now = Date.now();
     if (existing !== null) await ctx.db.patch(existing._id, { slug: args.slug, displayName: args.displayName, updatedAt: now });
@@ -39,7 +40,7 @@ export const internalSyncOrganization = internalMutation({
 export const internalDeleteOrganization = internalMutation({
   args: { clerkOrganizationId: v.string(), eventId: v.string() },
   handler: async (ctx, args) => {
-    if (await isDuplicate(ctx as unknown as never, args.eventId)) return { duplicate: true };
+    if (await isDuplicate(ctx, args.eventId)) return { duplicate: true };
     const existing = await ctx.db.query("organizationProfiles").withIndex("by_clerkOrganizationId", (q) => q.eq("clerkOrganizationId", args.clerkOrganizationId)).unique();
     if (existing !== null) await ctx.db.delete(existing._id);
     await ctx.db.insert("webhookDeliveries", { organizationId: args.clerkOrganizationId, event: args.eventId, destination: "clerk-webhook-orgs", attempt: 1, signatureId: args.eventId, status: "delivered", createdAt: Date.now() });
@@ -51,7 +52,7 @@ export const internalDeleteOrganization = internalMutation({
 export const internalSyncMembership = internalMutation({
   args: { clerkUserId: v.string(), clerkOrganizationId: v.string(), role: v.string(), eventId: v.string() },
   handler: async (ctx, args) => {
-    if (await isDuplicate(ctx as unknown as never, args.eventId)) return { duplicate: true };
+    if (await isDuplicate(ctx, args.eventId)) return { duplicate: true };
     const allowed = ["org:admin", "org:bid_manager", "org:reviewer", "org:contributor", "org:viewer"] as const;
     const role = (allowed as readonly string[]).includes(args.role) ? (args.role as (typeof allowed)[number]) : "org:viewer";
     const existing = await ctx.db.query("organizationMemberships").withIndex("by_organization_and_id", (q) => q.eq("organizationId", args.clerkOrganizationId).eq("clerkUserId", args.clerkUserId)).unique();
@@ -67,7 +68,7 @@ export const internalSyncMembership = internalMutation({
 export const internalDeleteMembership = internalMutation({
   args: { clerkUserId: v.string(), clerkOrganizationId: v.string(), eventId: v.string() },
   handler: async (ctx, args) => {
-    if (await isDuplicate(ctx as unknown as never, args.eventId)) return { duplicate: true };
+    if (await isDuplicate(ctx, args.eventId)) return { duplicate: true };
     const existing = await ctx.db.query("organizationMemberships").withIndex("by_organization_and_id", (q) => q.eq("organizationId", args.clerkOrganizationId).eq("clerkUserId", args.clerkUserId)).unique();
     if (existing !== null) await ctx.db.delete(existing._id);
     await ctx.db.insert("webhookDeliveries", { organizationId: args.clerkOrganizationId, event: args.eventId, destination: "clerk-webhook-memberships", attempt: 1, signatureId: args.eventId, status: "delivered", createdAt: Date.now() });
@@ -102,26 +103,18 @@ export const updateOrganization = mutation({
   handler: async (ctx, args) => {
     const auth = await requirePermission(ctx, "org:admin");
     const profile = await ctx.db.query("organizationProfiles").withIndex("by_clerkOrganizationId", (q) => q.eq("clerkOrganizationId", auth.organizationId)).unique();
-    if (profile === null) throw new Error("Organization not found");
+    const identity = await ctx.auth.getUserIdentity();
     const patch: Record<string, unknown> = { updatedAt: Date.now() };
     if (args.displayName !== undefined) patch["displayName"] = args.displayName;
     if (args.slug !== undefined) patch["slug"] = args.slug;
     if (args.timezone !== undefined) patch["timezone"] = args.timezone;
     if (args.locale !== undefined) patch["locale"] = args.locale;
-    await ctx.db.patch(profile._id, patch);
+    if (profile) await ctx.db.patch(profile._id, patch);
+    else await ctx.db.insert("organizationProfiles", { organizationId: auth.organizationId, clerkOrganizationId: auth.organizationId, slug: args.slug?.trim() || auth.organizationId, displayName: args.displayName?.trim() || "Organization", timezone: args.timezone || "UTC", locale: args.locale, createdAt: Date.now(), updatedAt: Date.now() });
+    const membership = await ctx.db.query("organizationMemberships").withIndex("by_organization_and_id", (q) => q.eq("organizationId", auth.organizationId).eq("clerkUserId", auth.clerkUserId)).unique();
+    if (!membership) await ctx.db.insert("organizationMemberships", { organizationId: auth.organizationId, clerkOrganizationId: auth.organizationId, clerkUserId: auth.clerkUserId, role: auth.role, createdAt: Date.now(), updatedAt: Date.now() });
+    const user = await ctx.db.query("users").withIndex("by_organization_and_id", (q) => q.eq("organizationId", auth.organizationId).eq("clerkUserId", auth.clerkUserId)).unique();
+    if (!user) await ctx.db.insert("users", { organizationId: auth.organizationId, clerkUserId: auth.clerkUserId, email: typeof identity?.email === "string" ? identity.email : undefined, lifecycle: "active", createdAt: Date.now(), updatedAt: Date.now() });
     return { ok: true as const };
-  },
-});
-
-/**
- * Deletes organization. Requires org:admin and step-up auth.
- *
- * Step-up reverification must be performed via Clerk before deletion.
- */
-export const deleteOrganization = mutation({
-  args: {},
-  handler: async (ctx) => {
-    await requirePermission(ctx, "org:admin");
-    throw new Error("Step-up authentication required for organization deletion");
   },
 });

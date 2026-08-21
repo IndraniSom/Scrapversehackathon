@@ -144,6 +144,7 @@
 /* Filter rail — distinct Editorial rail */
 .filter-rail {
   display: grid;
+  min-width: 0;
   gap: var(--space-4);
   padding: var(--space-4);
   border: 1px solid var(--border);

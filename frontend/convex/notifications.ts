@@ -1,7 +1,10 @@
 import { v } from "convex/values";
 import { internalMutation, mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { requireOrganization } from "./lib/authorization";
 import { throwConflict, throwValidation } from "./lib/errors";
+import { buildDeduplicationKey, groupIntoDigest, shouldRetry, type Channel, type NotificationType } from "./notificationLogic";
+export { buildDeduplicationKey, groupIntoDigest, isQuietHour, shouldDeliver, shouldRetry } from "./notificationLogic";
 
 /** Typed event kinds; tenant dedup by org:type:source. */
 export const NOTIFICATION_TYPES = [
@@ -16,46 +19,6 @@ export const NOTIFICATION_TYPES = [
   "export",
   "submission_risk",
 ] as const;
-export type NotificationType = (typeof NOTIFICATION_TYPES)[number];
-export type Channel = "in_app" | "email" | "digest";
-
-/** Builds tenant-scoped deduplication key for idempotent event emission. */
-export function buildDeduplicationKey(o: string, t: NotificationType, s: string): string {
-  return `${o}:${t}:${s}`;
-}
-
-/** Returns true when UTC hour falls inside quiet window (wraps midnight). */
-export function isQuietHour(n: number, q: { startHour: number; endHour: number } | null): boolean {
-  if (!q) return false;
-  const h = new Date(n).getUTCHours();
-  if (q.startHour <= q.endHour) return h >= q.startHour && h < q.endHour;
-  return h >= q.startHour || h < q.endHour;
-}
-
-/** Returns true when channel is allowed given preferences and disabled flag. */
-export function shouldDeliver(c: Channel, p: Channel[] | null, d: boolean): boolean {
-  if (d) return false;
-  if (p === null) return true;
-  return p.includes(c);
-}
-
-/** Groups events by day and type for digest delivery. */
-export function groupIntoDigest(e: { type: NotificationType; createdAt: number }[]): Map<string, typeof e> {
-  const m = new Map<string, typeof e>();
-  for (const ev of e) {
-    const k = `${new Date(ev.createdAt).toISOString().slice(0, 10)}:${ev.type}`;
-    const b = m.get(k) ?? [];
-    b.push(ev);
-    m.set(k, b);
-  }
-  return m;
-}
-
-/** Returns true when a failed delivery may be retried (max 3 attempts). */
-export function shouldRetry(a: number, s: string): boolean {
-  return s === "failed" && a < 3;
-}
-
 const typeValidator = v.union(
   v.literal("saved_search_match"),
   v.literal("new_document"),
@@ -95,9 +58,17 @@ export const emitEvent = mutation({
       payload: args.payload,
       createdAt: now,
     });
-    const channels: Channel[] = (args.channels as Channel[]) ?? ["in_app"];
+    const channels: Channel[] = args.channels ?? ["in_app"];
     const recipients = args.recipientIds ?? [auth.clerkUserId];
-    for (const r of recipients) for (const ch of channels) await ctx.db.insert("notificationDeliveries", { organizationId: auth.organizationId, eventId, channel: ch, recipientId: r, attempts: 0, status: "pending", createdAt: now });
+    if (recipients.length === 0 || recipients.length > 100) throwValidation("Recipient count must be between 1 and 100.");
+    for (const recipientId of recipients) {
+      const membership = await ctx.db.query("organizationMemberships").withIndex("by_organization_and_id", (query) => query.eq("organizationId", auth.organizationId).eq("clerkUserId", recipientId)).unique();
+      if (!membership) throwValidation("Notification recipient is not an organization member.");
+    }
+    for (const recipientId of recipients) for (const channel of channels) {
+      const deliveryId = await ctx.db.insert("notificationDeliveries", { organizationId: auth.organizationId, eventId, channel, recipientId, attempts: 0, status: "pending", createdAt: now });
+      if (channel === "email") await ctx.scheduler.runAfter(0, internal.email.sendEmail, { deliveryId });
+    }
     return { eventId, deduplicationKey: key };
   },
 });
@@ -143,6 +114,45 @@ export const getDigest = query({
     const e = await ctx.db.query("notificationEvents").withIndex("by_organization", (q) => q.eq("organizationId", a.organizationId)).order("desc").take(50);
     const g = groupIntoDigest(e as { type: NotificationType; createdAt: number }[]);
     return Array.from(g.entries()).map(([key, items]) => ({ key, count: items.length, items }));
+  },
+});
+
+/** Returns current user's persisted delivery preferences or safe defaults. */
+export const getPreferences = query({
+  args: {},
+  handler: async (ctx) => {
+    const auth = await requireOrganization(ctx);
+    return (await ctx.db.query("notificationPreferences").withIndex("by_organization_and_id", (query) => query.eq("organizationId", auth.organizationId).eq("userId", auth.clerkUserId)).unique()) ?? {
+      organizationId: auth.organizationId,
+      userId: auth.clerkUserId,
+      quietStartHour: 22,
+      quietEndHour: 7,
+      timezone: "Asia/Kolkata",
+      digestCadence: "daily" as const,
+      channels: ["in_app", "digest"] as Channel[],
+      updatedAt: 0,
+    };
+  },
+});
+
+/** Creates or updates current user's bounded notification preferences. */
+export const updatePreferences = mutation({
+  args: {
+    quietStartHour: v.number(),
+    quietEndHour: v.number(),
+    timezone: v.string(),
+    digestCadence: v.union(v.literal("instant"), v.literal("daily"), v.literal("weekly")),
+    channels: v.array(v.union(v.literal("in_app"), v.literal("email"), v.literal("digest"))),
+  },
+  handler: async (ctx, args) => {
+    const auth = await requireOrganization(ctx);
+    if (![args.quietStartHour, args.quietEndHour].every((hour) => Number.isInteger(hour) && hour >= 0 && hour <= 23)) throwValidation("Quiet hours must be integers from 0 to 23.");
+    if (!args.timezone.trim() || args.channels.length === 0) throwValidation("Timezone and at least one channel are required.");
+    const existing = await ctx.db.query("notificationPreferences").withIndex("by_organization_and_id", (query) => query.eq("organizationId", auth.organizationId).eq("userId", auth.clerkUserId)).unique();
+    const value = { ...args, timezone: args.timezone.trim(), organizationId: auth.organizationId, userId: auth.clerkUserId, updatedAt: Date.now() };
+    if (existing) await ctx.db.patch(existing._id, value);
+    else await ctx.db.insert("notificationPreferences", value);
+    return { saved: true as const };
   },
 });
 

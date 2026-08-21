@@ -5,30 +5,21 @@
  */
 "use client";
 
-import { SignedIn, SignedOut, SignInButton, UserButton } from "@clerk/nextjs";
+import { SignInButton, UserButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 
-export function AuthHeader() {
-  const hasKey = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-  if (!hasKey) {
-    return <p>Procurement evidence review — offline demo</p>;
+/** Renders loaded Clerk session controls inside configured provider. */
+function AuthControls() {
+  const { isLoaded, userId } = useAuth();
+  if (!isLoaded) return <p role="status">Loading account…</p>;
+  if (userId) return <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}><p>Procurement evidence review</p><Link href="/opportunities" className="text-link">Workspace</Link><UserButton /></div>;
+  return <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}><p>Procurement evidence review</p><SignInButton mode="modal"><button type="button" className="primary-action">Sign in</button></SignInButton></div>;
+}
+
+/** Renders Clerk session controls only when server configuration is present. */
+export function AuthHeader({ configured }: { configured: boolean }) {
+  if (!configured) {
+    return <p>Authentication unavailable</p>;
   }
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-      <p>Procurement evidence review</p>
-      <SignedOut>
-        <SignInButton mode="modal">
-          <button type="button" className="primary-action">
-            Sign in
-          </button>
-        </SignInButton>
-      </SignedOut>
-      <SignedIn>
-        <Link href="/dashboard" className="text-link">
-          Dashboard
-        </Link>
-        <UserButton />
-      </SignedIn>
-    </div>
-  );
+  return <AuthControls />;
 }

@@ -12,20 +12,20 @@ export const metadata: Metadata = {
 
 /** Provides shared BidRadar identity, auth, and application landmarks. */
 export default function RootLayout({ children }: LayoutProps<"/">) {
-  const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  const clerkKey = process.env.BIDRADAR_E2E_MODE === "1" ? undefined : process.env.CLERK_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   const content = (
     <html lang="en">
       <body>
         <a className="skip-link" href="#main-content">
           Skip to main content
         </a>
-        <ConvexClientProvider>
+        <ConvexClientProvider clerkConfigured={Boolean(clerkKey)}>
           <header className="site-header">
             <Link className="brand" href="/" aria-label="BidRadar opportunity register">
               <span aria-hidden="true">BR</span>
               <strong>BidRadar</strong>
             </Link>
-            <AuthHeader />
+            <AuthHeader configured={Boolean(clerkKey)} />
           </header>
           {children}
           <footer className="site-footer">

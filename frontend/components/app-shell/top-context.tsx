@@ -20,10 +20,13 @@ type TopContextProps = {
 function titleForPath(path: string): string {
   if (path.startsWith("/opportunities")) return "Opportunities";
   if (path.startsWith("/watchlist")) return "Watchlist";
+  if (path.startsWith("/alerts")) return "Alerts";
   if (path.startsWith("/companies")) return "Companies";
   if (path.startsWith("/reviews")) return "Reviews";
+  if (path.startsWith("/content-library")) return "Content library";
   if (path.startsWith("/proposals")) return "Proposals";
   if (path.startsWith("/submissions")) return "Submissions";
+  if (path.startsWith("/integrations")) return "Portal handoff";
   if (path.startsWith("/reports")) return "Reports";
   if (path.startsWith("/settings")) return "Settings";
   return "Procurement workspace";

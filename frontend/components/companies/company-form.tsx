@@ -5,13 +5,11 @@ import { useState } from "react";
 export type CompanyFormValues = {
   legalName: string;
   registrationId?: string;
-  organizationId: string;
   revision?: number;
 };
 
 type Props = {
   initial?: CompanyFormValues;
-  organizationId: string;
   onSubmit: (values: CompanyFormValues) => Promise<void>;
   submitLabel: string;
 };
@@ -28,7 +26,7 @@ function validateName(name: string): string | null {
  * Renders company create/edit form with inline validation guidance.
  * Submits trimmed values and surfaces blank-name errors without navigation.
  */
-export function CompanyForm({ initial, organizationId, onSubmit, submitLabel }: Props) {
+export function CompanyForm({ initial, onSubmit, submitLabel }: Props) {
   const [legalName, setLegalName] = useState(initial?.legalName ?? "");
   const [registrationId, setRegistrationId] = useState(initial?.registrationId ?? "");
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +47,6 @@ export function CompanyForm({ initial, organizationId, onSubmit, submitLabel }: 
       await onSubmit({
         legalName: legalName.trim(),
         registrationId: registrationId.trim() || undefined,
-        organizationId,
         revision: initial?.revision,
       });
     } catch (err) {

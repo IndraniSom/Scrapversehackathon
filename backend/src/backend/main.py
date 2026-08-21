@@ -1,5 +1,4 @@
 """FastAPI factory with immutable bundle, security headers, and rate limits."""
-
 import json
 import os
 import time
@@ -17,11 +16,9 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from backend.artifacts import load_demo_bundle
 from backend.config import Settings
 from backend.contracts.api import ErrorCode, failure
+from backend.internal_routes import install_internal_routes
 from backend.observability import ObservabilityMiddleware
 from backend.routes import DemoUnavailable, OpportunityNotFound, router
-from backend.tender_intelligence_api import router as tender_intelligence_router
-from backend.worker_callback import router as worker_callback_router
-from backend.worker_routes import router as worker_router
 
 CONTRACT_PATH = Path(__file__).resolve().parents[3] / "contracts" / "api-v1.openapi.json"
 CONTRACT_SHA256 = "bb7df948805027b7325d243a094e48f290371547ae39c2dfd27de093414ca2b1"
@@ -76,15 +73,15 @@ def create_app(settings: Settings) -> FastAPI:
 
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
-        """Install verified bundle before traffic and remove on stop."""
-        application.state.bundle = load_demo_bundle(settings.demo_data_dir)
+        """Install E2E fixture only in isolated test mode and clean up on stop."""
+        application.state.bundle = load_demo_bundle(settings.demo_data_dir) if os.getenv("BIDRADAR_E2E_MODE") == "1" else None
         try:
             yield
         finally:
             del application.state.bundle
 
     app = FastAPI(
-        title="BidRadar Read-Only API",
+        title="BidRadar Processing API",
         version="1.0.0",
         docs_url=None,
         redoc_url=None,
@@ -131,9 +128,7 @@ def create_app(settings: Settings) -> FastAPI:
         return response
 
     app.include_router(router)
-    app.include_router(worker_router)
-    app.include_router(worker_callback_router)
-    app.include_router(tender_intelligence_router)
+    install_internal_routes(app)
     _install_handlers(app)
     frozen = _load_frozen_contract()
 

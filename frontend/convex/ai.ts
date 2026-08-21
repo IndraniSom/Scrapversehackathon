@@ -166,11 +166,10 @@ export const ALLOWED_MODELS = ["deepseek-v4-flash", "deepseek-v4-pro"] as const;
 export const AI_FEATURES = ["extraction", "citations", "qa", "compliance", "claims", "amendment_mapping"] as const;
 /** Per-scope rate limits for token usage. */
 export const RATE_LIMITS = { perUser: 10, perOrg: 100, perGlobal: 1000 } as const;
-const killSwitches = new Map<string, boolean>();
 /** Returns true when model is in governance allowlist. */
 export function isModelAllowed(m: string): boolean { return (ALLOWED_MODELS as readonly string[]).includes(m); }
 /** Returns true when feature is enabled and not kill-switched. */
-export function isFeatureEnabled(f: string, s: Record<string, boolean> = {}): boolean { if (!(AI_FEATURES as readonly string[]).includes(f)) return false; return !s[f] && !killSwitches.get(f); }
+export function isFeatureEnabled(f: string, s: Record<string, boolean> = {}): boolean { if (!(AI_FEATURES as readonly string[]).includes(f)) return false; return !s[f]; }
 /** Checks per-user/org/global rate limits with retry hint. */
 export function checkRateLimit(c: { perUser: number; perOrg: number; perGlobal: number }): { allowed: boolean; retryAfterMs: number; limited?: string } { if (c.perUser >= RATE_LIMITS.perUser) return { allowed: false, retryAfterMs: 60000, limited: "perUser" }; if (c.perOrg >= RATE_LIMITS.perOrg) return { allowed: false, retryAfterMs: 60000, limited: "perOrg" }; if (c.perGlobal >= RATE_LIMITS.perGlobal) return { allowed: false, retryAfterMs: 60000, limited: "perGlobal" }; return { allowed: true, retryAfterMs: 0 }; }
 /** Estimates cost from token counts without storing prompts. */
@@ -180,8 +179,8 @@ export function computeMetrics(cases: { expectedCitedIds: string[]; hardClause?:
 /** Gates production enablement: zero hard unsupported and zero cross-tenant. */
 export function checkGate(m: { schemaValidity: number; unsupportedHard: number; crossTenant: number }): { enabled: boolean; blocked: string[] } { const b: string[] = []; if (m.unsupportedHard !== 0) b.push("unsupported_hard_clause"); if (m.crossTenant !== 0) b.push("cross_tenant_retrieval"); if (m.schemaValidity < 1) b.push("schema_validity"); return { enabled: b.length === 0, blocked: b }; }
 /** Returns governance config for the active organization. */
-export const getGovernance = query({ args: {}, handler: async (ctx) => { const a = await requireOrganization(ctx); return { organizationId: a.organizationId, features: [...AI_FEATURES], models: [...ALLOWED_MODELS], limits: RATE_LIMITS, kills: Object.fromEntries(killSwitches) }; } });
+export const getGovernance = query({ args: {}, handler: async (ctx) => { const a = await requireOrganization(ctx); const settings = await ctx.db.query("aiFeatureSettings").withIndex("by_organization", (q) => q.eq("organizationId", a.organizationId)).collect(); return { organizationId: a.organizationId, features: [...AI_FEATURES], models: [...ALLOWED_MODELS], limits: RATE_LIMITS, kills: Object.fromEntries(settings.map((setting) => [setting.feature, setting.disabled])) }; } });
 /** Toggles a kill switch for a feature (admin only). */
-export const setKillSwitch = mutation({ args: { feature: v.string(), disabled: v.boolean() }, handler: async (ctx, args) => { await requirePermission(ctx, "org:admin"); if (!(AI_FEATURES as readonly string[]).includes(args.feature)) throwValidation("Unknown feature."); killSwitches.set(args.feature, args.disabled); return { feature: args.feature, disabled: args.disabled }; } });
+export const setKillSwitch = mutation({ args: { feature: v.string(), disabled: v.boolean() }, handler: async (ctx, args) => { const auth = await requirePermission(ctx, "org:admin"); if (!(AI_FEATURES as readonly string[]).includes(args.feature)) throwValidation("Unknown feature."); const existing = await ctx.db.query("aiFeatureSettings").withIndex("by_organization_and_id", (q) => q.eq("organizationId", auth.organizationId).eq("feature", args.feature)).unique(); const value = { disabled: args.disabled, updatedAt: Date.now() }; if (existing) await ctx.db.patch(existing._id, value); else await ctx.db.insert("aiFeatureSettings", { organizationId: auth.organizationId, feature: args.feature, ...value }); return { feature: args.feature, disabled: args.disabled }; } });
 /** Checks rate limits for the caller without mutating state. */
 export const checkLimits = query({ args: { perUser: v.number(), perOrg: v.number(), perGlobal: v.number() }, handler: async (ctx, args) => { await requireOrganization(ctx); return checkRateLimit(args); } });

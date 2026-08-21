@@ -2,7 +2,8 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
 import { requireOrganization } from "./lib/authorization";
-import { throwConflict, throwForbidden, throwNotFound, throwValidation } from "./lib/errors";
+import { throwForbidden, throwNotFound, throwValidation } from "./lib/errors";
+export { toCsv, toIcs, toJson } from "./integrationFormats";
 
 const ALLOWED_PORTALS = ["CPPP", "GeM", "NTPC", "WEST_BENGAL", "ODISHA"] as const;
 const WEBHOOK_EVENTS = ["opportunity.created","opportunity.updated","assessment.completed","amendment.detected","review.decided","proposal.locked","submission.prepared"] as const;
@@ -70,44 +71,6 @@ export function nextBackoffMs(attempt: number): number { return Math.min(60000, 
 export function shouldRetry(status: number): boolean { return status >= 500 || status === 429 || status === 408; }
 /** Whether attempts exceeded dead-letter threshold. */
 export function isDeadLetter(attempt: number): boolean { return attempt >= MAX_ATTEMPTS; }
-/** Exports rows to CSV string. */
-export function toCsv(rows: Record<string, unknown>[]): string {
-  if (!rows.length) return "";
-  const h = Object.keys(rows[0]);
-  return [h.join(","), ...rows.map((r)=>h.map((k)=>`"${String(r[k]??"").replace(/"/g,'""')}"`).join(","))].join("\n");
-}
-/** Exports data to JSON string. */
-export function toJson(data: unknown): string { return JSON.stringify(data, null, 2); }
-/** Exports events to .ics calendar string. */
-export function toIcs(events: Array<{ title: string; start: string; end?: string; description?: string }>): string {
-  const esc = (s:string)=>s.replace(/\\/g,"\\\\").replace(/\n/g,"\\n").replace(/,/g,"\\,");
-  const fmt = (d:string)=>new Date(d).toISOString().replace(/[-:]/g,"").split(".")[0]+"Z";
-  const body = events.map((e,i)=>`BEGIN:VEVENT\nUID:${i}@bidradar\nDTSTAMP:${fmt(new Date().toISOString())}\nDTSTART:${fmt(e.start)}\n${e.end?`DTEND:${fmt(e.end)}\n`:""}SUMMARY:${esc(e.title)}\n${e.description?`DESCRIPTION:${esc(e.description)}\n`:""}END:VEVENT`).join("\n");
-  return `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//BidRadar//EN\n${body}\nEND:VCALENDAR`;
-}
-
-/** Prepares submission package for manual handoff. */
-export const prepare = mutation({
-  args: { packageId: v.id("submissionPackages"), portal: v.string(), officialUrl: v.string(), serverClockAcknowledged: v.boolean(), emdVerified: v.boolean(), signingVerified: v.boolean(), filenamesVerified: v.boolean(), stepUpVerified: v.boolean(), approvalVerified: v.boolean(), packageDigest: v.string() },
-  handler: async (ctx, args) => {
-    const auth = await requireOrganization(ctx);
-    if (auth.role!=="org:admin" && auth.role!=="org:bid_manager") throwForbidden("Only bid manager or admin may prepare.");
-    if (auth.clerkUserId.startsWith("ai_") || auth.tokenIdentifier.includes("ai")) throwForbidden("AI cannot change submission state.");
-    if (!isAllowedPortal(args.portal)) throwForbidden("Unauthorized connector.");
-    if (!args.stepUpVerified) throwForbidden("Step-up authentication required.");
-    if (!args.approvalVerified) throwForbidden("Approval required before handoff.");
-    if (!isOfficialUrl(args.officialUrl)) throwValidation("Official link required (https).");
-    if (!args.serverClockAcknowledged||!args.emdVerified||!args.signingVerified||!args.filenamesVerified) throwValidation("Checklist incomplete: server clock, EMD, signing, and filenames required.");
-    if (!isSha256(args.packageDigest)) throwValidation("Valid digest required.");
-    const pkg = await ctx.db.get(args.packageId);
-    if (!pkg || pkg.organizationId!==auth.organizationId) throwNotFound("Package not found.");
-    if ((pkg as {manifest?:string}).manifest && (pkg as {manifest:string}).manifest!==args.packageDigest) throwConflict("Stale package.");
-    if ((pkg as {validationState?:string}).validationState==="invalid") throwConflict("Validation invalid.");
-    if ((pkg as {approvalState?:string}).approvalState!=="approved") throwConflict("Package not approved.");
-    await ctx.db.insert("auditEvents",{organizationId:auth.organizationId,actorId:auth.clerkUserId,action:"submission.prepare",targetType:"submissionPackage",targetId:args.packageId,afterDigest:args.packageDigest,traceId:crypto.randomUUID(),createdAt:Date.now()});
-    return { prepared:true, portal:args.portal, packageId:args.packageId, digest:args.packageDigest };
-  },
-});
 /** Returns connector status for a package. */
 export const status = query({
   args: { packageId: v.id("submissionPackages") },
@@ -116,7 +79,7 @@ export const status = query({
     const pkg = await ctx.db.get(args.packageId);
     if (!pkg || pkg.organizationId!==auth.organizationId) throwNotFound("Package not found.");
     const receipts = await ctx.db.query("submissionReceipts").withIndex("by_organization_and_id",(q)=>q.eq("organizationId",auth.organizationId).eq("packageId",args.packageId)).collect();
-    return { packageId:args.packageId, validationState:(pkg as {validationState?:string}).validationState??"pending", approvalState:(pkg as {approvalState?:string}).approvalState??"draft", receipts:receipts.length, portalAllowed:true };
+    return { packageId:args.packageId, validationState:pkg.validationState, approvalState:pkg.approvalState, receipts:receipts.length, portalAllowed:true };
   },
 });
 /** Registers webhook endpoint with SSRF verification. */
@@ -130,7 +93,7 @@ export const registerWebhook = mutation({
     for (const e of args.events) if (!(WEBHOOK_EVENTS as readonly string[]).includes(e)) throwValidation(`Unsupported event ${e}`);
     const secret = args.secret ?? crypto.randomUUID();
     const secretHash = await hashApiKey(secret);
-    const id = await ctx.db.insert("integrationConnections",{organizationId:auth.organizationId,provider:"webhook",referenceName:args.url,scopes:args.events,state:"active",createdAt:Date.now()} as never);
+    const id = await ctx.db.insert("integrationConnections",{organizationId:auth.organizationId,provider:"webhook",referenceName:args.url,scopes:args.events,secretHash,state:"active",createdAt:Date.now()});
     await ctx.db.insert("auditEvents",{organizationId:auth.organizationId,actorId:auth.clerkUserId,action:"webhook.register",targetType:"integrationConnection",targetId:id,afterDigest:secretHash,traceId:crypto.randomUUID(),createdAt:Date.now()});
     return { id, url:args.url, secret, secretHash };
   },
@@ -140,7 +103,8 @@ export const listWebhooks = query({
   args: {},
   handler: async (ctx) => {
     const auth = await requireOrganization(ctx);
-    return await ctx.db.query("integrationConnections").withIndex("by_organization",(q)=>q.eq("organizationId",auth.organizationId)).collect().then((r)=>r.filter((x)=>(x as {provider:string}).provider==="webhook"));
+    const rows = await ctx.db.query("integrationConnections").withIndex("by_organization",(q)=>q.eq("organizationId",auth.organizationId)).collect();
+    return rows.filter((row)=>row.provider==="webhook").map((row) => ({ _id: row._id, url: row.referenceName, events: row.scopes ?? [], state: row.state, createdAt: row.createdAt }));
   },
 });
 /** Rotates webhook secret with hashed storage. */
@@ -153,7 +117,7 @@ export const rotateSecret = mutation({
     if (!rec || rec.organizationId!==auth.organizationId) throwNotFound("Endpoint not found.");
     const secret = crypto.randomUUID();
     const secretHash = await hashApiKey(secret);
-    await ctx.db.patch(args.id,{referenceName:(rec as {referenceName:string}).referenceName} as never);
+    await ctx.db.patch(args.id,{secretHash});
     await ctx.db.insert("auditEvents",{organizationId:auth.organizationId,actorId:auth.clerkUserId,action:"webhook.rotate",targetType:"integrationConnection",targetId:args.id,afterDigest:secretHash,traceId:crypto.randomUUID(),createdAt:Date.now()});
     return { id:args.id, secret, secretHash };
   },
@@ -166,7 +130,7 @@ export const disableWebhook = mutation({
     if (auth.role!=="org:admin") throwForbidden("Only admin may disable.");
     const rec = await ctx.db.get(args.id);
     if (!rec || rec.organizationId!==auth.organizationId) throwNotFound("Endpoint not found.");
-    await ctx.db.patch(args.id,{state:"disabled"} as never);
+    await ctx.db.patch(args.id,{state:"disabled"});
     return { disabled:true };
   },
 });
@@ -179,11 +143,13 @@ export const createApiKey = mutation({
     if (!args.name.trim()) throwValidation("Name required.");
     const raw = generateApiKey();
     const hash = await hashApiKey(raw);
-    const id = await ctx.db.insert("integrationConnections",{organizationId:auth.organizationId,provider:"api_key",referenceName:args.name.trim(),scopes:[hash],state:"active",createdAt:Date.now()} as never);
+    const id = await ctx.db.insert("integrationConnections",{organizationId:auth.organizationId,provider:"api_key",referenceName:args.name.trim(),scopes:[hash],state:"active",createdAt:Date.now()});
     await ctx.db.insert("auditEvents",{organizationId:auth.organizationId,actorId:auth.clerkUserId,action:"apikey.create",targetType:"integrationConnection",targetId:id,traceId:crypto.randomUUID(),createdAt:Date.now()});
     return { id, key:raw, hash };
   },
 });
+/** Lists API key metadata without returning stored hashes. */
+export const listApiKeys = query({ args: {}, handler: async (ctx) => { const auth = await requireOrganization(ctx); const rows = await ctx.db.query("integrationConnections").withIndex("by_organization", (q) => q.eq("organizationId", auth.organizationId)).collect(); return rows.filter((row) => row.provider === "api_key").map((row) => ({ _id: row._id, name: row.referenceName, state: row.state, createdAt: row.createdAt })); } });
 /** Revokes API key. */
 export const revokeApiKey = mutation({
   args: { id: v.id("integrationConnections") },
@@ -192,8 +158,7 @@ export const revokeApiKey = mutation({
     if (auth.role!=="org:admin") throwForbidden("Only admin may revoke.");
     const rec = await ctx.db.get(args.id);
     if (!rec || rec.organizationId!==auth.organizationId) throwNotFound("Key not found.");
-    await ctx.db.patch(args.id,{state:"disabled"} as never);
+    await ctx.db.patch(args.id,{state:"disabled"});
     return { revoked:true };
   },
 });
-export const SubmissionConnector = { prepare, status };

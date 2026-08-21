@@ -19,7 +19,7 @@ type MockIdentity = {
   orgId?: string;
   org_id?: string;
   organizationId?: string;
-  o?: { id: string };
+  o?: { id: string; rol?: string };
 };
 
 /**
@@ -70,7 +70,7 @@ describe("authorization", () => {
     });
   });
 
-  test("inactive org denial when profile missing", async () => {
+  test("verified Clerk organization can bootstrap before webhook sync", async () => {
     const identity: MockIdentity = {
       tokenIdentifier: "https://clerk.example|user_111",
       subject: "user_111",
@@ -82,13 +82,10 @@ describe("authorization", () => {
       membership: { role: "org:admin", organizationId: "org_aaa" },
       profile: null,
     });
-    await expect(requireOrganization(ctx)).rejects.toSatisfy((e: unknown) => {
-      expectDomainError(e, "FORBIDDEN");
-      return true;
-    });
+    expect((await requireOrganization(ctx)).organizationId).toBe("org_aaa");
   });
 
-  test("cross-tenant denial when membership for org missing", async () => {
+  test("verified active-org claim falls back to least-privilege viewer", async () => {
     const identity: MockIdentity = {
       tokenIdentifier: "https://clerk.example|user_222",
       subject: "user_222",
@@ -100,10 +97,7 @@ describe("authorization", () => {
       membership: null,
       profile: { _id: "p1" },
     });
-    await expect(requireOrganization(ctx)).rejects.toSatisfy((e: unknown) => {
-      expectDomainError(e, "FORBIDDEN");
-      return true;
-    });
+    expect(await requireOrganization(ctx)).toMatchObject({ organizationId: "org_tenant_b", role: "org:viewer" });
   });
 
   test("insufficient role denial via requirePermission", async () => {
@@ -186,5 +180,8 @@ describe("authorization", () => {
       profile: { _id: "p1" },
     });
     expect((await requireOrganization(ctxO)).organizationId).toBe("org_via_o");
+
+    const compactRole = createCtx({ identity: { ...base, tokenIdentifier: "https://clerk.example|user_555", o: { id: "org_compact", rol: "admin" } }, membership: null, profile: null });
+    expect((await requireOrganization(compactRole)).role).toBe("org:admin");
   });
 });

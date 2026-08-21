@@ -2,7 +2,7 @@ import { describe, expect, test } from "vitest";
 import { render, screen } from "@testing-library/react";
 import React from "react";
 import { buildDeduplicationKey, groupIntoDigest, isQuietHour, shouldDeliver, shouldRetry } from "../../convex/notifications";
-import { buildIdempotencyKey, verifyWebhookSignature } from "../../convex/email";
+import { buildIdempotencyKey, escapeHtml } from "../../convex/email";
 import { NotificationCenter } from "../../components/app-shell/notification-center";
 
 describe("notifications dedup and preferences", () => {
@@ -54,11 +54,8 @@ describe("notifications dedup and preferences", () => {
     expect(k1).not.toBe(k3);
     expect(k1).toBe("org_1:evt_1:user_1");
   });
-  test("webhook verification validates signature length and payload", () => {
-    expect(verifyWebhookSignature("payload", "v1,secret12", "secret12xxx")).toBe(true);
-    expect(verifyWebhookSignature("", "v1,abc", "secret")).toBe(false);
-    expect(verifyWebhookSignature("payload", "short", "secret")).toBe(false);
-    expect(verifyWebhookSignature("payload", "v1,wrong123", "secret12xxx")).toBe(false);
+  test("email HTML escapes untrusted notification payload", () => {
+    expect(escapeHtml('<img src=x onerror="alert(1)">')).toBe("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
   });
   test("role=status announcements render and digest toggle exists", () => {
     const alerts = [{ id: "1", type: "deadline", urgency: "high" as const, message: "closes tomorrow", createdAt: Date.now() }];

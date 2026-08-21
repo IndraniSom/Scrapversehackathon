@@ -85,4 +85,17 @@ export const discoveryTables = {
     .index("by_organization", ["organizationId"])
     .index("by_organization_and_id", ["organizationId", "eventId"])
     .index("by_organization_recipient_status_createdAt", ["organizationId", "recipientId", "status", "createdAt"]),
+
+  notificationPreferences: defineTable({
+    organizationId: v.string(),
+    userId: v.string(),
+    quietStartHour: v.number(),
+    quietEndHour: v.number(),
+    timezone: v.string(),
+    digestCadence: v.union(v.literal("instant"), v.literal("daily"), v.literal("weekly")),
+    channels: v.array(v.union(v.literal("in_app"), v.literal("email"), v.literal("digest"))),
+    updatedAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_organization_and_id", ["organizationId", "userId"]),
 };

@@ -5,8 +5,8 @@
  * FastAPI, Bright Data, DeepSeek, Resend, and exports.
  */
 
+/** Initializes server-side observability hooks for Node runtime. */
 export async function register(): Promise<void> {
-  /** Initialize server-side observability hooks for Node runtime. */
   if (process.env.NEXT_RUNTIME === "nodejs") {
     // Node crypto is available only on server; no client import.
     // Global error and unhandled rejection hooks are registered here
@@ -39,7 +39,9 @@ async function hashIdentifier(value: string): Promise<string> {
       const bytes = new Uint8Array(hash);
       return Array.from(bytes.slice(0, 6)).map((b) => b.toString(16).padStart(2, "0")).join("");
     }
-  } catch {}
+  } catch (error) {
+    void error;
+  }
   let h = 0;
   for (let i = 0; i < value.length; i++) h = (h * 31 + value.charCodeAt(i)) >>> 0;
   return h.toString(16).padStart(8, "0");
@@ -71,11 +73,17 @@ function logStructured(fields: Record<string, unknown>): void {
  *
  * Checks traceparent, x-trace-id, x-request-id in priority order.
  */
-function extractTraceId(headers: Headers): string {
+function headerValue(headers: Record<string, string | string[] | undefined>, name: string): string | undefined {
+  const value = headers[name];
+  return Array.isArray(value) ? value[0] : value;
+}
+
+/** Extracts trace ID from Next.js request header record. */
+function extractTraceId(headers: Record<string, string | string[] | undefined>): string {
   return (
-    headers.get("x-trace-id") ??
-    headers.get("x-request-id") ??
-    headers.get("traceparent")?.split("-")[1] ??
+    headerValue(headers, "x-trace-id") ??
+    headerValue(headers, "x-request-id") ??
+    headerValue(headers, "traceparent")?.split("-")[1] ??
     `gen-${Date.now().toString(36)}`
   );
 }
@@ -86,14 +94,10 @@ function extractTraceId(headers: Headers): string {
  * Logs typed error context with trace and hashed identity; never logs
  * prompt, document text, or token values.
  */
-export async function onRequestError(
-  error: unknown,
-  request: { path: string; method: string; headers: Headers },
-  context: { routerKind: string; routePath: string; routeType: string },
-): Promise<void> {
+export const onRequestError: Instrumentation.onRequestError = async (error, request, context) => {
   const traceId = extractTraceId(request.headers);
-  const orgHash = await hashIdentifier(request.headers.get("x-org-id") ?? "");
-  const userHash = await hashIdentifier(request.headers.get("x-user-id") ?? "");
+  const orgHash = await hashIdentifier(headerValue(request.headers, "x-org-id") ?? "");
+  const userHash = await hashIdentifier(headerValue(request.headers, "x-user-id") ?? "");
   const message = error instanceof Error ? error.message : String(error);
   logStructured({
     traceId,
@@ -106,4 +110,5 @@ export async function onRequestError(
     errorCode: "NEXT_REQUEST_ERROR",
     detail: message.slice(0, 500),
   });
-}
+};
+import type { Instrumentation } from "next";

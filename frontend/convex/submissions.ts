@@ -6,7 +6,7 @@
  * approval, duplicate, and AI guards.
  */
 import { v } from "convex/values";
-import { action, internalQuery, mutation, query } from "./_generated/server";
+import { action, internalMutation, internalQuery, mutation, query } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { requireOrganization } from "./lib/authorization";
 import { throwConflict, throwForbidden, throwNotFound, throwValidation } from "./lib/errors";
@@ -61,8 +61,12 @@ export const create = mutation({
     for (const s of sections) if (s.state !== "APPROVED" && s.state !== "LOCKED") throwValidation("UNAPPROVED_SECTION");
     const impacts = await ctx.db.query("amendmentImpacts").withIndex("by_organization_and_id", (qb) => qb.eq("organizationId", auth.organizationId).eq("opportunityId", proposal.opportunityId)).collect();
     for (const imp of impacts) if (!imp.applied) throwValidation("STALE_AMENDMENT");
+    const exports = await Promise.all(sortedIds.map((exportId) => ctx.db.get(exportId)));
+    if (exports.some((entry) => !entry || entry.organizationId !== auth.organizationId)) throwNotFound("Export not found.");
+    const archive = exports.find((entry) => entry?.format === "zip" && entry.storageId && entry.outputDigest && isSha256(entry.outputDigest));
+    if (!archive?.outputDigest) throwValidation("Approved ZIP export with SHA-256 digest required.");
     const now = Date.now();
-    const id = await ctx.db.insert("submissionPackages", { organizationId: auth.organizationId, proposalId: args.proposalId, exportIds: sortedIds, validationState: "valid", approvalState: "draft", createdAt: now });
+    const id = await ctx.db.insert("submissionPackages", { organizationId: auth.organizationId, proposalId: args.proposalId, exportIds: sortedIds, manifest: archive.outputDigest, validationState: "valid", approvalState: "draft", createdAt: now });
     return { submissionId: id, exportIds: sortedIds };
   },
 });
@@ -87,27 +91,24 @@ export const approve = mutation({
  * Records portal acknowledgement after manual submission.
  * Requires step-up, approval, digest, duplicate check, audit, AI guard.
  */
-export const recordReceipt = mutation({
-  args: { packageId: v.id("submissionPackages"), portal: v.string(), acknowledgement: v.string(), portalTimestamp: v.number(), packageDigest: v.string(), evidenceDigest: v.optional(v.string()), stepUpVerified: v.boolean(), approvalVerified: v.boolean() },
+export const recordReceipt = internalMutation({
+  args: { organizationId: v.string(), userId: v.string(), role: v.string(), packageId: v.id("submissionPackages"), portal: v.string(), acknowledgement: v.string(), portalTimestamp: v.number(), packageDigest: v.string(), evidenceDigest: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const auth = await requireOrganization(ctx);
-    if (auth.role !== "org:admin" && auth.role !== "org:bid_manager") throwForbidden("Only bid manager or admin may record receipt.");
-    if (auth.clerkUserId.startsWith("ai_") || auth.tokenIdentifier.includes("ai")) throwForbidden("AI cannot change submission state.");
-    if (!args.stepUpVerified) throwForbidden("Step-up authentication required.");
-    if (!args.approvalVerified) throwForbidden("Approval required before receipt.");
+    if (args.role !== "org:admin" && args.role !== "org:bid_manager") throwForbidden("Only bid manager or admin may record receipt.");
     const ack = args.acknowledgement.trim();
     if (!ack || ack.length < 6) throwValidation("Acknowledgement number required.");
     if (!Number.isFinite(args.portalTimestamp) || args.portalTimestamp > Date.now() + 60000) throwValidation("Invalid portal timestamp.");
     if (!isSha256(args.packageDigest)) throwValidation("Valid package digest required.");
     if (args.evidenceDigest && !isSha256(args.evidenceDigest)) throwValidation("Invalid evidence digest.");
     const pkg = await ctx.db.get(args.packageId);
-    if (!pkg || pkg.organizationId !== auth.organizationId) throwNotFound("Submission package not found.");
-    const existing = await ctx.db.query("submissionReceipts").withIndex("by_organization_and_id", (q) => q.eq("organizationId", auth.organizationId).eq("packageId", args.packageId)).collect();
+    if (!pkg || pkg.organizationId !== args.organizationId) throwNotFound("Submission package not found.");
+    if (pkg.approvalState !== "approved" || pkg.validationState !== "valid") throwForbidden("Approved valid package required.");
+    const existing = await ctx.db.query("submissionReceipts").withIndex("by_organization_and_id", (q) => q.eq("organizationId", args.organizationId).eq("packageId", args.packageId)).collect();
     if (existing.some((r) => r.acknowledgement === ack)) throwConflict("Duplicate receipt acknowledgement.");
     const manifest = (pkg as { manifest?: string }).manifest;
     if (manifest && manifest !== args.packageDigest) throwConflict("Stale package: digest mismatch.");
-    const receiptId = await ctx.db.insert("submissionReceipts", { organizationId: auth.organizationId, packageId: args.packageId, portal: args.portal, acknowledgement: ack, submittedAt: args.portalTimestamp, submittedBy: auth.clerkUserId, createdAt: Date.now() });
-    await ctx.db.insert("auditEvents", { organizationId: auth.organizationId, actorId: auth.clerkUserId, action: "submission.receipt", targetType: "submissionReceipt", targetId: receiptId, afterDigest: args.packageDigest, traceId: crypto.randomUUID(), createdAt: Date.now() });
+    const receiptId = await ctx.db.insert("submissionReceipts", { organizationId: args.organizationId, packageId: args.packageId, portal: args.portal, acknowledgement: ack, submittedAt: args.portalTimestamp, submittedBy: args.userId, createdAt: Date.now() });
+    await ctx.db.insert("auditEvents", { organizationId: args.organizationId, actorId: args.userId, action: "submission.receipt", targetType: "submissionReceipt", targetId: receiptId, afterDigest: args.packageDigest, traceId: crypto.randomUUID(), createdAt: Date.now() });
     return { receiptId, acknowledgement: ack, digest: args.packageDigest };
   },
 });
@@ -116,21 +117,19 @@ export const recordReceipt = mutation({
  * Prepares handoff with checklist and official link validation.
  * Mirrors integrations prepare for package flow; checks stale, audit.
  */
-export const prepareHandoff = mutation({
-  args: { packageId: v.id("submissionPackages"), portal: v.string(), officialUrl: v.string(), serverClockAcknowledged: v.boolean(), emdVerified: v.boolean(), signingVerified: v.boolean(), filenamesVerified: v.boolean(), stepUpVerified: v.boolean(), approvalVerified: v.boolean(), packageDigest: v.string() },
+export const prepareHandoff = internalMutation({
+  args: { organizationId: v.string(), userId: v.string(), role: v.string(), packageId: v.id("submissionPackages"), portal: v.string(), officialUrl: v.string(), serverClockAcknowledged: v.boolean(), emdVerified: v.boolean(), signingVerified: v.boolean(), filenamesVerified: v.boolean(), packageDigest: v.string() },
   handler: async (ctx, args) => {
-    const auth = await requireOrganization(ctx);
-    if (auth.clerkUserId.startsWith("ai_") || auth.tokenIdentifier.includes("ai")) throwForbidden("AI cannot change submission state.");
-    if (!args.stepUpVerified) throwForbidden("Step-up authentication required.");
-    if (!args.approvalVerified) throwForbidden("Approval required.");
+    if (args.role !== "org:admin" && args.role !== "org:bid_manager") throwForbidden("Only bid manager or admin may prepare handoff.");
     if (!/^https:\/\/.+\..+/.test(args.officialUrl)) throwValidation("Official portal link required.");
     if (!args.serverClockAcknowledged || !args.emdVerified || !args.signingVerified || !args.filenamesVerified) throwValidation("Checklist incomplete.");
     if (!isSha256(args.packageDigest)) throwValidation("Valid package digest required.");
     const pkg = await ctx.db.get(args.packageId);
-    if (!pkg || pkg.organizationId !== auth.organizationId) throwNotFound("Submission package not found.");
+    if (!pkg || pkg.organizationId !== args.organizationId) throwNotFound("Submission package not found.");
+    if (pkg.approvalState !== "approved" || pkg.validationState !== "valid") throwForbidden("Approved valid package required.");
     const manifest = (pkg as { manifest?: string }).manifest;
     if (manifest && manifest !== args.packageDigest) throwConflict("Stale package: digest mismatch.");
-    await ctx.db.insert("auditEvents", { organizationId: auth.organizationId, actorId: auth.clerkUserId, action: "submission.prepareHandoff", targetType: "submissionPackage", targetId: args.packageId, afterDigest: args.packageDigest, traceId: crypto.randomUUID(), createdAt: Date.now() });
+    await ctx.db.insert("auditEvents", { organizationId: args.organizationId, actorId: args.userId, action: "submission.prepareHandoff", targetType: "submissionPackage", targetId: args.packageId, afterDigest: args.packageDigest, traceId: crypto.randomUUID(), createdAt: Date.now() });
     return { prepared: true, digest: args.packageDigest };
   },
 });

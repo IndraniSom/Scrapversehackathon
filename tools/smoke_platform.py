@@ -96,10 +96,14 @@ def run_smoke(seed_path: Path | None = None, offline: bool = False) -> float:
         raise RuntimeError(f"seed missing at {path}; run tools/seed_production_demo.py")
     seed = load_seed(path)
     check_seed(seed)
-    # optional live check when env provides URLs and not offline
-    backend = os.environ.get("BIDRADAR_API_BASE_URL", "http://127.0.0.1:8000")
-    frontend_url = os.environ.get("BIDRADAR_FRONTEND_URL", "http://127.0.0.1:3000")
-    live_ok, live_note = probe_live(backend, frontend_url)
+    if offline:
+        live_note = "offline replay"
+    else:
+        backend = os.environ.get("BIDRADAR_API_BASE_URL", "http://127.0.0.1:8000")
+        frontend_url = os.environ.get("BIDRADAR_FRONTEND_URL", "http://127.0.0.1:3000")
+        live_ok, live_note = probe_live(backend, frontend_url)
+        if not live_ok:
+            raise RuntimeError(f"live probes failed: {live_note}")
     # check frontend build exists
     build_marker = ROOT / "frontend" / ".next" / "BUILD_ID"
     build_note = "build present" if build_marker.exists() else "build not checked (no .next)"

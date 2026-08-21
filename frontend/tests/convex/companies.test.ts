@@ -1,7 +1,6 @@
 /** Validates company FY, INR, date ordering, tenant isolation, revision, and completeness. */
 import { describe, expect, test } from "vitest";
-import { isValidDateOrder, isValidFinancialYear, isValidInrAmount, requireOrg } from "../../convex/companies";
-import { ConvexError } from "convex/values";
+import { isValidDateOrder, isValidFinancialYear, isValidInrAmount } from "../../convex/companies";
 
 describe("company validators", () => {
   test("accepts exact FY format and consecutive years", () => {
@@ -41,23 +40,6 @@ describe("company validators", () => {
     expect(isValidDateOrder(a, a)).toBe(false);
     expect(isValidDateOrder(undefined, b)).toBe(true);
     expect(isValidDateOrder(a, undefined)).toBe(true);
-  });
-});
-
-describe("tenant isolation", () => {
-  test("rejects unauthenticated identity", async () => {
-    const ctx = { auth: { getUserIdentity: async () => null } } as never;
-    await expect(requireOrg(ctx, "org_a")).rejects.toThrow(ConvexError);
-  });
-  test("rejects cross-tenant token", async () => {
-    const ctx = { auth: { getUserIdentity: async () => ({ subject: "user_1", organizationId: "org_a" }) } } as never;
-    await expect(requireOrg(ctx, "org_b")).rejects.toThrow(ConvexError);
-    await expect(requireOrg({ auth: { getUserIdentity: async () => ({ subject: "user_1", organizationId: "org_a" }) } } as never, "org_a")).resolves.toBeUndefined();
-  });
-  test("allows matching organization and rejects blank org", async () => {
-    const ctx = { auth: { getUserIdentity: async () => ({ subject: "user_1" }) } } as never;
-    await expect(requireOrg(ctx, "org_x")).resolves.toBeUndefined();
-    await expect(requireOrg(ctx, "   ")).rejects.toThrow(ConvexError);
   });
 });
 

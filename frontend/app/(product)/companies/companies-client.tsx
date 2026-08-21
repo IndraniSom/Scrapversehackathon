@@ -5,11 +5,9 @@ import { useState } from "react";
 import { useQuery } from "convex/react";
 import { api } from "../../../convex/_generated/api";
 
-const ORG_ID = "org_demo";
-
-/** Persists active company per organization in localStorage. */
-function useActiveCompany(orgId: string): [string | null, (id: string) => void] {
-  const key = `activeCompany:${orgId}`;
+/** Persists selected opaque company ID in the current browser. */
+function useActiveCompany(): [string | null, (id: string) => void] {
+  const key = "activeCompany";
   const [active, setActive] = useState<string | null>(() => {
     if (typeof window === "undefined") return null;
     return localStorage.getItem(key);
@@ -26,8 +24,8 @@ function useActiveCompany(orgId: string): [string | null, (id: string) => void] 
  * Shows missing-evidence counts without a readiness score.
  */
 export default function CompaniesPage() {
-  const companies = useQuery(api.companies.listCompanies, { organizationId: ORG_ID });
-  const [active, setActive] = useActiveCompany(ORG_ID);
+  const companies = useQuery(api.companies.listCompanies, {});
+  const [active, setActive] = useActiveCompany();
 
   if (companies === undefined) return <main className="page-shell" id="main-content"><p role="status">Loading companies…</p></main>;
   if (companies.length === 0)
@@ -45,6 +43,7 @@ export default function CompaniesPage() {
         <h1>Companies</h1>
         <Link href="/companies/new" className="primary-action">Create company</Link>
       </div>
+      <div className="table-wrap" role="region" aria-label="Companies table">
       <table>
         <thead><tr><th>Legal name</th><th>Missing evidence</th><th>Total records</th><th>Active</th></tr></thead>
         <tbody>
@@ -58,6 +57,7 @@ export default function CompaniesPage() {
           ))}
         </tbody>
       </table>
+      </div>
     </main>
   );
 }

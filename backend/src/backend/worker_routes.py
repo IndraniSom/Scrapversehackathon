@@ -60,8 +60,8 @@ def clear_jobs() -> None:
 
 
 def is_worker_configured() -> bool:
-    """Return whether worker authentication is configured or demo mode is explicit."""
-    return os.getenv("BIDRADAR_DEMO_MODE") == "1" or bool(
+    """Return whether worker authentication is configured or E2E mode is explicit."""
+    return os.getenv("BIDRADAR_E2E_MODE") == "1" or bool(
         os.getenv("BIDRADAR_WORKER_SECRET") or os.getenv("BIDRADAR_WORKER_HMAC_SECRET")
     )
 

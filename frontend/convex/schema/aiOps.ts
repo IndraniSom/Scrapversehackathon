@@ -32,6 +32,15 @@ export const aiOpsTables = {
     .index("by_organization", ["organizationId"])
     .index("by_organization_and_id", ["organizationId", "outputId"]),
 
+  aiFeatureSettings: defineTable({
+    organizationId: v.string(),
+    feature: v.string(),
+    disabled: v.boolean(),
+    updatedAt: v.number(),
+  })
+    .index("by_organization", ["organizationId"])
+    .index("by_organization_and_id", ["organizationId", "feature"]),
+
   evaluationCases: defineTable({
     organizationId: v.string(),
     datasetVersion: v.string(),
@@ -49,6 +58,7 @@ export const aiOpsTables = {
     provider: v.string(),
     referenceName: v.string(),
     scopes: v.optional(v.array(v.string())),
+    secretHash: v.optional(v.string()),
     state: v.union(v.literal("active"), v.literal("disabled")),
     createdAt: v.number(),
   })

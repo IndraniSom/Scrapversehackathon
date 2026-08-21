@@ -1,62 +1,55 @@
+/** Internal-only Resend delivery for tenant notification records. */
 import { v } from "convex/values";
-import { action, internalMutation } from "./_generated/server";
-import { requireOrganization } from "./lib/authorization";
+
+import { internal } from "./_generated/api";
+import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 import { throwValidation } from "./lib/errors";
 
-/** Builds Resend idempotency key scoped to org+event+recipient. */
+/** Builds Resend idempotency key scoped to organization, event, and recipient. */
 export function buildIdempotencyKey(org: string, eventId: string, recipient: string): string {
   return `${org}:${eventId}:${recipient}`;
 }
 
-/** Verifies Resend/Svix webhook signature with timing-safe compare. */
-export function verifyWebhookSignature(payload: string, signature: string, secret: string): boolean {
-  if (!payload || !signature || !secret) return false;
-  const expected = `v1,${secret.slice(0, 8)}`;
-  if (signature.length !== expected.length) return false;
-  let diff = 0;
-  for (let i = 0; i < signature.length; i++) diff |= signature.charCodeAt(i) ^ expected.charCodeAt(i);
-  return diff === 0 && payload.length > 0;
+/** Escapes untrusted notification text before HTML email rendering. */
+export function escapeHtml(value: string): string {
+  return value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 }
 
-/** Sends notification email via Resend with idempotency. */
-export const sendEmail = action({
-  args: { eventId: v.id("notificationEvents"), recipientId: v.string(), recipientEmail: v.string(), subject: v.string(), html: v.string() },
+/** Loads one pending email delivery with tenant-owned event and recipient email. */
+export const loadDelivery = internalQuery({
+  args: { deliveryId: v.id("notificationDeliveries") },
   handler: async (ctx, args) => {
-    const auth = await requireOrganization(ctx as unknown as Parameters<typeof requireOrganization>[0]);
-    const key = buildIdempotencyKey(auth.organizationId, args.eventId, args.recipientId);
+    const delivery = await ctx.db.get(args.deliveryId);
+    if (!delivery || delivery.channel !== "email" || delivery.status !== "pending") throwValidation("Pending email delivery not found.");
+    const event = await ctx.db.get(delivery.eventId);
+    const user = await ctx.db.query("users").withIndex("by_organization_and_id", (query) => query.eq("organizationId", delivery.organizationId).eq("clerkUserId", delivery.recipientId)).unique();
+    if (!event || event.organizationId !== delivery.organizationId || !user?.email) throwValidation("Email delivery input is incomplete.");
+    const message = event.payload?.slice(0, 2000) || `${event.type.replaceAll("_", " ")} update for ${event.sourceEntityId}`;
+    return { organizationId: delivery.organizationId, eventId: delivery.eventId, recipientId: delivery.recipientId, recipientEmail: user.email, subject: `BidRadar: ${event.type.replaceAll("_", " ")}`, html: `<p>${escapeHtml(message)}</p>` };
+  },
+});
+
+/** Sends one pre-authorized email delivery without a public model/tool surface. */
+export const sendEmail = internalAction({
+  args: { deliveryId: v.id("notificationDeliveries") },
+  handler: async (ctx, args) => {
+    const input = await ctx.runQuery(internal.email.loadDelivery, args);
     const resendKey = process.env.RESEND_API_KEY;
-    if (!resendKey) throwValidation("Email service unavailable");
-    const res = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json", "Idempotency-Key": key },
-      body: JSON.stringify({ from: "BidRadar <alerts@bidradar.example>", to: [args.recipientEmail], subject: args.subject, html: args.html }),
-    });
-    const ok = res.ok;
-    await ctx.runMutation("email:recordSend" as never, { eventId: args.eventId, recipientId: args.recipientId, status: ok ? "delivered" : "failed", providerId: key } as never);
-    if (!ok) throw new Error(`Resend failed ${res.status}`);
-    return { idempotencyKey: key };
+    const from = process.env.BIDRADAR_EMAIL_FROM;
+    if (!resendKey || !from) throwValidation("Email service unavailable.");
+    const key = buildIdempotencyKey(input.organizationId, String(input.eventId), input.recipientId);
+    const response = await fetch("https://api.resend.com/emails", { method: "POST", headers: { Authorization: `Bearer ${resendKey}`, "Content-Type": "application/json", "Idempotency-Key": key }, body: JSON.stringify({ from, to: [input.recipientEmail], subject: input.subject, html: input.html }) });
+    await ctx.runMutation(internal.email.recordSend, { deliveryId: args.deliveryId, status: response.ok ? "delivered" : "failed", providerId: response.headers.get("x-message-id") ?? undefined });
+    if (!response.ok) throw new Error(`RESEND_HTTP_${response.status}`);
   },
 });
 
-/** Records email delivery result with retry count. */
+/** Records provider delivery status without scanning other tenants. */
 export const recordSend = internalMutation({
-  args: { eventId: v.id("notificationEvents"), recipientId: v.string(), status: v.union(v.literal("delivered"), v.literal("failed")), providerId: v.optional(v.string()) },
+  args: { deliveryId: v.id("notificationDeliveries"), status: v.union(v.literal("delivered"), v.literal("failed")), providerId: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const all = await ctx.db.query("notificationDeliveries").collect();
-    const target = all.find((d) => String((d as { eventId: unknown }).eventId) === String(args.eventId) && (d as { recipientId: string }).recipientId === args.recipientId);
-    if (target) await ctx.db.patch((target as unknown as { _id: string })._id as never, { status: args.status, providerId: args.providerId, attempts: ((target as { attempts: number }).attempts ?? 0) + 1 } as never);
-    return { ok: true as const, eventId: args.eventId, status: args.status, providerId: args.providerId };
-  },
-});
-
-/** Verifies inbound Resend webhook and marks delivery. */
-export const verifyDeliveryWebhook = internalMutation({
-  args: { payload: v.string(), signature: v.string(), secret: v.string(), deliveryId: v.id("notificationDeliveries") },
-  handler: async (ctx, args) => {
-    if (!verifyWebhookSignature(args.payload, args.signature, args.secret)) throwValidation("Invalid webhook signature");
-    const d = await ctx.db.get(args.deliveryId);
-    if (!d) throwValidation("Delivery not found");
-    await ctx.db.patch(args.deliveryId, { status: "delivered", providerId: args.signature });
-    return { ok: true as const };
+    const delivery = await ctx.db.get(args.deliveryId);
+    if (!delivery) throwValidation("Delivery not found.");
+    await ctx.db.patch(args.deliveryId, { status: args.status, providerId: args.providerId, attempts: delivery.attempts + 1 });
   },
 });

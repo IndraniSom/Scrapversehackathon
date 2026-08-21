@@ -4,7 +4,10 @@
  */
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
-import { throwDomainError } from "./lib/errors";
+import type { QueryCtx } from "./_generated/server";
+import type { Id } from "./_generated/dataModel";
+import { requireOrganization } from "./lib/authorization";
+import { throwDomainError, throwNotFound } from "./lib/errors";
 
 /** Gap categories for procurement compliance review. */
 export const GAP_CATEGORIES = ["MISSING_DATA","MISSING_DOCUMENT","FAILED_REQUIREMENT","UNKNOWN_SEMANTICS","OWNER_REQUIRED","REVIEW_REQUIRED"] as const;
@@ -91,25 +94,30 @@ export function validateTenant(rowOrganizationId: string, requirementOrganizatio
   if (rowOrganizationId !== requirementOrganizationId) throwDomainError("FORBIDDEN","Cross-tenant evidence is not allowed.");
 }
 
-/** Extracts organizationId from Convex identity with tenant check. */
-function orgIdFromIdentity(identity: unknown): string {
-  const id = (identity as { orgId?: string; organizationId?: string })?.orgId ?? (identity as { organizationId?: string })?.organizationId ?? "";
-  if (!id) throwDomainError("FORBIDDEN","Organization context is required.");
-  return id;
-}
-
-/** Maps stored rows to typed ComplianceRow for approval and export checks. */
-function mapRows(rows: { requirementId: unknown; responseLocation?: string | null; evidence?: string | null; ownerId?: string | null; status: "pending"|"compliant"|"gap"; organizationId: string }[]): ComplianceRow[] {
-  return rows.map((r)=>({ requirementId: String(r.requirementId), citation: "", responseLocation: r.responseLocation??undefined, evidence: r.evidence??undefined, ownerId: r.ownerId??undefined, status: r.status, isMandatory: true, requirementRevision: 1, organizationId: r.organizationId }));
+/** Loads enriched compliance rows after proposal and requirement ownership checks. */
+async function loadRows(ctx: QueryCtx, organizationId: string, proposalId: Id<"proposalProjects">): Promise<ComplianceRow[]> {
+  const proposal = await ctx.db.get(proposalId);
+  if (!proposal || proposal.organizationId !== organizationId) throwNotFound("Proposal not found.");
+  const stored = await ctx.db.query("complianceRows").withIndex("by_organization_and_id",(q)=>q.eq("organizationId",organizationId).eq("proposalId",proposalId)).collect();
+  const rows: ComplianceRow[] = [];
+  for (const row of stored) {
+    const requirement = await ctx.db.get(row.requirementId);
+    if (!requirement || requirement.organizationId !== organizationId) continue;
+    const span = requirement.evidenceSpans?.[0];
+    const citation = span ? `Page ${span.page}: ${span.text}` : `Requirement ${String(row.requirementId)}`;
+    const mapped: ComplianceRow = { requirementId: String(row.requirementId), citation, responseLocation: row.responseLocation, evidence: row.evidence, ownerId: row.ownerId, status: row.status, isMandatory: requirement.hardness === "hard", requirementRevision: requirement.revision, organizationId };
+    mapped.gapCategory = classifyGap(mapped);
+    rows.push(mapped);
+  }
+  return rows;
 }
 
 /** Lists compliance rows for a proposal with tenant authorization. */
 export const listComplianceRows = query({
   args: { proposalId: v.id("proposalProjects") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity(); if (!identity) throwDomainError("UNAUTHORIZED","Authentication required.");
-    const orgId = orgIdFromIdentity(identity);
-    return await ctx.db.query("complianceRows").withIndex("by_organization_and_id",(q)=>q.eq("organizationId",orgId).eq("proposalId",args.proposalId)).collect();
+    const auth = await requireOrganization(ctx);
+    return loadRows(ctx, auth.organizationId, args.proposalId);
   },
 });
 
@@ -117,10 +125,8 @@ export const listComplianceRows = query({
 export const checkApprovalBlocked = query({
   args: { proposalId: v.id("proposalProjects") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity(); if (!identity) throwDomainError("UNAUTHORIZED","Authentication required.");
-    const orgId = orgIdFromIdentity(identity);
-    const rows = await ctx.db.query("complianceRows").withIndex("by_organization_and_id",(q)=>q.eq("organizationId",orgId).eq("proposalId",args.proposalId)).collect();
-    return isApprovalBlocked(mapRows(rows as unknown as never));
+    const auth = await requireOrganization(ctx);
+    return isApprovalBlocked(await loadRows(ctx, auth.organizationId, args.proposalId));
   },
 });
 
@@ -128,10 +134,8 @@ export const checkApprovalBlocked = query({
 export const exportComplianceCsvQuery = query({
   args: { proposalId: v.id("proposalProjects") },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity(); if (!identity) throwDomainError("UNAUTHORIZED","Authentication required.");
-    const orgId = orgIdFromIdentity(identity);
-    const rows = await ctx.db.query("complianceRows").withIndex("by_organization_and_id",(q)=>q.eq("organizationId",orgId).eq("proposalId",args.proposalId)).collect();
-    return exportComplianceCsv(mapRows(rows as unknown as never));
+    const auth = await requireOrganization(ctx);
+    return exportComplianceCsv(await loadRows(ctx, auth.organizationId, args.proposalId));
   },
 });
 
@@ -139,12 +143,14 @@ export const exportComplianceCsvQuery = query({
 export const upsertComplianceRow = mutation({
   args: { proposalId: v.id("proposalProjects"), requirementId: v.id("requirements"), responseLocation: v.optional(v.string()), evidence: v.optional(v.string()), ownerId: v.optional(v.string()), status: v.union(v.literal("pending"),v.literal("compliant"),v.literal("gap")) },
   handler: async (ctx, args) => {
-    const identity = await ctx.auth.getUserIdentity(); if (!identity) throwDomainError("UNAUTHORIZED","Authentication required.");
-    const orgId = orgIdFromIdentity(identity);
-    const existing = await ctx.db.query("complianceRows").withIndex("by_organization_and_id",(q)=>q.eq("organizationId",orgId).eq("proposalId",args.proposalId)).collect();
+    const auth = await requireOrganization(ctx);
+    const proposal = await ctx.db.get(args.proposalId);
+    const requirement = await ctx.db.get(args.requirementId);
+    if (!proposal || proposal.organizationId !== auth.organizationId || !requirement || requirement.organizationId !== auth.organizationId) throwNotFound("Proposal requirement not found.");
+    const existing = await ctx.db.query("complianceRows").withIndex("by_organization_and_id",(q)=>q.eq("organizationId",auth.organizationId).eq("proposalId",args.proposalId)).collect();
     const dup = existing.find((r)=>String(r.requirementId)===String(args.requirementId));
     if (dup) await ctx.db.patch(dup._id,{ responseLocation: args.responseLocation, evidence: args.evidence, ownerId: args.ownerId, status: args.status });
-    else await ctx.db.insert("complianceRows",{ organizationId: orgId, proposalId: args.proposalId, requirementId: args.requirementId, responseLocation: args.responseLocation, evidence: args.evidence, ownerId: args.ownerId, status: args.status, createdAt: Date.now() });
+    else await ctx.db.insert("complianceRows",{ organizationId: auth.organizationId, proposalId: args.proposalId, requirementId: args.requirementId, responseLocation: args.responseLocation, evidence: args.evidence, ownerId: args.ownerId, status: args.status, createdAt: Date.now() });
     return null;
   },
 });

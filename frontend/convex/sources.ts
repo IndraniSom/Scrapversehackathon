@@ -88,6 +88,7 @@ export const setConnectorEnabled = mutation({
     const auth = await requireOrganization(ctx);
     const doc = await ctx.db.get(args.connectorId);
     if (!doc || doc.organizationId !== auth.organizationId) throwForbidden("Connector not found.");
+    if (args.enabled && !process.env.BRIGHT_DATA_API_TOKEN) throwValidation("Bright Data API token is not configured.");
     await ctx.db.patch(args.connectorId, { enabled: args.enabled, updatedAt: Date.now() });
     return args.connectorId;
   },

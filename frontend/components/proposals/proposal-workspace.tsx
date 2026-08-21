@@ -21,7 +21,7 @@ type Props = {
   onAssign: (id: string, assigneeId: string) => void;
   onSave: (id: string, body: string, nextState?: string) => void;
   onAddComment: (sectionId: string | undefined, body: string, anchor?: string) => void;
-  onGenerateOutline?: (clauses: { title: string; citation: string }[]) => void;
+  onGenerateOutline?: () => void;
   onLock?: () => void;
   role?: string;
 };
@@ -52,7 +52,7 @@ export function ProposalWorkspace({ proposal, sections, comments, onAssign, onSa
         {onGenerateOutline && (
           <button
             type="button"
-            onClick={()=>onGenerateOutline([{ title: "1. Cover Letter", citation: "Instruction §1" }, { title: "1.1 Technical Approach", citation: "Evaluation §2.1" }])}
+            onClick={onGenerateOutline}
             disabled={!canGenerate}
             title={canGenerate?"Generate cited outline (requires bid-manager approval)":"Bid-manager approval required"}
             className={canGenerate ? "btn-primary" : "btn-ghost"}

@@ -4,9 +4,10 @@
  * Stable source key is `source:sourceTenderId`. A new version is inserted
  * only when the canonical digest changes; historical versions are never mutated.
  */
-import { mutation, query } from "./_generated/server";
+import { internalMutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { throwValidation } from "./lib/errors";
+import { requireOrganization } from "./lib/authorization";
+import { throwNotFound, throwValidation } from "./lib/errors";
 
 /** Allowlisted modes preserved in every view. */
 const DATA_MODES = ["LIVE", "RECORDED_BRIGHT_DATA_SNAPSHOT", "MANUAL_FIXTURE"] as const;
@@ -73,7 +74,7 @@ export function shouldCreateNewVersion(existingDigest: string | null, newDigest:
 }
 
 /** Upsert one opportunity and insert a new immutable version only on digest change. */
-export const upsertOpportunity = mutation({
+export const upsertOpportunity = internalMutation({
   args: {
     organizationId: v.string(),
     source: v.string(),
@@ -86,7 +87,7 @@ export const upsertOpportunity = mutation({
     publishedAt: v.optional(v.number()),
     canonicalUrl: v.optional(v.string()),
     dataMode: v.union(v.literal("LIVE"), v.literal("RECORDED_BRIGHT_DATA_SNAPSHOT"), v.literal("MANUAL_FIXTURE")),
-    snapshotId: v.optional(v.id("sourceSnapshots")),
+    snapshotId: v.id("sourceSnapshots"),
     documentHashes: v.optional(v.array(v.string())),
   },
   handler: async (ctx, args) => {
@@ -117,6 +118,8 @@ export const upsertOpportunity = mutation({
         closesAt: args.closesAt,
         lifecycle: "open",
         organizationId: args.organizationId,
+        dataMode: args.dataMode,
+        publishedAt: args.publishedAt,
         referenceId: args.referenceNumber,
         source: args.source,
         sourceTenderId: args.sourceTenderId,
@@ -131,7 +134,7 @@ export const upsertOpportunity = mutation({
         normalizedData: JSON.stringify({ title: args.title, closesAt: args.closesAt }),
         opportunityId,
         organizationId: args.organizationId,
-        sourceSnapshotId: args.snapshotId ?? (await ctx.db.query("sourceSnapshots").first())?._id ?? (opportunityId as unknown as typeof args.snapshotId & string),
+        sourceSnapshotId: args.snapshotId,
       });
       await ctx.db.patch(opportunityId, { currentVersionId: versionId, updatedAt: Date.now() });
       return { opportunityId, versionId, created: true };
@@ -147,28 +150,30 @@ export const upsertOpportunity = mutation({
       normalizedData: JSON.stringify({ title: args.title, closesAt: args.closesAt }),
       opportunityId: matched._id,
       organizationId: args.organizationId,
-      sourceSnapshotId: args.snapshotId ?? currentVersion?.sourceSnapshotId ?? (matched._id as unknown as typeof args.snapshotId & string),
+      sourceSnapshotId: args.snapshotId,
     });
-    await ctx.db.patch(matched._id, { currentVersionId: versionId, updatedAt: Date.now(), title: args.title, authority: args.authority, closesAt: args.closesAt, canonicalUrl: args.canonicalUrl });
+    await ctx.db.patch(matched._id, { currentVersionId: versionId, updatedAt: Date.now(), title: args.title, authority: args.authority, closesAt: args.closesAt, canonicalUrl: args.canonicalUrl, dataMode: args.dataMode, publishedAt: args.publishedAt });
     return { opportunityId: matched._id, versionId, created: true };
   },
 });
 
 /** Fetch one opportunity by id with tenant scoping. */
 export const getOpportunity = query({
-  args: { organizationId: v.string(), opportunityId: v.id("opportunities") },
+  args: { opportunityId: v.id("opportunities") },
   handler: async (ctx, args) => {
+    const { organizationId } = await requireOrganization(ctx);
     const doc = await ctx.db.get(args.opportunityId);
-    if (!doc || doc.organizationId !== args.organizationId) return null;
+    if (!doc || doc.organizationId !== organizationId) throwNotFound("Opportunity not found.");
     return doc;
   },
 });
 
 /** List opportunities for an organization with optional source filter. */
 export const listOpportunities = query({
-  args: { organizationId: v.string(), source: v.optional(v.string()) },
+  args: { source: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const q = ctx.db.query("opportunities").withIndex("by_organization", (qb) => qb.eq("organizationId", args.organizationId));
+    const { organizationId } = await requireOrganization(ctx);
+    const q = ctx.db.query("opportunities").withIndex("by_organization", (qb) => qb.eq("organizationId", organizationId));
     const all = await q.collect();
     return args.source ? all.filter((o) => o.source === args.source) : all;
   },

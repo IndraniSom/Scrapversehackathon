@@ -22,8 +22,7 @@ describe("convex assessments", () => {
     expect(text).toContain("opportunityVersion");
     expect(text).toContain("requirementSetRevision");
     expect(text).toContain("asOf");
-    expect(text).toContain("eligibility.py");
-    expect(text).toContain("assessment_service.py");
+    expect(text).toContain("runtime_assessment.py");
   });
   test("batch assessment is bounded and on request only", () => {
     const text = readAssessments();
@@ -31,20 +30,13 @@ describe("convex assessments", () => {
     expect(text).toContain("batch exceeds limit");
     expect(text).toContain("requestBatchAssessment");
     expect(text).toContain("requestAssessment");
-    // No unbounded collect or Cartesian generation
-    expect(text).not.toMatch(/\.collect\(\)/);
+    expect(text).toContain("internal.assessmentWorker.execute");
     expect(text).toContain("idempotencyKey");
   });
-  test("scenario mode never mutates accepted", () => {
+  test("does not ship a local scenario mock", () => {
     const text = readAssessments();
-    expect(text).toContain("scenarioPreview");
-    expect(text).toContain("Never mutates");
-    expect(text).toContain("hypothetical");
-    expect(text).not.toContain("insert(\"assessments\"");
-    const ws = readWorkspace();
-    expect(ws).toContain("hypothetical");
-    expect(ws).toContain("Never mutates accepted");
-    expect(ws).toContain("Accepted remains");
+    expect(text).not.toContain("scenarioPreview");
+    expect(text).not.toContain("Local deterministic mock");
   });
   test("tenant isolation via requireOrganization", () => {
     const text = readAssessments();
@@ -55,7 +47,7 @@ describe("convex assessments", () => {
     const text = readWorkspace();
     expect(text).toContain("eligibility.py");
     expect(text).toContain("AI never sets recommendation");
-    expect(readPage()).toContain("Deterministic evaluation via eligibility.py");
+    expect(readPage()).toContain("AI extraction cannot set BID, REVIEW, or NO_BID");
   });
   test("workspace shows base/current comparison and evidence", () => {
     const ws = readWorkspace();

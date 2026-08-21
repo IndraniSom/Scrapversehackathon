@@ -61,8 +61,8 @@ export const search = query({
         .query("opportunities")
         .withSearchIndex("search_title", (builder) => {
           let s = builder.search("title", term).eq("organizationId", organizationId);
-          if (f.source) s = s.eq("source", f.source as unknown as never);
-          if (f.category) s = s.eq("category", f.category as unknown as never);
+          if (f.source) s = s.eq("source", f.source);
+          if (f.category) s = s.eq("category", f.category);
           if (f.lifecycle) s = s.eq("lifecycle", f.lifecycle);
           return s;
         }) as unknown as OpportunityQuery;

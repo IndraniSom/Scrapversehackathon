@@ -68,16 +68,10 @@ describe("SSRF protection", () => {
     expect(isPrivateHost("fc00::1")).toBe(true);
     expect(isPrivateHost("hooks.example.com")).toBe(false);
   });
-  test("http.ts has SSRF revalidation and bound", () => {
+  test("HTTP router does not expose arbitrary outbound fetch", () => {
     const t = read(httpPath);
-    expect(t).toMatch(/validateWebhookUrl/);
-    expect(t).toMatch(/isPrivateHost/);
-    expect(t).toMatch(/fetchWithSsrf/);
-    expect(t).toMatch(/redirect/);
-    expect(t).toMatch(/Private host/);
-    expect(t).toMatch(/169\.254\.169\.254/);
-    expect(t).toMatch(/1_?000_?000|1e6/);
-    expect(t).toMatch(/https:/);
+    expect(t).not.toMatch(/integrations\/verify/);
+    expect(t).not.toMatch(/fetchWithSsrf/);
   });
   test("integrations verify uses SSRF and tenant check", () => {
     const txt = read(integPath);
@@ -188,12 +182,12 @@ describe("exports ics csv json", () => {
     expect(c["x-bidradar"].signing.example.header).not.toMatch(/real_secret/i);
     expect(c["x-bidradar"].ssrf.checks.join(" ")).toMatch(/Private/);
   });
-  test("settings page exists with exports and events", () => {
+  test("settings page uses persistent webhook and API-key operations", () => {
     const p = read(pagePath);
     expect(p).toMatch(/Integrations/);
     expect(p).toMatch(/opportunity\.created/);
-    expect(p).toMatch(/Download.*ics/i);
-    expect(p).toMatch(/Download.*CSV/i);
-    expect(p).toMatch(/Download.*JSON/i);
+    expect(p).toMatch(/listWebhooks/);
+    expect(p).toMatch(/createApiKey/);
+    expect(p).not.toMatch(/hooks\.example\.com<\/td>/);
   });
 });

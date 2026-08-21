@@ -1,15 +1,39 @@
 /**
  * Immutable deterministic assessments for versioned inputs.
- * Determinism via backend/src/backend/eligibility.py and assessment_service.py.
+ * Determinism via backend/src/backend/runtime_assessment.py.
  * Every assessment is bound to (companyRevision, opportunityVersion, requirementSetRevision, asOf).
  */
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { internal } from "./_generated/api";
+import type { Doc, Id } from "./_generated/dataModel";
+import type { MutationCtx } from "./_generated/server";
+import type { AuthContext } from "./lib/authorization";
 import { requireOrganization } from "./lib/authorization";
-import { throwConflict, throwValidation } from "./lib/errors";
+import { throwValidation } from "./lib/errors";
 
 /** Maximum pairs allowed in one explicit batch request. */
 const MAX_BATCH = 25;
+
+/** Queues one version-bound assessment or returns its existing idempotent job. */
+async function queueAssessment(ctx: MutationCtx, auth: AuthContext, companyId: Id<"companies">, opportunityId: Id<"opportunities">): Promise<{ jobId: Id<"jobs">; idempotencyKey: string; created: boolean }> {
+  const company = await ctx.db.get(companyId);
+  const opportunity = await ctx.db.get(opportunityId);
+  if (!company || company.organizationId !== auth.organizationId || !opportunity || opportunity.organizationId !== auth.organizationId) throwValidation("Company or opportunity not found.");
+  const documents = await ctx.db.query("opportunityDocuments").withIndex("by_organization_and_id", (q) => q.eq("organizationId", auth.organizationId).eq("opportunityId", opportunityId)).collect();
+  const requirementSets: Array<Doc<"requirementSets">> = [];
+  for (const document of documents) requirementSets.push(...await ctx.db.query("requirementSets").withIndex("by_organization_and_id", (q) => q.eq("organizationId", auth.organizationId).eq("documentId", document._id)).collect());
+  const accepted = requirementSets.filter((set) => set.extractionState === "extracted" && set.reviewState === "approved").sort((left, right) => right.revision - left.revision)[0];
+  if (!accepted) throwValidation("Approved requirement set required.");
+  const opportunityRevision = opportunity.currentVersionId ? String(opportunity.currentVersionId) : String(opportunity.updatedAt);
+  const key = `${auth.organizationId}:${String(companyId)}:${String(opportunityId)}:${accepted.revision}:${opportunityRevision}:${company.revision}`;
+  const existing = await ctx.db.query("jobs").withIndex("by_idempotencyKey", (q) => q.eq("idempotencyKey", key)).unique();
+  if (existing) return { jobId: existing._id, idempotencyKey: key, created: false };
+  const asOf = Date.now();
+  const jobId = await ctx.db.insert("jobs", { organizationId: auth.organizationId, kind: "ASSESSMENT", status: "QUEUED", idempotencyKey: key, inputRevision: String(accepted.revision), inputHashes: [String(company.revision), opportunityRevision], attempt: 0, maxAttempts: 3, requestedBy: auth.userId, traceId: key.slice(0, 32), createdAt: asOf });
+  await ctx.scheduler.runAfter(0, internal.assessmentWorker.execute, { jobId, companyId, opportunityId, requirementSetId: accepted._id, asOf });
+  return { jobId, idempotencyKey: key, created: true };
+}
 
 /**
  * Lists immutable assessments for one opportunity (tenant-isolated).
@@ -18,13 +42,14 @@ const MAX_BATCH = 25;
 export const listByOpportunity = query({
   args: { opportunityId: v.id("opportunities") },
   handler: async (ctx, args) => {
-    const auth = await requireOrganization(ctx as unknown as never);
+    const auth = await requireOrganization(ctx);
+    const opportunity = await ctx.db.get(args.opportunityId);
+    if (!opportunity || opportunity.organizationId !== auth.organizationId) throwValidation("Opportunity not found.");
     const items = await ctx.db
       .query("assessments")
-      .withIndex("by_organization_and_id", (q) => q.eq("organizationId", auth.organizationId).eq("companyId", args.opportunityId as unknown as never))
-      ["collect"]();
-    // Filter to opportunity; index already scopes tenant
-    return items.filter((r) => r.opportunityId === args.opportunityId);
+      .withIndex("by_organization_opportunity", (q) => q.eq("organizationId", auth.organizationId).eq("opportunityId", args.opportunityId))
+      .collect();
+    return Promise.all(items.map(async (assessment) => ({ ...assessment, ruleResults: await ctx.db.query("ruleResults").withIndex("by_organization_and_id", (q) => q.eq("organizationId", auth.organizationId).eq("assessmentId", assessment._id)).collect() })));
   },
 });
 
@@ -34,9 +59,9 @@ export const listByOpportunity = query({
 export const getAssessment = query({
   args: { assessmentId: v.id("assessments") },
   handler: async (ctx, args) => {
-    const auth = await requireOrganization(ctx as unknown as never);
+    const auth = await requireOrganization(ctx);
     const row = await ctx.db.get(args.assessmentId);
-    if (!row || (row as { organizationId: string }).organizationId !== auth.organizationId) return null;
+    if (!row || row.organizationId !== auth.organizationId) return null;
     return row;
   },
 });
@@ -47,36 +72,10 @@ export const getAssessment = query({
  * Batch on request only – caller must invoke per pair.
  */
 export const requestAssessment = mutation({
-  args: {
-    companyId: v.id("companies"),
-    opportunityId: v.id("opportunities"),
-    requirementSetRevision: v.number(),
-    opportunityVersion: v.number(),
-    companyRevision: v.number(),
-    asOf: v.number(),
-  },
+  args: { companyId: v.id("companies"), opportunityId: v.id("opportunities") },
   handler: async (ctx, args) => {
-    const auth = await requireOrganization(ctx as unknown as never);
-    if (args.requirementSetRevision < 1 || args.opportunityVersion < 1 || args.companyRevision < 1) throwValidation("revisions must be >= 1");
-    if (!Number.isFinite(args.asOf)) throwValidation("asOf must be a timestamp");
-    const key = `${auth.organizationId}:${String(args.companyId)}:${String(args.opportunityId)}:${args.requirementSetRevision}:${args.opportunityVersion}:${args.companyRevision}:${args.asOf}`;
-    const existing = await ctx.db.query("jobs").withIndex("by_idempotencyKey", (q) => q.eq("idempotencyKey", key)).unique();
-    if (existing) throwConflict("Assessment already requested for this version tuple");
-    const now = Date.now();
-    const jobId = await ctx.db.insert("jobs", {
-      organizationId: auth.organizationId,
-      kind: "ASSESSMENT",
-      status: "QUEUED",
-      idempotencyKey: key,
-      inputRevision: String(args.requirementSetRevision),
-      inputHashes: [String(args.companyRevision), String(args.opportunityVersion)],
-      attempt: 0,
-      maxAttempts: 3,
-      requestedBy: auth.userId,
-      traceId: key.slice(0, 32),
-      createdAt: now,
-    });
-    return { jobId, idempotencyKey: key };
+    const auth = await requireOrganization(ctx);
+    return queueAssessment(ctx, auth, args.companyId, args.opportunityId);
   },
 });
 
@@ -85,51 +84,14 @@ export const requestAssessment = mutation({
  * Rejects unbounded Cartesian products.
  */
 export const requestBatchAssessment = mutation({
-  args: { pairs: v.array(v.object({ companyId: v.id("companies"), opportunityId: v.id("opportunities"), requirementSetRevision: v.number(), opportunityVersion: v.number(), companyRevision: v.number(), asOf: v.number() })) },
+  args: { pairs: v.array(v.object({ companyId: v.id("companies"), opportunityId: v.id("opportunities") })) },
   handler: async (ctx, args) => {
-    const auth = await requireOrganization(ctx as unknown as never);
+    const auth = await requireOrganization(ctx);
     if (args.pairs.length === 0) throwValidation("batch requires at least one pair");
     if (args.pairs.length > MAX_BATCH) throwValidation(`batch exceeds limit ${MAX_BATCH}`);
     const results = [];
-    for (const p of args.pairs) {
-      if (p.requirementSetRevision < 1 || p.opportunityVersion < 1 || p.companyRevision < 1) throwValidation("revisions must be >= 1");
-      const key = `${auth.organizationId}:${String(p.companyId)}:${String(p.opportunityId)}:${p.requirementSetRevision}:${p.opportunityVersion}:${p.companyRevision}:${p.asOf}`;
-      const dup = await ctx.db.query("jobs").withIndex("by_idempotencyKey", (q) => q.eq("idempotencyKey", key)).unique();
-      if (dup) continue;
-      const jobId = await ctx.db.insert("jobs", {
-        organizationId: auth.organizationId,
-        kind: "ASSESSMENT",
-        status: "QUEUED",
-        idempotencyKey: key,
-        inputRevision: String(p.requirementSetRevision),
-        inputHashes: [String(p.companyRevision), String(p.opportunityVersion)],
-        attempt: 0,
-        maxAttempts: 3,
-        requestedBy: auth.userId,
-        traceId: key.slice(0, 32),
-        createdAt: Date.now(),
-      });
-      results.push(jobId);
-    }
-    return { created: results.length };
-  },
-});
-
-/**
- * Hypothetical scenario preview – Never mutates accepted assessments.
- * Returns computed view without writing to assessments table.
- */
-export const scenarioPreview = query({
-  args: {
-    companyId: v.id("companies"),
-    opportunityId: v.id("opportunities"),
-    requirementSetRevision: v.number(),
-    asOf: v.number(),
-  },
-  handler: async (ctx, args) => {
-    await requireOrganization(ctx as unknown as never);
-    // No mutation; caller renders hypothetical result beside accepted
-    return { hypothetical: true, companyId: args.companyId, opportunityId: args.opportunityId, requirementSetRevision: args.requirementSetRevision, asOf: args.asOf, note: "Scenario Never mutates accepted assessment" };
+    for (const pair of args.pairs) results.push(await queueAssessment(ctx, auth, pair.companyId, pair.opportunityId));
+    return { created: results.filter((result) => result.created).length, jobIds: results.map((result) => result.jobId) };
   },
 });
 
@@ -139,12 +101,11 @@ export const scenarioPreview = query({
 export const compareVersions = query({
   args: { baseId: v.id("assessments"), currentId: v.id("assessments") },
   handler: async (ctx, args) => {
-    const auth = await requireOrganization(ctx as unknown as never);
+    const auth = await requireOrganization(ctx);
     const base = await ctx.db.get(args.baseId);
     const curr = await ctx.db.get(args.currentId);
     if (!base || !curr) return null;
-    if ((base as { organizationId: string }).organizationId !== auth.organizationId) return null;
-    if ((curr as { organizationId: string }).organizationId !== auth.organizationId) return null;
-    return { base, current: curr, changed: (base as { recommendation: string }).recommendation !== (curr as { recommendation: string }).recommendation };
+    if (base.organizationId !== auth.organizationId || curr.organizationId !== auth.organizationId) return null;
+    return { base, current: curr, changed: base.recommendation !== curr.recommendation };
   },
 });

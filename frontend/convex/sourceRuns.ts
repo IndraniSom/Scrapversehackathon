@@ -93,6 +93,7 @@ export const handleWebhook = internalMutation({
     if (connector === undefined || !connector.enabled) throwValidation("Connector not found.");
     if (args.collectorVersion !== connector.collectorVersion) throwValidation("Collector version mismatch.");
     if (!isValidChronology(args.startedAt, args.completedAt)) throwValidation("Invalid chronology.");
+    // Duplicate provider deliveries are acknowledged without replaying persistence.
     const existing = await ctx.db.query("sourceRuns").withIndex("by_organization_and_id", (index) => index.eq("organizationId", connector.organizationId).eq("providerRunId", args.providerRunId)).unique();
     if (existing !== null) return existing._id;
     if (args.status === "succeeded" && (!args.records || args.records.length === 0)) throwValidation("Malformed record: empty success.");
@@ -108,7 +109,7 @@ export const handleWebhook = internalMutation({
       completedAt: args.completedAt,
       createdAt: Date.now(),
     });
-    await ctx.db.insert("sourceSnapshots", {
+    const snapshotId = await ctx.db.insert("sourceSnapshots", {
       organizationId: connector.organizationId,
       sourceRunId: runId,
       storageId: args.storageId,
@@ -116,6 +117,22 @@ export const handleWebhook = internalMutation({
       provenance: { collectorVersion: args.collectorVersion, providerRunId: args.providerRunId },
       createdAt: Date.now(),
     });
+    for (const record of args.records ?? []) {
+      const normalized = "sourceTenderId" in record
+        ? record
+        : { sourceTenderId: record.source_tender_id, title: record.title, authority: record.authority, canonicalUrl: record.canonical_url, referenceNumber: record.reference_number };
+      await ctx.scheduler.runAfter(0, internal.opportunities.upsertOpportunity, {
+        organizationId: connector.organizationId,
+        source: connector.portal,
+        sourceTenderId: normalized.sourceTenderId,
+        title: normalized.title,
+        authority: normalized.authority,
+        referenceNumber: normalized.referenceNumber,
+        canonicalUrl: normalized.canonicalUrl,
+        dataMode: "LIVE",
+        snapshotId,
+      });
+    }
     return runId;
   },
 });

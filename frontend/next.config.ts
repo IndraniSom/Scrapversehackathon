@@ -1,5 +1,8 @@
 import type { NextConfig } from "next";
 
+const isE2eMode = process.env.BIDRADAR_E2E_MODE === "1";
+const e2eConnections = isE2eMode ? " http://127.0.0.1:3210 ws://127.0.0.1:3210" : "";
+
 /** Content-Security-Policy: self + Clerk/Convex, no frames/objects. */
 const csp = [
   "default-src 'self'",
@@ -7,7 +10,7 @@ const csp = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https:",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.clerk.accounts.dev https://*.convex.cloud https://api.deepseek.com https://api.brightdata.com https://api.resend.com",
+  `connect-src 'self' https://*.clerk.accounts.dev https://*.convex.cloud https://api.deepseek.com https://api.brightdata.com https://api.resend.com${e2eConnections}`,
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",

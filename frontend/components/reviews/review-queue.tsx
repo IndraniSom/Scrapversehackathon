@@ -90,6 +90,7 @@ export function ReviewQueue({ tasks, onSelect, selectedId }: Props) {
       {filtered.length === 0 ? (
         <p>No review tasks match filters.</p>
       ) : (
+        <div className="table-wrap" role="region" aria-label="Review queue table">
         <table aria-label="Review queue">
           <thead>
             <tr>
@@ -115,6 +116,7 @@ export function ReviewQueue({ tasks, onSelect, selectedId }: Props) {
             ))}
           </tbody>
         </table>
+        </div>
       )}
     </section>
   );

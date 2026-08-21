@@ -4,8 +4,6 @@ import { useState } from "react";
 import { isValidDateOrder, isValidFinancialYear, isValidInrAmount } from "../../convex/companies";
 
 type EvidenceProps = {
-  organizationId: string;
-  companyId: string;
   onAddTurnover: (v: { financialYear: string; amountInr: string; audited: boolean }) => Promise<unknown>;
   onAddCertification: (v: { name: string; issuer: string; validFrom?: number; validUntil?: number }) => Promise<unknown>;
   onAddProject: (v: { clientName: string; valueInr?: string; startAt?: number; endAt?: number; completionState: "completed" | "ongoing" }) => Promise<unknown>;

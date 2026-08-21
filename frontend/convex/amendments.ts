@@ -67,13 +67,14 @@ export function staleTypes(): string[] {
  * Lists amendment impacts for an opportunity. Tenant-isolated.
  */
 export const listAmendments = query({
-  args: { organizationId: v.string(), opportunityId: v.id("opportunities") },
+  args: { opportunityId: v.id("opportunities") },
   handler: async (ctx, args) => {
     const auth = await requireOrganization(ctx);
-    if (auth.organizationId !== args.organizationId) throwForbidden("Cross-tenant access denied.");
+    const opportunity = await ctx.db.get(args.opportunityId);
+    if (!opportunity || opportunity.organizationId !== auth.organizationId) throwForbidden("Opportunity not found.");
     return ctx.db
       .query("amendmentImpacts")
-      .withIndex("by_organization_and_id", (q) => q.eq("organizationId", args.organizationId).eq("opportunityId", args.opportunityId))
+      .withIndex("by_organization_and_id", (q) => q.eq("organizationId", auth.organizationId).eq("opportunityId", args.opportunityId))
       .collect();
   },
 });
@@ -81,7 +82,7 @@ export const listAmendments = query({
  * Gets one amendment impact by id. Tenant-isolated.
  */
 export const getAmendment = query({
-  args: { organizationId: v.string(), amendmentId: v.id("amendmentImpacts") },
+  args: { amendmentId: v.id("amendmentImpacts") },
   handler: async (ctx, args) => {
     const auth = await requireOrganization(ctx);
     const doc = await ctx.db.get(args.amendmentId);
@@ -96,7 +97,6 @@ export const getAmendment = query({
  */
 export const detectAmendment = mutation({
   args: {
-    organizationId: v.string(),
     opportunityId: v.id("opportunities"),
     baseDocumentId: v.string(),
     amendmentDocumentId: v.string(),
@@ -115,7 +115,8 @@ export const detectAmendment = mutation({
   },
   handler: async (ctx, args) => {
     const auth = await requireOrganization(ctx);
-    if (auth.organizationId !== args.organizationId) throwForbidden("Cross-tenant access denied.");
+    const opportunity = await ctx.db.get(args.opportunityId);
+    if (!opportunity || opportunity.organizationId !== auth.organizationId) throwForbidden("Opportunity not found.");
     if (args.changedRuleIds.length === 0) throwValidation("changedRuleIds required.");
     if (args.authorityStatement.disposition === "AMBIGUOUS") throwValidation("Ambiguous precedence rejected.");
     const oldMap: Record<string, string> = {};
@@ -132,18 +133,18 @@ export const detectAmendment = mutation({
     void mapping;
     const now = Date.now();
     const id = await ctx.db.insert("amendmentImpacts", {
-      organizationId: args.organizationId, opportunityId: args.opportunityId, authorityStatement: JSON.stringify(args.authorityStatement),
+      organizationId: auth.organizationId, opportunityId: args.opportunityId, authorityStatement: JSON.stringify(args.authorityStatement),
       oldRule: args.oldRuleJson, newRule: args.newRuleJson, transition: narrative, applied, createdAt: now,
     });
     if (applied) {
-      const compliance = await ctx.db.query("complianceRows").withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId)).collect().catch(() => []);
-      for (const row of compliance as Array<{ _id: string }>) await ctx.db.patch(row._id as never, { status: "gap" } as never);
-      const sections = await ctx.db.query("proposalSections").withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId)).collect().catch(() => []);
-      for (const sec of sections as Array<{ _id: string }>) await ctx.db.patch(sec._id as never, { state: "CHANGES_REQUESTED" } as never);
+      const compliance = await ctx.db.query("complianceRows").withIndex("by_organization", (q) => q.eq("organizationId", auth.organizationId)).collect();
+      for (const row of compliance) await ctx.db.patch(row._id, { status: "gap" });
+      const sections = await ctx.db.query("proposalSections").withIndex("by_organization", (q) => q.eq("organizationId", auth.organizationId)).collect();
+      for (const section of sections) await ctx.db.patch(section._id, { state: "CHANGES_REQUESTED" });
     }
     const dedupe = `amendment:${args.opportunityId}:${args.amendmentDocumentId}`;
     await ctx.db.insert("notificationEvents", {
-      organizationId: args.organizationId, type: applied ? "amendment.applied" : "amendment.detected", deduplicationKey: dedupe,
+      organizationId: auth.organizationId, type: applied ? "amendment.applied" : "amendment.detected", deduplicationKey: dedupe,
       sourceEntityId: String(args.opportunityId), urgency: applied ? "high" : "low",
       payload: JSON.stringify({ oldClause: args.oldClause, newClause: args.newClause, applied, narrative, stale: applied ? staleTypes() : [], nextActions: applied ? ["Review assessments", "Update compliance matrix", "Reassign proposal sections"] : ["No action required"] }),
       createdAt: now,
@@ -155,7 +156,7 @@ export const detectAmendment = mutation({
  * Applies an amendment after review. Re-validates authority gate.
  */
 export const applyAmendment = mutation({
-  args: { organizationId: v.string(), amendmentId: v.id("amendmentImpacts") },
+  args: { amendmentId: v.id("amendmentImpacts") },
   handler: async (ctx, args) => {
     const auth = await requireOrganization(ctx);
     const doc = await ctx.db.get(args.amendmentId);
@@ -167,7 +168,7 @@ export const applyAmendment = mutation({
     if (statement.actor !== "AUTHORITY" || statement.disposition !== "ACCEPTED" || !statement.effective_change) {
       throwValidation("Only accepted authority change may be applied.");
     }
-    await ctx.db.patch(args.amendmentId, { applied: true } as never);
+    await ctx.db.patch(args.amendmentId, { applied: true });
     return { applied: true };
   },
 });

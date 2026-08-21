@@ -1,70 +1,28 @@
-/**
- * AI governance settings page.
- *
- * Exposes kill switches, model allowlist, rate limits, and usage
- * with evaluation-gate status. Admin-only controls.
- */
-import { ALLOWED_MODELS, AI_FEATURES, RATE_LIMITS } from "../../../../convex/ai";
+/** Persistent tenant AI governance and usage controls. */
+"use client";
 
-const FEATURE_LABELS: Record<string, string> = {
-  extraction: "Requirement extraction",
-  citations: "Citation verification",
-  qa: "Tender Q&A",
-  compliance: "Compliance matrix",
-  claims: "Claim verification",
-  amendment_mapping: "Amendment mapping",
-};
+import { useMutation, useQuery } from "convex/react";
 
-/**
- * Renders the AI governance dashboard.
- */
+import { api } from "../../../../convex/_generated/api";
+
+const LABELS: Record<string, string> = { extraction: "Requirement extraction", citations: "Citation verification", qa: "Tender Q&A", compliance: "Compliance matrix", claims: "Claim verification", amendment_mapping: "Amendment mapping" };
+
+/** Renders live kill switches, allowlist, limits, and recorded usage. */
 export default function AiSettingsPage() {
+  const governance = useQuery(api.ai.getGovernance, {});
+  const runs = useQuery(api.ai.listAiRuns, {});
+  const setKillSwitch = useMutation(api.ai.setKillSwitch);
+  if (governance === undefined || runs === undefined) return <main className="page-shell" id="main-content"><p role="status">Loading AI governance…</p></main>;
+  const tokens = runs.reduce((total, run) => total + (run.tokens?.input ?? 0) + (run.tokens?.output ?? 0), 0);
+  const cost = runs.reduce((total, run) => total + (run.cost ?? 0), 0);
   return (
     <main id="main-content" className="page-shell">
-      <header className="page-intro">
-        <h1>AI settings</h1>
-        <p>Governance controls, evaluation gates, rate limits, and usage per NIST AI RMF.</p>
-      </header>
-
-      <section aria-labelledby="kills-heading" className="panel">
-        <h2 id="kills-heading">Feature kill switches</h2>
-        <p className="muted">Disable a feature immediately without redeploy. Requires org:admin.</p>
-        <table>
-          <thead><tr><th>Feature</th><th>Status</th><th>Action</th></tr></thead>
-          <tbody>
-            {AI_FEATURES.map((f: string) => (
-              <tr key={f}>
-                <td>{FEATURE_LABELS[f]}</td>
-                <td><span className="badge">Enabled</span></td>
-                <td><button type="button" aria-label={`Disable ${f}`}>Disable</button></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
-
-      <section aria-labelledby="models-heading" className="panel">
-        <h2 id="models-heading">Approved models</h2>
-        <ul>{ALLOWED_MODELS.map((m: string) => <li key={m}><code>{m}</code></li>)}</ul>
-        <p className="muted">Only allowlisted models may be used. DeepSeek V4 Flash for routine, Pro for complex fallback.</p>
-      </section>
-
-      <section aria-labelledby="limits-heading" className="panel">
-        <h2 id="limits-heading">Rate limits (per minute)</h2>
-        <dl><dt>Per user</dt><dd>{RATE_LIMITS.perUser}</dd><dt>Per organization</dt><dd>{RATE_LIMITS.perOrg}</dd><dt>Global</dt><dd>{RATE_LIMITS.perGlobal}</dd></dl>
-        <p className="muted">Exceeding a limit returns RATE_LIMITED with retry-after 60s. No prompt content is logged.</p>
-      </section>
-
-      <section aria-labelledby="eval-heading" className="panel">
-        <h2 id="eval-heading">Evaluation gate</h2>
-        <p>Production enablement requires zero unsupported hard clauses and zero cross-tenant retrievals. Metrics: schema validity, citation precision/recall, excerpt location, unsupported-claim, abstention, latency, cost.</p>
-        <p className="muted">Datasets: extraction / citations / QA / compliance / claims / amendment mapping under backend/tests/evaluation_cases.</p>
-      </section>
-
-      <section aria-labelledby="usage-heading" className="panel">
-        <h2 id="usage-heading">Token and cost tracking</h2>
-        <p>Input/output/cached tokens and cost are stored per feature in aiRuns without sensitive prompts. Use governance dashboard to review usage by feature.</p>
-      </section>
+      <header className="page-intro"><h1>AI settings</h1><p>Organization-scoped feature controls, approved models, limits, and measured usage.</p></header>
+      <section><h2>Feature controls</h2><div className="table-wrap"><table><thead><tr><th scope="col">Feature</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead><tbody>{governance.features.map((feature) => { const disabled = governance.kills[feature] === true; return <tr key={feature}><td>{LABELS[feature] ?? feature}</td><td>{disabled ? "Disabled" : "Enabled"}</td><td><button type="button" onClick={() => void setKillSwitch({ feature, disabled: !disabled })}>{disabled ? "Enable" : "Disable"}</button></td></tr>; })}</tbody></table></div></section>
+      <section><h2>Approved models</h2><ul>{governance.models.map((model) => <li key={model}><code>{model}</code></li>)}</ul></section>
+      <section><h2>Rate limits</h2><dl className="definition-grid"><div><dt>Per user</dt><dd>{governance.limits.perUser}/minute</dd></div><div><dt>Per organization</dt><dd>{governance.limits.perOrg}/minute</dd></div><div><dt>Global</dt><dd>{governance.limits.perGlobal}/minute</dd></div></dl></section>
+      <section><h2>Recorded usage</h2><p>{runs.length} runs · {tokens.toLocaleString()} tokens · {cost.toFixed(4)} recorded cost units.</p><p>Prompts and document bodies are not stored in usage records.</p></section>
+      <p className="disclaimer">AI output remains proposed until deterministic validation or authorized human review.</p>
     </main>
   );
 }

@@ -25,7 +25,7 @@
 - Use test-driven implementation: failing test, observed failure, minimal implementation, passing test, focused commit.
 - Do not automate CAPTCHA, Digital Signature Certificate use, portal terms acceptance, or a final government-portal submission unless that portal supplies and authorizes a supported API.
 - Do not log credentials, private document contents, raw model prompts, full excerpts, access tokens, signed URLs, or company financial evidence.
-- Preserve the committed offline demo as a deterministic fallback until the production path has an equally reliable seeded demonstration.
+- Keep deterministic seed data isolated to E2E tests; production routes must use authenticated persistent services and fail closed when dependencies are unavailable.
 - Do not add an abstraction used only once unless it clearly creates a security or contract boundary.
 - Prefer native HTML controls and tables; introduce a headless UI dependency only for an interaction that cannot be implemented accessibly and simply with native primitives.
 - UI copy must be concrete procurement language. Ban vague phrases such as “AI-powered insights,” “unlock value,” “supercharge,” and “seamless intelligence.”

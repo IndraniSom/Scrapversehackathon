@@ -117,7 +117,8 @@ export const extractionTables = {
     createdAt: v.number(),
   })
     .index("by_organization", ["organizationId"])
-    .index("by_organization_and_id", ["organizationId", "companyId"]),
+    .index("by_organization_and_id", ["organizationId", "companyId"])
+    .index("by_organization_opportunity", ["organizationId", "opportunityId"]),
 
   ruleResults: defineTable({
     organizationId: v.string(),

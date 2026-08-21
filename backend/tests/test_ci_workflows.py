@@ -15,8 +15,8 @@ def test_ci_runs_backend_and_security_commands_from_valid_projects() -> None:
     assert "uv run --project backend python tools/check_sensitive_patterns.py" in text
     assert "uv run --project backend python tools/check_code_file_lengths.py" in text
     assert "pnpm install --frozen-lockfile" in text
-    assert 'NEXT_PUBLIC_BIDRADAR_DEMO_MODE: "1"' in text
-    assert 'BIDRADAR_DEMO_MODE: "1"' in text
+    assert text.count('NEXT_PUBLIC_BIDRADAR_E2E_MODE: "1"') == 2
+    assert sum(line.strip() == 'BIDRADAR_E2E_MODE: "1"' for line in text.splitlines()) == 2
 
 
 def test_ci_enforces_codegen_browser_and_security_gates() -> None:

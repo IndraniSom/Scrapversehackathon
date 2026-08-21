@@ -21,16 +21,15 @@ type Props = {
   checklist: ChecklistState;
   onChange: (next: ChecklistState) => void;
   onConfirm: () => void;
-  stepUpVerified: boolean;
   approvalVerified: boolean;
 };
 
 /**
  * Renders procurement handoff checklist with authoritative guidance.
  */
-export function SubmissionChecklist({ portal, officialUrl, serverTime, checklist, onChange, onConfirm, stepUpVerified, approvalVerified }: Props) {
+export function SubmissionChecklist({ portal, officialUrl, serverTime, checklist, onChange, onConfirm, approvalVerified }: Props) {
   const allChecked = checklist.serverClockAcknowledged && checklist.emdVerified && checklist.signingVerified && checklist.filenamesVerified;
-  const canConfirm = allChecked && stepUpVerified && approvalVerified && officialUrl.startsWith("https://");
+  const canConfirm = allChecked && approvalVerified && officialUrl.startsWith("https://");
   return (
     <section className="submission-checklist" aria-labelledby="checklist-title">
       <h2 id="checklist-title">Submission handoff — {portal}</h2>
@@ -46,7 +45,7 @@ export function SubmissionChecklist({ portal, officialUrl, serverTime, checklist
         <li><label><input type="checkbox" checked={checklist.signingVerified} onChange={(e) => onChange({ ...checklist, signingVerified: e.target.checked })} /> Digital signing certificate and required covers ready</label></li>
         <li><label><input type="checkbox" checked={checklist.filenamesVerified} onChange={(e) => onChange({ ...checklist, filenamesVerified: e.target.checked })} /> Filenames, formats, and size limits match portal instructions</label></li>
       </ul>
-      {!stepUpVerified && <p className="form-error">Step-up authentication required before handoff.</p>}
+      <p className="help-text">Recent Clerk verification is enforced by server when handoff is confirmed.</p>
       {!approvalVerified && <p className="form-error">Bid-manager approval required before handoff.</p>}
       <button type="button" className="primary-action" disabled={!canConfirm} onClick={onConfirm} aria-disabled={!canConfirm}>
         Confirm handoff readiness

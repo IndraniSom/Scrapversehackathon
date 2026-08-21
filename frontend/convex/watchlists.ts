@@ -28,10 +28,11 @@ export const list = query({
   args: {},
   handler: async (ctx) => {
     const { organizationId } = await requireOrganization(ctx);
-    return await ctx.db
+    const entries = await ctx.db
       .query("watchlists")
       .withIndex("by_organization", (q) => q.eq("organizationId", organizationId))
       .collect();
+    return Promise.all(entries.map(async (entry) => ({ ...entry, opportunity: await ctx.db.get(entry.opportunityId) })));
   },
 });
 

@@ -9,7 +9,7 @@ afterEach(cleanup);
 describe("CompanyForm", () => {
   test("shows legal name required and disables submit when blank", async () => {
     const onSubmit = vi.fn(async () => {});
-    render(<CompanyForm organizationId="org_a" onSubmit={onSubmit} submitLabel="Create company" />);
+    render(<CompanyForm onSubmit={onSubmit} submitLabel="Create company" />);
     const input = screen.getByLabelText(/legal name/i) as HTMLInputElement;
     const button = screen.getByRole("button", { name: /create company/i });
     expect(button).toBeDisabled();
@@ -22,17 +22,17 @@ describe("CompanyForm", () => {
 
   test("trims values and calls onSubmit with correct payload", async () => {
     const onSubmit = vi.fn(async () => {});
-    render(<CompanyForm organizationId="org_a" initial={{ legalName: "  Acme  ", registrationId: " CIN001 ", organizationId: "org_a" }} onSubmit={onSubmit} submitLabel="Save changes" />);
+    render(<CompanyForm initial={{ legalName: "  Acme  ", registrationId: " CIN001 " }} onSubmit={onSubmit} submitLabel="Save changes" />);
     const button = screen.getByRole("button", { name: /save changes/i });
     fireEvent.click(button);
     // wait for async
     await vi.waitFor(() => expect(onSubmit).toHaveBeenCalled());
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ legalName: "Acme", registrationId: "CIN001", organizationId: "org_a" }));
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ legalName: "Acme", registrationId: "CIN001" }));
   });
 
   test("shows registration hint and preserves error on failure", async () => {
     const onSubmit = vi.fn(async () => { throw new Error("Duplicate registrationId."); });
-    render(<CompanyForm organizationId="org_a" onSubmit={onSubmit} submitLabel="Create company" />);
+    render(<CompanyForm onSubmit={onSubmit} submitLabel="Create company" />);
     expect(screen.getByText(/registration id must be unique/i)).toBeInTheDocument();
     const name = screen.getByLabelText(/legal name/i);
     fireEvent.change(name, { target: { value: "New Co" } });
@@ -44,7 +44,7 @@ describe("CompanyForm", () => {
 describe("EvidenceEditor", () => {
   test("validates FY format and blocks turnover submit when invalid", async () => {
     const addTurnover = vi.fn(async () => {});
-    render(<EvidenceEditor organizationId="org_a" companyId="c1" onAddTurnover={addTurnover} onAddCertification={vi.fn(async () => {})} onAddProject={vi.fn(async () => {})} onAddExemption={vi.fn(async () => {})} />);
+    render(<EvidenceEditor onAddTurnover={addTurnover} onAddCertification={vi.fn(async () => {})} onAddProject={vi.fn(async () => {})} onAddExemption={vi.fn(async () => {})} />);
     const fyInput = screen.getByDisplayValue("2023-24");
     fireEvent.change(fyInput, { target: { value: "2023-25" } });
     expect(screen.getByText(/invalid fy/i)).toBeInTheDocument();
@@ -57,7 +57,7 @@ describe("EvidenceEditor", () => {
 
   test("shows INR validation and date ordering messages", async () => {
     const addProject = vi.fn(async () => {});
-    render(<EvidenceEditor organizationId="org_a" companyId="c1" onAddTurnover={vi.fn(async () => {})} onAddCertification={vi.fn(async () => {})} onAddProject={addProject} onAddExemption={vi.fn(async () => {})} />);
+    render(<EvidenceEditor onAddTurnover={vi.fn(async () => {})} onAddCertification={vi.fn(async () => {})} onAddProject={addProject} onAddExemption={vi.fn(async () => {})} />);
     const certName = screen.getByLabelText(/^name$/i);
     const issuer = screen.getByLabelText(/issuer/i);
     fireEvent.change(certName, { target: { value: "ISO" } });

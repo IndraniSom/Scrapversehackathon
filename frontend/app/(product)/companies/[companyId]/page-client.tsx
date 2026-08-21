@@ -3,17 +3,16 @@
 import { use } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "../../../../convex/_generated/api";
+import type { Id } from "../../../../convex/_generated/dataModel";
 import { CompanyForm } from "../../../../components/companies/company-form";
 import { EvidenceEditor } from "../../../../components/companies/evidence-editor";
-
-const ORG_ID = "org_demo";
 
 /**
  * Shows one company, revision-aware edit form, completeness counts, and evidence editors.
  */
 export default function CompanyDetailPage({ params }: { params: Promise<{ companyId: string }> }) {
   const { companyId } = use(params);
-  const data = useQuery(api.companies.getCompany, { organizationId: ORG_ID, companyId: companyId as never });
+  const data = useQuery(api.companies.getCompany, { companyId: companyId as Id<"companies"> });
   const update = useMutation(api.companies.updateCompany);
   const saveTurnover = useMutation(api.companies.saveTurnover);
   const saveCert = useMutation(api.companies.saveCertification);
@@ -41,9 +40,9 @@ export default function CompanyDetailPage({ params }: { params: Promise<{ compan
       </section>
       <section aria-label="Edit company">
         <h2>Edit profile</h2>
-        <CompanyForm initial={{ legalName: company.legalName, registrationId: company.registrationId, organizationId: ORG_ID, revision: company.revision }} organizationId={ORG_ID} submitLabel="Save changes" onSubmit={async (v) => { await update({ organizationId: ORG_ID, companyId: company._id, revision: company.revision, legalName: v.legalName, registrationId: v.registrationId }); }} />
+        <CompanyForm initial={{ legalName: company.legalName, registrationId: company.registrationId, revision: company.revision }} submitLabel="Save changes" onSubmit={async (v) => { await update({ companyId: company._id, revision: company.revision, legalName: v.legalName, registrationId: v.registrationId }); }} />
       </section>
-      <EvidenceEditor organizationId={ORG_ID} companyId={company._id} onAddTurnover={async (v) => { await saveTurnover({ organizationId: ORG_ID, companyId: company._id, ...v }); }} onAddCertification={async (v) => { await saveCert({ organizationId: ORG_ID, companyId: company._id, ...v }); }} onAddProject={async (v) => { await saveProject({ organizationId: ORG_ID, companyId: company._id, ...v }); }} onAddExemption={async (v) => { await saveExempt({ organizationId: ORG_ID, companyId: company._id, ...v }); }} />
+      <EvidenceEditor onAddTurnover={async (v) => { await saveTurnover({ companyId: company._id, ...v }); }} onAddCertification={async (v) => { await saveCert({ companyId: company._id, ...v }); }} onAddProject={async (v) => { await saveProject({ companyId: company._id, ...v }); }} onAddExemption={async (v) => { await saveExempt({ companyId: company._id, ...v }); }} />
     </main>
   );
 }

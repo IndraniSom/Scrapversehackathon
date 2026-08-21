@@ -39,7 +39,7 @@ def clean_worker_state(monkeypatch: pytest.MonkeyPatch) -> None:
     """Reset worker registries and enable explicit demo bundle mode."""
     clear_jobs()
     clear_store()
-    monkeypatch.setenv("BIDRADAR_DEMO_MODE", "1")
+    monkeypatch.setenv("BIDRADAR_E2E_MODE", "1")
 
 
 class FakeEmbeddingModel:
@@ -77,7 +77,7 @@ def test_execute_embedding_job_returns_real_vector(monkeypatch: pytest.MonkeyPat
 
 def test_readiness_fails_closed_without_worker_secret(monkeypatch: pytest.MonkeyPatch) -> None:
     """Production readiness rejects absent worker authentication configuration."""
-    monkeypatch.delenv("BIDRADAR_DEMO_MODE", raising=False)
+    monkeypatch.delenv("BIDRADAR_E2E_MODE", raising=False)
     monkeypatch.delenv("BIDRADAR_WORKER_SECRET", raising=False)
     monkeypatch.delenv("BIDRADAR_WORKER_HMAC_SECRET", raising=False)
     with TestClient(create_app(Settings())) as client:

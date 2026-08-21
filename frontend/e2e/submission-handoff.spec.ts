@@ -1,46 +1,31 @@
-/**
- * E2E: submission handoff assisted flow.
- *
- * Verifies checklist official link, server-clock warning, EMD/signing,
- * step-up/approval gate, and receipt acknowledgement digest.
- */
-import { test, expect } from "@playwright/test";
+/** Runtime assisted-submission boundary coverage. */
+import { expect, test } from "@playwright/test";
 
 test.describe("assisted submission handoff", () => {
-  test("shows checklist with official link and server-clock warning", async ({ page }) => {
+  test("shows official portal and requires complete checklist", async ({ page }) => {
     await page.goto("/integrations");
-    await expect(page.getByRole("heading", { name: /portal integrations/i })).toBeVisible();
-    await expect(page.getByText(/SubmissionConnector\.prepare/i)).toBeVisible();
-    await expect(page.getByText(/SubmissionConnector\.status/i)).toBeVisible();
-    await expect(page.getByRole("link", { name: /eprocure\.gov\.in/ })).toHaveAttribute("href", /https:\/\/eprocure\.gov\.in/);
-    await expect(page.getByText(/Server-clock warning/i)).toBeVisible();
-    await expect(page.getByText(/Portal time is/i)).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Portal integrations" })).toBeVisible();
+    await expect(page.getByRole("link", { name: "https://eprocure.gov.in/eprocure/app" })).toHaveAttribute("href", "https://eprocure.gov.in/eprocure/app");
+    await expect(page.getByText(/Recent Clerk verification is enforced/)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Confirm handoff readiness" })).toBeDisabled();
+    await page.getByLabel("I confirmed the portal server time and deadline").check();
+    await page.getByLabel("EMD amount, instrument, and validity verified").check();
+    await page.getByLabel("Digital signing certificate and required covers ready").check();
+    await page.getByLabel("Filenames, formats, and size limits match portal instructions").check();
+    await expect(page.getByRole("button", { name: "Confirm handoff readiness" })).toBeEnabled();
   });
 
-  test("checklist requires EMD, signing, filenames and shows gates", async ({ page }) => {
+  test("validates receipt before accepting acknowledgement", async ({ page }) => {
     await page.goto("/integrations");
-    await expect(page.getByText(/EMD amount/i)).toBeVisible();
-    await expect(page.getByText(/Digital signing/i)).toBeVisible();
-    await expect(page.getByText(/Filenames, formats/i)).toBeVisible();
-    await expect(page.getByText(/Step-up authentication required/i)).toBeVisible();
-    await expect(page.getByText(/Bid-manager approval required/i)).toBeVisible();
-    const button = page.getByRole("button", { name: /Confirm handoff readiness/i });
-    await expect(button).toBeDisabled();
+    await page.getByLabel("Acknowledgement number").fill("short");
+    await page.getByLabel("Portal timestamp").fill("2026-08-21T12:00");
+    const acknowledgement = page.getByLabel("Acknowledgement number");
+    expect(await acknowledgement.evaluate((input: HTMLInputElement) => input.checkValidity())).toBe(false);
   });
 
-  test("receipt form captures acknowledgement and digest", async ({ page }) => {
+  test("states autonomous submission is unavailable", async ({ page }) => {
     await page.goto("/integrations");
-    await expect(page.getByRole("heading", { name: /Record portal acknowledgement/i })).toBeVisible();
-    await expect(page.getByLabel(/Package digest/i)).toBeVisible();
-    await expect(page.getByLabel(/Acknowledgement number/i)).toBeVisible();
-    await expect(page.getByLabel(/Portal timestamp/i)).toBeVisible();
-    await expect(page.getByText(/AI cannot record receipts/i)).toBeVisible();
-    await expect(page.getByText(/audited/i)).toBeVisible();
-  });
-
-  test("disclaims no autonomous submission", async ({ page }) => {
-    await page.goto("/integrations");
-    await expect(page.getByText(/never submits autonomously/i)).toBeVisible();
-    await expect(page.getByText(/Freeze Bid/i)).toBeVisible();
+    await expect(page.getByText(/system never submits autonomously/).first()).toBeVisible();
+    await expect(page.getByRole("region", { name: "Submission boundary" })).toContainText("No API exists for DSC use, terms acceptance, or final portal submission.");
   });
 });

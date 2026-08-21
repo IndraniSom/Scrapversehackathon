@@ -16,10 +16,13 @@ type NavItem = {
 const NAV_ITEMS: readonly NavItem[] = [
   { label: "Opportunities", href: "/opportunities", permission: "opportunities" },
   { label: "Watchlist", href: "/watchlist", permission: "watchlist" },
+  { label: "Alerts", href: "/alerts", permission: "alerts" },
   { label: "Companies", href: "/companies", permission: "companies" },
   { label: "Reviews", href: "/reviews", permission: "reviews" },
+  { label: "Content", href: "/content-library", permission: "content" },
   { label: "Proposals", href: "/proposals", permission: "proposals" },
   { label: "Submissions", href: "/submissions", permission: "submissions" },
+  { label: "Portal handoff", href: "/integrations", permission: "integrations" },
   { label: "Reports", href: "/reports", permission: "reports" },
   { label: "Settings", href: "/settings/organization", permission: "settings" },
 ] as const;

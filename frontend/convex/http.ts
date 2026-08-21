@@ -88,41 +88,6 @@ async function handleClerkEvent(ctx: Parameters<typeof httpAction>[0] extends (c
   return null;
 }
 
-/** Detects hosts that must not be reachable by outbound webhooks. */
-function isPrivateHost(host: string): boolean {
-  const normalized = host.toLowerCase();
-  return ["localhost", "metadata.google.internal", "127.0.0.1", "0.0.0.0", "::1", "169.254.169.254"].includes(normalized) || normalized.endsWith(".internal") || normalized.endsWith(".local") || /^10\./.test(normalized) || /^192\.168\./.test(normalized) || /^172\.(1[6-9]|2\d|3[0-1])\./.test(normalized) || /^169\.254\./.test(normalized) || normalized.startsWith("fc") || normalized.startsWith("fd") || normalized.startsWith("fe80");
-}
-
-/** Validates an HTTPS webhook destination before any network request. */
-function validateWebhookUrl(value: string): { valid: boolean; reason?: string } {
-  try {
-    const url = new URL(value);
-    if (url.protocol !== "https:") return { valid: false, reason: "HTTPS required" };
-    if (url.username || url.password) return { valid: false, reason: "Credentials are not allowed" };
-    if (isPrivateHost(url.hostname) || !url.hostname.includes(".")) return { valid: false, reason: "Private host" };
-    return { valid: true };
-  } catch { return { valid: false, reason: "Invalid URL" }; }
-}
-
-/** Fetches an endpoint while revalidating every redirect and response size. */
-async function fetchWithSsrf(url: string): Promise<Response> {
-  let destination = url;
-  for (let redirect = 0; redirect < 3; redirect += 1) {
-    const validation = validateWebhookUrl(destination);
-    if (!validation.valid) throw new Error(validation.reason);
-    const response = await fetch(destination, { method: "GET", redirect: "manual", headers: { "x-verify-challenge": crypto.randomUUID() } });
-    if (response.status < 300 || response.status >= 400) {
-      if (Number(response.headers.get("content-length") ?? "0") > 1_000_000) throw new Error("Response too large");
-      return response;
-    }
-    const location = response.headers.get("location");
-    if (location === null) throw new Error("Redirect missing location");
-    destination = new URL(location, destination).toString();
-  }
-  throw new Error("Too many redirects");
-}
-
 /** Receives only signed Clerk webhooks. */
 http.route({ path: "/clerk-webhook", method: "POST", handler: httpAction(async (ctx, request) => {
   const secret = process.env.CLERK_WEBHOOK_SIGNING_SECRET ?? process.env.CLERK_WEBHOOK_SECRET ?? "";
@@ -135,15 +100,6 @@ http.route({ path: "/clerk-webhook", method: "POST", handler: httpAction(async (
   const eventId = headers["svix-id"] || stringValue(event.id);
   if (eventId === null || eventId.length === 0) return jsonResponse({ code: "VALIDATION_FAILED" }, 400);
   return (await handleClerkEvent(ctx, event, eventId)) ?? jsonResponse({ ok: true });
-}) });
-
-/** Verifies that an outbound webhook URL is reachable without SSRF exposure. */
-http.route({ path: "/integrations/verify", method: "POST", handler: httpAction(async (_ctx, request) => {
-  let body: unknown;
-  try { body = await request.json(); } catch { return jsonResponse({ code: "VALIDATION_FAILED" }, 400); }
-  const url = isRecord(body) ? stringValue(body.url) : null;
-  if (url === null || !validateWebhookUrl(url).valid) return jsonResponse({ code: "VALIDATION_FAILED" }, 400);
-  try { return jsonResponse({ ok: true, verified: (await fetchWithSsrf(url)).ok }); } catch { return jsonResponse({ code: "VALIDATION_FAILED" }, 400); }
 }) });
 
 /** Exports tenant metadata only to a matched active API key. */

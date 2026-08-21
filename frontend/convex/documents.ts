@@ -6,7 +6,8 @@
  */
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
-import { throwValidation } from "./lib/errors";
+import { requireOrganization } from "./lib/authorization";
+import { throwNotFound, throwValidation } from "./lib/errors";
 
 /** Hosts permitted for official document acquisition. */
 const ALLOWED_HOSTS = new Set([
@@ -56,19 +57,19 @@ export function isEligibleForQueue(role: string, url: string): boolean {
 /** Queue one official document fetch after allowlist validation. */
 export const queueOfficialDocument = mutation({
   args: {
-    organizationId: v.string(),
     opportunityId: v.id("opportunities"),
     url: v.string(),
     role: v.string(),
     digest: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const { organizationId } = await requireOrganization(ctx);
     if (!isAllowlistedDocumentUrl(args.url)) throwValidation("document URL is not allowlisted");
     const opportunity = await ctx.db.get(args.opportunityId);
-    if (!opportunity || opportunity.organizationId !== args.organizationId) throwValidation("opportunity not found");
+    if (!opportunity || opportunity.organizationId !== organizationId) throwNotFound("Opportunity not found.");
     const existing = await ctx.db
       .query("opportunityDocuments")
-      .withIndex("by_organization_and_id", (q) => q.eq("organizationId", args.organizationId).eq("opportunityId", args.opportunityId))
+      .withIndex("by_organization_and_id", (q) => q.eq("organizationId", organizationId).eq("opportunityId", args.opportunityId))
       .collect();
     const duplicate = existing.find((d) => d.url === args.url && d.digest === args.digest);
     if (duplicate) return { documentId: duplicate._id, queued: false };
@@ -77,7 +78,7 @@ export const queueOfficialDocument = mutation({
       createdAt: Date.now(),
       digest: args.digest,
       opportunityId: args.opportunityId,
-      organizationId: args.organizationId,
+      organizationId,
       role: args.role,
       url: args.url,
     });
@@ -86,7 +87,7 @@ export const queueOfficialDocument = mutation({
       await ctx.db.insert("opportunityRelationships", {
         createdAt: Date.now(),
         kind: args.role as "corrigendum" | "clarification",
-        organizationId: args.organizationId,
+        organizationId,
         sourceOpportunityId: args.opportunityId,
         status: "confirmed",
         targetOpportunityId: args.opportunityId,
@@ -98,11 +99,14 @@ export const queueOfficialDocument = mutation({
 
 /** List documents for an opportunity with tenant check. */
 export const listDocuments = query({
-  args: { organizationId: v.string(), opportunityId: v.id("opportunities") },
+  args: { opportunityId: v.id("opportunities") },
   handler: async (ctx, args) => {
+    const { organizationId } = await requireOrganization(ctx);
+    const opportunity = await ctx.db.get(args.opportunityId);
+    if (!opportunity || opportunity.organizationId !== organizationId) throwNotFound("Opportunity not found.");
     const docs = await ctx.db
       .query("opportunityDocuments")
-      .withIndex("by_organization_and_id", (q) => q.eq("organizationId", args.organizationId).eq("opportunityId", args.opportunityId))
+      .withIndex("by_organization_and_id", (q) => q.eq("organizationId", organizationId).eq("opportunityId", args.opportunityId))
       .collect();
     return docs;
   },
@@ -110,10 +114,11 @@ export const listDocuments = query({
 
 /** Fetch one document by id with tenant isolation. */
 export const getDocument = query({
-  args: { organizationId: v.string(), documentId: v.id("opportunityDocuments") },
+  args: { documentId: v.id("opportunityDocuments") },
   handler: async (ctx, args) => {
+    const { organizationId } = await requireOrganization(ctx);
     const doc = await ctx.db.get(args.documentId);
-    if (!doc || doc.organizationId !== args.organizationId) return null;
+    if (!doc || doc.organizationId !== organizationId) throwNotFound("Document not found.");
     return doc;
   },
 });

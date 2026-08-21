@@ -43,7 +43,7 @@ function expectDomainError(err: unknown, code: string) {
 }
 
 describe("authorization extra", () => {
-  test("requirePermission allows permission array and admin bypass", async () => {
+  test("requirePermission uses verified role and admin bypass", async () => {
     const identity: MockIdentity = {
       tokenIdentifier: "https://clerk.example|user_777",
       subject: "user_777",
@@ -55,8 +55,10 @@ describe("authorization extra", () => {
       membership: { role: "org:bid_manager", organizationId: "org_perm", permissions: ["proposal:write"] },
       profile: { _id: "p1" },
     });
-    const ok = await requirePermission(ctx as never, "proposal:write");
-    expect(ok.role).toBe("org:bid_manager");
+    await expect(requirePermission(ctx as never, "proposal:write")).rejects.toSatisfy((e: unknown) => {
+      expectDomainError(e, "FORBIDDEN");
+      return true;
+    });
     await expect(requirePermission(ctx as never, "org:admin")).rejects.toSatisfy((e: unknown) => {
       expectDomainError(e, "FORBIDDEN");
       return true;

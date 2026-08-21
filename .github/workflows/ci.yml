@@ -27,9 +27,6 @@ jobs:
         working-directory: backend
   frontend:
     runs-on: ubuntu-latest
-    env:
-      BIDRADAR_DEMO_MODE: "1"
-      NEXT_PUBLIC_BIDRADAR_DEMO_MODE: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -51,10 +48,18 @@ jobs:
         working-directory: frontend
       - run: pnpm build
         working-directory: frontend
+        env:
+          BIDRADAR_E2E_MODE: "1"
+          NEXT_PUBLIC_BIDRADAR_E2E_MODE: "1"
+          NEXT_PUBLIC_CONVEX_URL: http://127.0.0.1:3210
       - run: pnpm exec playwright install --with-deps chromium
         working-directory: frontend
       - run: pnpm exec playwright test
         working-directory: frontend
+        env:
+          BIDRADAR_E2E_MODE: "1"
+          NEXT_PUBLIC_BIDRADAR_E2E_MODE: "1"
+          NEXT_PUBLIC_CONVEX_URL: http://127.0.0.1:3210
   security:
     runs-on: ubuntu-latest
     steps:

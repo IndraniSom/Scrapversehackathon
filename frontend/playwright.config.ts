@@ -21,14 +21,26 @@ export default defineConfig({
     trace: "on-first-retry",
     screenshot: "only-on-failure",
   },
-  webServer: {
-    command: "pnpm start --hostname 127.0.0.1 --port 3000",
-    url: "http://127.0.0.1:3000",
-    reuseExistingServer: !process.env.CI,
-    timeout: 90000,
-    stdout: "pipe",
-    stderr: "pipe",
-  },
+  webServer: [
+    {
+      command: "pnpm exec convex dev",
+      url: "http://127.0.0.1:3210",
+      reuseExistingServer: !process.env.CI,
+      timeout: 90000,
+      env: { BIDRADAR_E2E_MODE: "1" },
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+    {
+      command: "pnpm exec convex run e2eSeed:seed && pnpm start --hostname 127.0.0.1 --port 3000",
+      url: "http://127.0.0.1:3000",
+      reuseExistingServer: !process.env.CI,
+      timeout: 90000,
+      env: { BIDRADAR_E2E_MODE: "1", NEXT_PUBLIC_BIDRADAR_E2E_MODE: "1", NEXT_PUBLIC_CONVEX_URL: "http://127.0.0.1:3210" },
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  ],
 
   projects: [
     {

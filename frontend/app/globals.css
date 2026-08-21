@@ -5,10 +5,10 @@
 @import "../styles/layouts.css";
 
 * { box-sizing: border-box; }
-html { background: var(--surface-subtle); color: var(--text); scrollbar-gutter: stable; }
+html { background: var(--surface-subtle); color: var(--text); }
 body {
   margin: 0;
-  min-width: 320px;
+  min-width: 0;
   min-height: 100vh;
   background: var(--surface-subtle);
   font-family: var(--font-sans);
@@ -89,7 +89,7 @@ dd { margin: 0.18rem 0 0; overflow-wrap: anywhere; font-weight: 620; }
 
 .register-heading { margin-top: 2.5rem; font-family: var(--font-display); }
 .freshness { white-space: nowrap; color: var(--muted); font-family: var(--font-mono); font-size: 0.78rem; }
-.table-wrap { max-width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.table-wrap { min-width: 0; max-width: 100%; overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 table { width: 100%; min-width: 640px; border-collapse: collapse; }
 th, td { padding: 0.9rem 0.8rem; border-bottom: 1px solid var(--border); text-align: left; vertical-align: top; }
 th { background: var(--surface-strong); color: var(--muted); font-family: var(--font-mono); font-size: 0.72rem; letter-spacing: 0.02em; text-transform: none; font-weight: 650; }
@@ -145,6 +145,7 @@ tbody tr:hover { background: var(--surface-subtle); }
 
 /* Discovery layout — distinct from proposal workspace */
 .discovery-layout { display: grid; grid-template-columns: 280px 1fr; gap: var(--space-6); align-items: start; }
+.discovery-layout > * { min-width: 0; }
 .discovery-layout .filter-rail { position: sticky; top: var(--space-4); }
 @media (max-width: 1024px) { .discovery-layout { grid-template-columns: 240px 1fr; gap: var(--space-4); } }
 @media (max-width: 768px) { .discovery-layout { grid-template-columns: 1fr; } }

@@ -73,7 +73,7 @@ describe("company document helpers", () => {
 describe("convex upload auth and isolation", () => {
   test("unauthorized upload URL requires auth", () => {
     expect(fileText).toContain("generateUploadUrl");
-    expect(fileText).toContain("requireOrg");
+    expect(fileText).toContain("requireOrganization");
     expect(fileText).toContain("throwUnauthorized");
   });
 

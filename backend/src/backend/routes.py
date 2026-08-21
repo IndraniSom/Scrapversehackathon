@@ -1,4 +1,6 @@
-"""Thin read-only routes over the startup-validated immutable bundle."""
+"""Legacy E2E fixture routes plus production health endpoints."""
+
+import os
 
 from fastapi import APIRouter, Request
 from fastapi.routing import APIRoute
@@ -65,8 +67,9 @@ def get_liveness() -> HealthResponse:
 
 @router.get("/health/ready", response_model=HealthResponse, operation_id="getReadiness")
 def get_readiness(request: Request) -> HealthResponse:
-    """Report readiness only while the validated bundle remains installed."""
-    _bundle(request)
+    """Report readiness for configured workers and optional E2E fixture."""
+    if os.getenv("BIDRADAR_E2E_MODE") == "1":
+        _bundle(request)
     if not is_worker_configured():
         raise DemoUnavailable
     return HealthResponse(status="ok")

@@ -46,7 +46,7 @@ This is decision support, not legal advice, a guarantee of eligibility, or autom
 - Digital-text PDF extraction across every text-bearing page of the selected document set.
 - Clause-level provenance and a deterministic four-state evaluation.
 - Three product views: opportunity/source proof, tender eligibility, and amendment impact.
-- A recorded real Bright Data snapshot fallback for an offline demo.
+- A recorded real Bright Data snapshot fixture available only to automated E2E tests.
 
 ### Excluded
 

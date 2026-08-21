@@ -68,12 +68,17 @@ test("signed webhook stores closed records and raw snapshot", async () => {
     body,
   });
   expect(response.status).toBe(200);
+  vi.useFakeTimers();
+  await backend.finishAllScheduledFunctions(vi.runAllTimers);
   const stored = await backend.run(async (ctx) => ({
     run: await ctx.db.query("sourceRuns").withIndex("by_organization_and_id", (query) => query.eq("organizationId", "org_a").eq("providerRunId", "collection-live-2")).unique(),
     snapshots: await ctx.db.query("sourceSnapshots").withIndex("by_organization", (query) => query.eq("organizationId", "org_a")).collect(),
+    opportunities: await ctx.db.query("opportunities").withIndex("by_organization", (query) => query.eq("organizationId", "org_a")).collect(),
   }));
   expect(stored.run).toMatchObject({ status: "succeeded", counters: { fetched: 1, normalized: 1 } });
   expect(stored.snapshots).toHaveLength(1);
+  expect(stored.opportunities).toHaveLength(1);
+  expect(stored.opportunities[0]).toMatchObject({ sourceTenderId: "NIT-1", title: "Secure cloud", dataMode: "LIVE" });
 });
 
 test("connector validators enforce source policy boundaries", () => {

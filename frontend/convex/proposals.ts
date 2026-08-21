@@ -8,6 +8,7 @@ import { mutation, query } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { requireOrganization } from "./lib/authorization";
 import { throwConflict, throwForbidden, throwNotFound, throwValidation } from "./lib/errors";
+import { loadOutlineClauses } from "./proposalOutlineData";
 
 /** Explicit proposal section states — progress is derived from these only. */
 export const SECTION_STATES = ["NOT_STARTED","DRAFTING","READY_FOR_REVIEW","CHANGES_REQUESTED","APPROVED","LOCKED"] as const;
@@ -87,7 +88,8 @@ export const getProposal = query({
     const sections = await ctx.db.query("proposalSections").withIndex("by_organization_and_id", (q)=>q.eq("organizationId", auth.organizationId).eq("proposalId", args.proposalId)).collect();
     const comments = await ctx.db.query("proposalComments").withIndex("by_organization_and_id", (q)=>q.eq("organizationId", auth.organizationId).eq("proposalId", args.proposalId)).collect();
     sections.sort((a,b)=>a.order-b.order);
-    return { proposal, sections, comments, progress: computeProgress(sections as { state: SectionState }[]) };
+    const outlineClauses = await loadOutlineClauses(ctx, auth.organizationId, proposal.opportunityId);
+    return { proposal, sections, comments, progress: computeProgress(sections as { state: SectionState }[]), outlineClauseCount: outlineClauses.length };
   },
 });
 
@@ -96,14 +98,14 @@ export const getProposal = query({
  * Requires bid-manager or admin approval to create outline.
  */
 export const generateOutline = mutation({
-  args: { proposalId: v.id("proposalProjects"), clauses: v.array(v.object({ title: v.string(), citation: v.string(), kind: v.optional(v.string()) })) },
+  args: { proposalId: v.id("proposalProjects") },
   handler: async (ctx, args) => {
     const auth = await requireOrganization(ctx);
     if (auth.role !== "org:bid_manager" && auth.role !== "org:admin") throwForbidden("Only bid manager may generate outline.");
     const proposal = await ctx.db.get(args.proposalId);
     if (!proposal || proposal.organizationId !== auth.organizationId) throwNotFound("Proposal not found.");
     if (proposal.lockedRevision !== undefined) throwConflict("Proposal is locked.");
-    const sections = buildOutlineSections(args.clauses as { title: string; citation: string }[]);
+    const sections = buildOutlineSections(await loadOutlineClauses(ctx, auth.organizationId, proposal.opportunityId));
     const existing = await ctx.db.query("proposalSections").withIndex("by_organization_and_id", (q)=>q.eq("organizationId", auth.organizationId).eq("proposalId", args.proposalId)).collect();
     for (const s of existing) await ctx.db.delete(s._id);
     const now = Date.now(); const ids: string[] = [];
@@ -177,6 +179,7 @@ export const lockProposal = mutation({
     const proposal = await ctx.db.get(args.proposalId);
     if (!proposal || proposal.organizationId !== auth.organizationId) throwNotFound("Proposal not found.");
     const sections = await ctx.db.query("proposalSections").withIndex("by_organization_and_id", (q)=>q.eq("organizationId", auth.organizationId).eq("proposalId", args.proposalId)).collect();
+    if (sections.length === 0 || sections.some((section) => section.state !== "APPROVED")) throwValidation("Every section must be approved before proposal lock.");
     for (const s of sections) if (s.state !== "LOCKED") await ctx.db.patch(s._id, { state: "LOCKED" });
     const rev = Date.now();
     await ctx.db.patch(args.proposalId, { lockedRevision: rev, updatedAt: rev });
