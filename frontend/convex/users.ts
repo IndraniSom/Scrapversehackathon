@@ -93,15 +93,17 @@ export const internalDeleteUser = internalMutation({
     if (byClerk !== null) {
       await ctx.db.patch(byClerk._id, { lifecycle: "deactivated", updatedAt: Date.now() });
     }
-    await ctx.db.insert("webhookDeliveries", {
-      organizationId: byClerk?.organizationId ?? "org_stub",
-      event: args.eventId,
-      destination: "clerk-webhook-users",
-      attempt: 1,
-      signatureId: args.eventId,
-      status: "delivered",
-      createdAt: Date.now(),
-    });
+    if (byClerk !== null) {
+      await ctx.db.insert("webhookDeliveries", {
+        organizationId: byClerk.organizationId,
+        event: args.eventId,
+        destination: "clerk-webhook-users",
+        attempt: 1,
+        signatureId: args.eventId,
+        status: "delivered",
+        createdAt: Date.now(),
+      });
+    }
     return { duplicate: false };
   },
 });

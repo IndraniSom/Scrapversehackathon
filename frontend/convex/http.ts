@@ -1,164 +1,193 @@
-/**
- * Convex HTTP router with Clerk webhook handling.
- *
- * Verifies Svix signatures for Clerk events at POST /clerk-webhook
- * and delegates to idempotent internal sync handlers for users,
- * organizations, and memberships.
- */
+/** Convex HTTP routes with verified webhook and tenant-key boundaries. */
 import { httpRouter } from "convex/server";
 import { Webhook } from "svix";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
+import { constantTimeEqual } from "./lib/keyComparison";
 
 const http = httpRouter();
 
-/**
- * Verifies a Clerk Svix webhook payload.
- *
- * Returns true when the secret is missing (stubbed local dev) to
- * allow local testing without real Clerk keys.
- *
- * @param payload - Raw request body.
- * @param headers - Svix headers map.
- * @param secret - Webhook signing secret.
- * @returns True when signature is valid.
- */
-function verifyClerkWebhook(
-  payload: string,
-  headers: Record<string, string>,
-  secret: string,
-): boolean {
-  if (secret.length === 0) return true;
-  const webhook = new Webhook(secret);
+/** Serializes a standard JSON HTTP response. */
+function jsonResponse(body: Record<string, unknown>, status = 200): Response {
+  return new Response(JSON.stringify(body), { status, headers: { "Content-Type": "application/json" } });
+}
+
+/** Returns whether a parsed JSON value is a non-array object. */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/** Reads a non-empty string field from a webhook payload. */
+function stringValue(value: unknown): string | null {
+  return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+/** Computes a SHA-256 hexadecimal digest for an API key. */
+async function sha256(value: string): Promise<string> {
+  const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+/** Verifies an HMAC-SHA256 signature over the unparsed Bright Data body. */
+async function verifyBrightDataSignature(body: string, signature: string | null, secret: string): Promise<boolean> {
+  if (signature === null || secret.length === 0) return false;
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const bytes = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body)));
+  const expected = `sha256=${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+  return constantTimeEqual(signature, expected);
+}
+
+/** Verifies a Clerk Svix payload and rejects a missing signing secret. */
+function verifyClerkWebhook(payload: string, headers: Record<string, string>, secret: string): boolean {
+  if (secret.length === 0) return false;
   try {
-    webhook.verify(payload, headers);
+    new Webhook(secret).verify(payload, headers);
     return true;
   } catch {
     return false;
   }
 }
 
-/**
- * Clerk webhook endpoint at POST /clerk-webhook.
- *
- * Handles user, organization, and membership events with idempotency
- * via webhookDeliveries signatureId deduplication.
- */
-http.route({
-  path: "/clerk-webhook",
-  method: "POST",
-  handler: httpAction(async (ctx, req) => {
-    const secret =
-      process.env.CLERK_WEBHOOK_SECRET ?? process.env.SVIX_WEBHOOK_SECRET ?? "";
-    const payload = await req.text();
-    const headers: Record<string, string> = {
-      "svix-id": req.headers.get("svix-id") ?? "",
-      "svix-timestamp": req.headers.get("svix-timestamp") ?? "",
-      "svix-signature": req.headers.get("svix-signature") ?? "",
-    };
-    if (!verifyClerkWebhook(payload, headers, secret)) {
-      return new Response("Invalid signature", { status: 400 });
-    }
-    let body: { type: string; data: Record<string, unknown> };
-    try {
-      body = JSON.parse(payload) as typeof body;
-    } catch {
-      return new Response("Invalid JSON", { status: 400 });
-    }
-    const eventType: string = body.type;
-    const data: Record<string, unknown> = body.data;
-    const eventId: string =
-      headers["svix-id"] !== "" ? headers["svix-id"] : (data["id"] as string) ?? "";
-
-    // Delegate to idempotent internal handlers
-    if (eventType === "user.created" || eventType === "user.updated") {
-      const clerkUserId = data["id"] as string;
-      const emails = data["email_addresses"] as Array<{ email_address: string }> | undefined;
-      const email = emails?.[0]?.email_address;
-      const first = data["first_name"] as string | undefined;
-      const last = data["last_name"] as string | undefined;
-      const displayName = [first, last].filter(Boolean).join(" ") || undefined;
-      const fallbackOrg = (data["organization_id"] as string) ?? "org_stub";
-      await (ctx as unknown as { runMutation: (ref: unknown, args: unknown) => Promise<unknown> }).runMutation((internal as unknown as { users: { internalSyncUser: unknown } }).users.internalSyncUser, {
-        clerkUserId,
-        email,
-        displayName,
-        organizationId: fallbackOrg,
-        eventId: eventId || clerkUserId,
-      });
-    } else if (eventType === "user.deleted") {
-      const clerkUserId = data["id"] as string;
-      await (ctx as unknown as { runMutation: (ref: unknown, args: unknown) => Promise<unknown> }).runMutation((internal as unknown as { users: { internalDeleteUser: unknown } }).users.internalDeleteUser, {
-        clerkUserId,
-        eventId,
-      });
-    } else if (eventType === "organization.created" || eventType === "organization.updated") {
-      const clerkOrgId = data["id"] as string;
-      const slug = (data["slug"] as string) ?? clerkOrgId;
-      const displayName = (data["name"] as string) ?? slug;
-      await (ctx as unknown as { runMutation: (ref: unknown, args: unknown) => Promise<unknown> }).runMutation((internal as unknown as { organizations: { internalSyncOrganization: unknown } }).organizations.internalSyncOrganization, {
-        clerkOrganizationId: clerkOrgId,
-        slug,
-        displayName,
-        eventId,
-      });
-    } else if (eventType === "organization.deleted") {
-      const clerkOrgId = data["id"] as string;
-      await (ctx as unknown as { runMutation: (ref: unknown, args: unknown) => Promise<unknown> }).runMutation((internal as unknown as { organizations: { internalDeleteOrganization: unknown } }).organizations.internalDeleteOrganization, {
-        clerkOrganizationId: clerkOrgId,
-        eventId,
-      });
-    } else if (
-      eventType === "organizationMembership.created" ||
-      eventType === "organizationMembership.updated"
-    ) {
-      const publicData = data["public_user_data"] as Record<string, string> | undefined;
-      const clerkUserId =
-        publicData?.["user_id"] ?? (data["user_id"] as string) ?? "";
-      const orgObj = data["organization"] as Record<string, string> | undefined;
-      const clerkOrgId = orgObj?.["id"] ?? (data["organization_id"] as string) ?? "";
-      const role = (data["role"] as string) ?? "org:viewer";
-      if (clerkUserId !== "" && clerkOrgId !== "") {
-        await (ctx as unknown as { runMutation: (ref: unknown, args: unknown) => Promise<unknown> }).runMutation((internal as unknown as { organizations: { internalSyncMembership: unknown } }).organizations.internalSyncMembership, {
-          clerkUserId,
-          clerkOrganizationId: clerkOrgId,
-          role,
-          eventId,
-        });
-      }
-    } else if (eventType === "organizationMembership.deleted") {
-      const publicData = data["public_user_data"] as Record<string, string> | undefined;
-      const clerkUserId =
-        publicData?.["user_id"] ?? (data["user_id"] as string) ?? "";
-      const orgObj = data["organization"] as Record<string, string> | undefined;
-      const clerkOrgId = orgObj?.["id"] ?? (data["organization_id"] as string) ?? "";
-      if (clerkUserId !== "" && clerkOrgId !== "") {
-        await (ctx as unknown as { runMutation: (ref: unknown, args: unknown) => Promise<unknown> }).runMutation((internal as unknown as { organizations: { internalDeleteMembership: unknown } }).organizations.internalDeleteMembership, {
-          clerkUserId,
-          clerkOrganizationId: clerkOrgId,
-          eventId,
-        });
-      }
-    }
-    return new Response(JSON.stringify({ ok: true }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
+/** Dispatches validated Clerk events to typed internal synchronization functions. */
+async function handleClerkEvent(ctx: Parameters<typeof httpAction>[0] extends (context: infer Context, request: Request) => unknown ? Context : never, event: Record<string, unknown>, eventId: string): Promise<Response | null> {
+  const type = stringValue(event.type);
+  const data = isRecord(event.data) ? event.data : null;
+  if (type === null || data === null) return jsonResponse({ code: "VALIDATION_FAILED" }, 400);
+  if (type === "user.created" || type === "user.updated") {
+    const clerkUserId = stringValue(data.id);
+    const organizationId = stringValue(data.organization_id);
+    if (clerkUserId === null || organizationId === null) return jsonResponse({ code: "VALIDATION_FAILED" }, 400);
+    const emails = Array.isArray(data.email_addresses) ? data.email_addresses : [];
+    const firstEmail = emails.find(isRecord);
+    const first = stringValue(data.first_name);
+    const last = stringValue(data.last_name);
+    await ctx.runMutation(internal.users.internalSyncUser, { clerkUserId, organizationId, eventId, email: firstEmail === undefined ? undefined : stringValue(firstEmail.email_address) ?? undefined, displayName: [first, last].filter((part): part is string => part !== null).join(" ") || undefined });
+  } else if (type === "user.deleted") {
+    const clerkUserId = stringValue(data.id);
+    if (clerkUserId === null) return jsonResponse({ code: "VALIDATION_FAILED" }, 400);
+    await ctx.runMutation(internal.users.internalDeleteUser, { clerkUserId, eventId });
+  } else if (type === "organization.created" || type === "organization.updated") {
+    const clerkOrganizationId = stringValue(data.id);
+    if (clerkOrganizationId === null) return jsonResponse({ code: "VALIDATION_FAILED" }, 400);
+    await ctx.runMutation(internal.organizations.internalSyncOrganization, { clerkOrganizationId, slug: stringValue(data.slug) ?? clerkOrganizationId, displayName: stringValue(data.name) ?? clerkOrganizationId, eventId });
+  } else if (type === "organization.deleted") {
+    const clerkOrganizationId = stringValue(data.id);
+    if (clerkOrganizationId === null) return jsonResponse({ code: "VALIDATION_FAILED" }, 400);
+    await ctx.runMutation(internal.organizations.internalDeleteOrganization, { clerkOrganizationId, eventId });
+  } else if (type === "organizationMembership.created" || type === "organizationMembership.updated") {
+    const publicUser = isRecord(data.public_user_data) ? data.public_user_data : null;
+    const organization = isRecord(data.organization) ? data.organization : null;
+    const clerkUserId = stringValue(publicUser?.user_id) ?? stringValue(data.user_id);
+    const clerkOrganizationId = stringValue(organization?.id) ?? stringValue(data.organization_id);
+    if (clerkUserId === null || clerkOrganizationId === null) return jsonResponse({ code: "VALIDATION_FAILED" }, 400);
+    await ctx.runMutation(internal.organizations.internalSyncMembership, {
+      clerkUserId,
+      clerkOrganizationId,
+      role: stringValue(data.role) ?? "org:viewer",
+      eventId,
     });
-  }),
-});
+  } else if (type === "organizationMembership.deleted") {
+    const publicUser = isRecord(data.public_user_data) ? data.public_user_data : null;
+    const organization = isRecord(data.organization) ? data.organization : null;
+    const clerkUserId = stringValue(publicUser?.user_id) ?? stringValue(data.user_id);
+    const clerkOrganizationId = stringValue(organization?.id) ?? stringValue(data.organization_id);
+    if (clerkUserId === null || clerkOrganizationId === null) return jsonResponse({ code: "VALIDATION_FAILED" }, 400);
+    await ctx.runMutation(internal.organizations.internalDeleteMembership, { clerkUserId, clerkOrganizationId, eventId });
+  }
+  return null;
+}
 
-/** SSRF helpers for outbound webhooks. */
-function isPrivateHost(h: string): boolean { const x=h.toLowerCase(); return ["localhost","metadata.google.internal"].includes(x)||x.endsWith(".internal")||x.endsWith(".local")||["127.0.0.1","0.0.0.0","::1","169.254.169.254"].includes(x)||/^10\./.test(x)||/^192\.168\./.test(x)||/^172\.(1[6-9]|2\d|3[0-1])\./.test(x)||/^169\.254\./.test(x)||x.startsWith("fc")||x.startsWith("fd")||x.startsWith("fe80"); }
-/** Validates webhook URL for SSRF. */
-function validateWebhookUrl(u: string): { valid: boolean; reason?: string } { try{const p=new URL(u); if(p.protocol!=="https:")return{valid:false,reason:"HTTPS required"}; if(p.username||p.password)return{valid:false,reason:"Creds"}; if(isPrivateHost(p.hostname))return{valid:false,reason:"Private host"}; if(!p.hostname.includes("."))return{valid:false,reason:"Host"}; return{valid:true}}catch{return{valid:false,reason:"Invalid"}} }
-/** Fetches with SSRF redirect revalidation and size bound. */
-async function fetchWithSsrf(url: string, init?: RequestInit){ let c=url; for(let i=0;i<3;i++){const v=validateWebhookUrl(c); if(!v.valid)throw new Error(v.reason); const r=await fetch(c,{...init,redirect:"manual"}); if(r.status>=300&&r.status<400){const l=r.headers.get("location"); if(!l)throw new Error("No location"); c=new URL(l,c).toString(); continue} const len=r.headers.get("content-length"); if(len&&Number(len)>1e6)throw new Error("Large"); return r} throw new Error("Redirects"); }
-/** Verifies outbound webhook endpoint. */
-http.route({ path:"/integrations/verify", method:"POST", handler: httpAction(async(_c,req)=>{ let b:{url?:string}; try{b=await req.json() as typeof b}catch{return new Response(JSON.stringify({code:"VALIDATION_FAILED"}),{status:400})} const v=validateWebhookUrl(b.url??""); if(!v.valid)return new Response(JSON.stringify({code:"VALIDATION_FAILED",reason:v.reason}),{status:400}); try{const r=await fetchWithSsrf(b.url!,{method:"GET",headers:{"x-verify-challenge":crypto.randomUUID()}}); return new Response(JSON.stringify({ok:true,verified:r.ok}),{status:r.ok?200:400,headers:{"Content-Type":"application/json"}})}catch(e){return new Response(JSON.stringify({code:"VALIDATION_FAILED",reason:String(e)}),{status:400})}}) });
-/** Export endpoint with API-key hash verification. */
-http.route({ path:"/exports", method:"GET", handler: httpAction(async(ctx: unknown,req)=>{ const k=req.headers.get("x-api-key")??req.headers.get("authorization")?.replace(/^Bearer\s+/i,"")??""; if(!k)return new Response(JSON.stringify({code:"UNAUTHORIZED"}),{status:401}); const h=Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256",new TextEncoder().encode(k)))).map((b: number)=>b.toString(16).padStart(2,"0")).join(""); const typedCtx = ctx as { db: { query: (t: string) => { filter: (fn: (q: { eq: (f: unknown, v: string) => unknown; field: (n: string) => unknown }) => unknown) => { first: () => Promise<unknown> } } } }; const f=await typedCtx.db.query("integrationConnections").filter((q)=>q.eq(q.field("state"),"active")).first(); if(!f)return new Response(JSON.stringify({code:"UNAUTHORIZED"}),{status:401}); void h; const fmt=new URL(req.url).searchParams.get("format")??"json"; if(fmt==="csv")return new Response("id,title\n1,example",{headers:{"Content-Type":"text/csv"}}); if(fmt==="ics")return new Response("BEGIN:VCALENDAR\nVERSION:2.0\nEND:VCALENDAR",{headers:{"Content-Type":"text/calendar"}}); return new Response(JSON.stringify({ok:true}),{headers:{"Content-Type":"application/json"}})}) });
-/** Bright Data webhook verification with HMAC, provider ID, digest, collector version and chronology. */
-function verifyBrightDataSignature(b:string,s:string|null,sec:string):boolean{if(!s||!sec)return sec==="";const e=`sha256=${btoa(b+sec).slice(0,32)}`;if(s.length!==e.length)return false;let d=0;for(let i=0;i<s.length;i++)d|=s.charCodeAt(i)^e.charCodeAt(i);return d===0;}
-http.route({path:"/brightdata/webhook",method:"POST",handler:httpAction(async(ctx,req)=>{const sec=process.env.BRIGHT_DATA_WEBHOOK_SECRET??"";const sig=req.headers.get("x-brightdata-signature")??req.headers.get("x-webhook-signature");const body=await req.text();if(sec&&!verifyBrightDataSignature(body,sig,sec))return new Response(JSON.stringify({code:"UNAUTHORIZED"}),{status:401});let p:{providerRunId?:string;connectorId?:string;collectorVersion?:string;startedAt?:number;completedAt?:number;rawSnapshotHash?:string;digest?:string;status?:string;records?:unknown[];failureCode?:string};try{p=JSON.parse(body)}catch{return new Response(JSON.stringify({code:"VALIDATION_FAILED"}),{status:400})}if(!p.providerRunId||!p.connectorId)return new Response(JSON.stringify({code:"VALIDATION_FAILED"}),{status:400});const digest=p.digest??p.rawSnapshotHash??"";if(p.startedAt&&p.completedAt&&p.completedAt<p.startedAt)return new Response(JSON.stringify({code:"VALIDATION_FAILED"}),{status:400});try{await (ctx as unknown as {runMutation:(r:unknown,a:unknown)=>Promise<unknown>}).runMutation((internal as unknown as {sourceRuns:{handleWebhook:unknown}}).sourceRuns.handleWebhook,{connectorId:p.connectorId,providerRunId:p.providerRunId,collectorVersion:p.collectorVersion??"unknown",startedAt:p.startedAt??Date.now(),completedAt:p.completedAt??Date.now(),rawSnapshotHash:digest,digest,status:p.status??"succeeded",records:p.records,failureCode:p.failureCode});}catch(e){const m=e instanceof Error?e.message:String(e);if(m.includes("RATE_LIMITED"))return new Response(JSON.stringify({code:"RATE_LIMITED"}),{status:429});return new Response(JSON.stringify({code:"VALIDATION_FAILED"}),{status:400})}return new Response(JSON.stringify({ok:true,providerRunId:p.providerRunId,digest}),{status:200,headers:{"Content-Type":"application/json"}})}),});
+/** Detects hosts that must not be reachable by outbound webhooks. */
+function isPrivateHost(host: string): boolean {
+  const normalized = host.toLowerCase();
+  return ["localhost", "metadata.google.internal", "127.0.0.1", "0.0.0.0", "::1", "169.254.169.254"].includes(normalized) || normalized.endsWith(".internal") || normalized.endsWith(".local") || /^10\./.test(normalized) || /^192\.168\./.test(normalized) || /^172\.(1[6-9]|2\d|3[0-1])\./.test(normalized) || /^169\.254\./.test(normalized) || normalized.startsWith("fc") || normalized.startsWith("fd") || normalized.startsWith("fe80");
+}
+
+/** Validates an HTTPS webhook destination before any network request. */
+function validateWebhookUrl(value: string): { valid: boolean; reason?: string } {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:") return { valid: false, reason: "HTTPS required" };
+    if (url.username || url.password) return { valid: false, reason: "Credentials are not allowed" };
+    if (isPrivateHost(url.hostname) || !url.hostname.includes(".")) return { valid: false, reason: "Private host" };
+    return { valid: true };
+  } catch { return { valid: false, reason: "Invalid URL" }; }
+}
+
+/** Fetches an endpoint while revalidating every redirect and response size. */
+async function fetchWithSsrf(url: string): Promise<Response> {
+  let destination = url;
+  for (let redirect = 0; redirect < 3; redirect += 1) {
+    const validation = validateWebhookUrl(destination);
+    if (!validation.valid) throw new Error(validation.reason);
+    const response = await fetch(destination, { method: "GET", redirect: "manual", headers: { "x-verify-challenge": crypto.randomUUID() } });
+    if (response.status < 300 || response.status >= 400) {
+      if (Number(response.headers.get("content-length") ?? "0") > 1_000_000) throw new Error("Response too large");
+      return response;
+    }
+    const location = response.headers.get("location");
+    if (location === null) throw new Error("Redirect missing location");
+    destination = new URL(location, destination).toString();
+  }
+  throw new Error("Too many redirects");
+}
+
+/** Receives only signed Clerk webhooks. */
+http.route({ path: "/clerk-webhook", method: "POST", handler: httpAction(async (ctx, request) => {
+  const secret = process.env.CLERK_WEBHOOK_SIGNING_SECRET ?? process.env.CLERK_WEBHOOK_SECRET ?? "";
+  const payload = await request.text();
+  const headers = { "svix-id": request.headers.get("svix-id") ?? "", "svix-timestamp": request.headers.get("svix-timestamp") ?? "", "svix-signature": request.headers.get("svix-signature") ?? "" };
+  if (!verifyClerkWebhook(payload, headers, secret)) return jsonResponse({ code: "UNAUTHORIZED" }, 401);
+  let event: unknown;
+  try { event = JSON.parse(payload); } catch { return jsonResponse({ code: "VALIDATION_FAILED" }, 400); }
+  if (!isRecord(event)) return jsonResponse({ code: "VALIDATION_FAILED" }, 400);
+  const eventId = headers["svix-id"] || stringValue(event.id);
+  if (eventId === null || eventId.length === 0) return jsonResponse({ code: "VALIDATION_FAILED" }, 400);
+  return (await handleClerkEvent(ctx, event, eventId)) ?? jsonResponse({ ok: true });
+}) });
+
+/** Verifies that an outbound webhook URL is reachable without SSRF exposure. */
+http.route({ path: "/integrations/verify", method: "POST", handler: httpAction(async (_ctx, request) => {
+  let body: unknown;
+  try { body = await request.json(); } catch { return jsonResponse({ code: "VALIDATION_FAILED" }, 400); }
+  const url = isRecord(body) ? stringValue(body.url) : null;
+  if (url === null || !validateWebhookUrl(url).valid) return jsonResponse({ code: "VALIDATION_FAILED" }, 400);
+  try { return jsonResponse({ ok: true, verified: (await fetchWithSsrf(url)).ok }); } catch { return jsonResponse({ code: "VALIDATION_FAILED" }, 400); }
+}) });
+
+/** Exports tenant metadata only to a matched active API key. */
+http.route({ path: "/exports", method: "GET", handler: httpAction(async (ctx, request) => {
+  const apiKey = request.headers.get("x-api-key") ?? request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
+  if (apiKey.length === 0) return jsonResponse({ code: "UNAUTHORIZED" }, 401);
+  const hash = await sha256(apiKey);
+  const connection = await ctx.runQuery(internal.exportKeys.findActiveApiKey, { hash });
+  if (connection === null) return jsonResponse({ code: "UNAUTHORIZED" }, 401);
+  const exportedAt = new Date().toISOString();
+  const format = new URL(request.url).searchParams.get("format") ?? "json";
+  if (format === "csv") return new Response(`organization_id,exported_at\n${connection.organizationId},${exportedAt}\n`, { headers: { "Content-Type": "text/csv" } });
+  if (format === "ics") return new Response(`BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//BidRadar//${connection.organizationId}\r\nEND:VCALENDAR\r\n`, { headers: { "Content-Type": "text/calendar" } });
+  if (format !== "json") return jsonResponse({ code: "VALIDATION_FAILED" }, 400);
+  return jsonResponse({ organizationId: connection.organizationId, exportedAt });
+}) });
+
+/** Receives Bright Data results only with a valid HMAC over the exact body. */
+http.route({ path: "/brightdata/webhook", method: "POST", handler: httpAction(async (ctx, request) => {
+  const secret = process.env.BRIGHT_DATA_WEBHOOK_SECRET ?? "";
+  if (secret.length === 0) return jsonResponse({ code: "UNAUTHORIZED" }, 401);
+  const body = await request.text();
+  const signature = request.headers.get("x-brightdata-signature") ?? request.headers.get("x-webhook-signature");
+  if (!await verifyBrightDataSignature(body, signature, secret)) return jsonResponse({ code: "UNAUTHORIZED" }, 401);
+  let payload: unknown;
+  try { payload = JSON.parse(body); } catch { return jsonResponse({ code: "VALIDATION_FAILED" }, 400); }
+  if (!isRecord(payload)) return jsonResponse({ code: "VALIDATION_FAILED" }, 400);
+  const providerRunId = stringValue(payload.providerRunId);
+  const connectorId = stringValue(payload.connectorId);
+  if (providerRunId === null || connectorId === null) return jsonResponse({ code: "VALIDATION_FAILED" }, 400);
+  const startedAt = typeof payload.startedAt === "number" ? payload.startedAt : Date.now();
+  const completedAt = typeof payload.completedAt === "number" ? payload.completedAt : Date.now();
+  if (completedAt < startedAt) return jsonResponse({ code: "VALIDATION_FAILED", reason: "Invalid chronology" }, 400);
+  await ctx.runMutation(internal.sourceRuns.handleWebhook, { connectorId, providerRunId, collectorVersion: stringValue(payload.collectorVersion) ?? "unknown", startedAt, completedAt, rawSnapshotHash: stringValue(payload.rawSnapshotHash) ?? stringValue(payload.digest) ?? "", digest: stringValue(payload.digest) ?? stringValue(payload.rawSnapshotHash) ?? "", status: stringValue(payload.status) ?? "succeeded", records: Array.isArray(payload.records) ? payload.records : undefined, failureCode: stringValue(payload.failureCode) ?? undefined });
+  return jsonResponse({ ok: true, providerRunId });
+}) });
 
 export default http;

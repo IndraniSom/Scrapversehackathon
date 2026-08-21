@@ -1,44 +1,20 @@
-/**
- * Route protection via Clerk middleware (Next.js proxy).
- *
- * Protects product routes, allows public landing and sign-in.
- * Falls back to allow when Clerk keys are absent for local dev.
- */
+/** Protects product routes and fails closed when Clerk is not configured. */
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
+import { NextResponse, type NextRequest } from "next/server";
 
+const isDemoMode = process.env.BIDRADAR_DEMO_MODE === "1";
+const hasClerkConfiguration = Boolean(process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 const isPublicRoute = createRouteMatcher(["/", "/sign-in(.*)"]);
-const isProtectedRoute = createRouteMatcher([
-  "/dashboard(.*)",
-  "/opportunities(.*)",
-  "/companies(.*)",
-  "/reviews(.*)",
-  "/watchlist(.*)",
-  "/alerts(.*)",
-  "/content-library(.*)",
-  "/proposals(.*)",
-  "/submissions(.*)",
-  "/settings(.*)",
-  "/onboarding(.*)",
-  "/(product)(.*)",
-]);
+const isProtectedRoute = createRouteMatcher(["/dashboard(.*)", "/opportunities(.*)", "/companies(.*)", "/reviews(.*)", "/watchlist(.*)", "/alerts(.*)", "/content-library(.*)", "/proposals(.*)", "/submissions(.*)", "/settings(.*)", "/onboarding(.*)", "/(product)(.*)"]);
+const protectedProxy = clerkMiddleware(async (auth, request) => {
+  if (!isPublicRoute(request) && isProtectedRoute(request)) await auth.protect();
+});
 
-const hasClerkKeys = Boolean(process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-
-/** No-op when Clerk keys are absent for local deterministic demo. */
-async function noopMiddleware(): Promise<void> {
-  return;
+/** Applies Clerk protection or rejects protected traffic lacking required setup. */
+export default function proxy(request: NextRequest, event: Parameters<typeof protectedProxy>[1]) {
+  if (isDemoMode || isPublicRoute(request)) return NextResponse.next();
+  if (!hasClerkConfiguration) return new NextResponse("Authentication configuration is unavailable.", { status: 503 });
+  return protectedProxy(request, event);
 }
 
-export default hasClerkKeys
-  ? clerkMiddleware(async (auth, req) => {
-      if (isPublicRoute(req)) return;
-      if (isProtectedRoute(req)) await auth.protect();
-    })
-  : (noopMiddleware as unknown as ReturnType<typeof clerkMiddleware>);
-
-export const config = {
-  matcher: [
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    "/(api|trpc)(.*)",
-  ],
-};
+export const config = { matcher: ["/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)", "/(api|trpc)(.*)"] };

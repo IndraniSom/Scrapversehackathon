@@ -1,25 +1,12 @@
-/**
- * Clerk JWT configuration for Convex.
- *
- * Convex validates the Clerk JWT issuer and application ID before
- * accepting any authenticated request. The issuer domain is read
- * from CLERK_JWT_ISSUER_DOMAIN to allow stubbed local development.
- */
-import { AuthConfig } from "convex/server";
+/** Clerk JWT configuration with an explicit offline demo exception. */
+import type { AuthConfig } from "convex/server";
 
-/**
- * Fallback issuer for local development without real Clerk keys.
- * Allows convex dev at http://127.0.0.1:3210 to run unauthenticated locally.
- */
-const issuerDomain =
-  process.env.CLERK_JWT_ISSUER_DOMAIN ?? "https://stubbable.clerk.accounts.dev";
+const isDemoMode = process.env.BIDRADAR_DEMO_MODE === "1";
+const issuerDomain = process.env.CLERK_JWT_ISSUER_DOMAIN;
 
-/** Clerk as the Convex JWT provider. */
-export default {
-  providers: [
-    {
-      domain: issuerDomain,
-      applicationID: "convex",
-    },
-  ],
-} satisfies AuthConfig;
+if (!isDemoMode && !issuerDomain) throw new Error("CLERK_JWT_ISSUER_DOMAIN is required outside demo mode.");
+
+/** Configures Clerk only when a production issuer is available. */
+const authConfig: AuthConfig = { providers: issuerDomain ? [{ domain: issuerDomain, applicationID: "convex" }] : [] };
+
+export default authConfig;

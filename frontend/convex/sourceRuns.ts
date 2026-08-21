@@ -60,9 +60,9 @@ export const triggerCollection = mutation({
 /**
  * Handles Bright Data webhook delivery.
  */
-export const handleWebhook = mutation({
+export const handleWebhook = internalMutation({
   args: {
-    connectorId: v.id("sourceConnectors"),
+    connectorId: v.string(),
     providerRunId: v.string(),
     collectorVersion: v.string(),
     startedAt: v.number(),
@@ -74,13 +74,12 @@ export const handleWebhook = mutation({
     failureCode: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    const auth = await requireOrganization(ctx);
-    const connector = await ctx.db.get(args.connectorId);
-    if (!connector || connector.organizationId !== auth.organizationId) throwForbidden("Connector not found.");
+    const connector = (await ctx.db.query("sourceConnectors").collect()).find((candidate) => candidate._id === args.connectorId);
+    if (connector === undefined) throwForbidden("Connector not found.");
     if (!connector.enabled) throwValidation("Connector disabled.");
     if (args.collectorVersion !== connector.collectorVersion) throwValidation("Collector version mismatch.");
     if (!isValidChronology(args.startedAt, args.completedAt)) throwValidation("Invalid chronology.");
-    const existing = await ctx.db.query("sourceRuns").withIndex("by_organization_and_id", (q) => q.eq("organizationId", auth.organizationId).eq("providerRunId", args.providerRunId)).unique() as unknown as { _id: unknown; completedAt?: number } | null;
+    const existing = await ctx.db.query("sourceRuns").withIndex("by_organization_and_id", (q) => q.eq("organizationId", connector.organizationId).eq("providerRunId", args.providerRunId)).unique() as unknown as { _id: unknown; completedAt?: number } | null;
     void RATE_LIMITED;
     if (existing) {
       if ((existing.completedAt ?? 0) > args.completedAt) throwValidation("Stale run.");
@@ -93,9 +92,9 @@ export const handleWebhook = mutation({
     const hasMalformed = args.records?.some((r) => !r || typeof r !== "object" || !("source_tender_id" in (r as object) || "sourceTenderId" in (r as object)));
     const finalStatus = hasMalformed ? "failed" : args.status === "succeeded" ? "succeeded" : args.status === "retryable" ? "retryable" : "failed";
     const failureCode = hasMalformed ? "MALFORMED_RECORD" : args.failureCode;
-    const id = await ctx.db.insert("sourceRuns", { organizationId: auth.organizationId, connectorId: args.connectorId, providerRunId: args.providerRunId, status: finalStatus as never, rawSnapshotHash: digest, counters: { fetched, normalized: hasMalformed ? 0 : fetched }, failureCode, startedAt: args.startedAt, completedAt: args.completedAt, createdAt: Date.now() });
+    const id = await ctx.db.insert("sourceRuns", { organizationId: connector.organizationId, connectorId: connector._id, providerRunId: args.providerRunId, status: finalStatus as never, rawSnapshotHash: digest, counters: { fetched, normalized: hasMalformed ? 0 : fetched }, failureCode, startedAt: args.startedAt, completedAt: args.completedAt, createdAt: Date.now() });
     if (digest) {
-      await ctx.db.insert("sourceSnapshots", { organizationId: auth.organizationId, sourceRunId: id, storageId: args.providerRunId as never, digest, provenance: { collectorVersion: args.collectorVersion, providerRunId: args.providerRunId }, createdAt: Date.now() });
+      await ctx.db.insert("sourceSnapshots", { organizationId: connector.organizationId, sourceRunId: id, storageId: args.providerRunId as never, digest, provenance: { collectorVersion: args.collectorVersion, providerRunId: args.providerRunId }, createdAt: Date.now() });
     }
     return id;
   },

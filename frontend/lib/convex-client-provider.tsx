@@ -1,9 +1,4 @@
-/**
- * Clerk and Convex providers with explicit auth states.
- *
- * Wraps ClerkProvider and ConvexProviderWithClerk, handling
- * auth-loading, auth-refresh, and local stub without keys.
- */
+/** Clerk and Convex providers with explicit configuration boundaries. */
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
@@ -11,37 +6,22 @@ import { ConvexReactClient } from "convex/react";
 import { ConvexProviderWithClerk } from "convex/react-clerk";
 import type { ReactNode } from "react";
 
-const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL ?? "http://127.0.0.1:3210";
-const convexClient = new ConvexReactClient(convexUrl);
+const isDemoMode = process.env.NEXT_PUBLIC_BIDRADAR_DEMO_MODE === "1";
+const clerkKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+const convexUrl = process.env.NEXT_PUBLIC_CONVEX_URL;
 
-/** Inner provider that binds Convex to Clerk auth. */
+if (!isDemoMode && (!clerkKey || !convexUrl)) throw new Error("Clerk and Convex configuration is required outside demo mode.");
+
+const convexClient = convexUrl ? new ConvexReactClient(convexUrl) : null;
+
+/** Binds Convex requests to the authenticated Clerk session. */
 function ConvexWithClerk({ children }: { children: ReactNode }) {
-  return (
-    <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>
-      <AuthGate>{children}</AuthGate>
-    </ConvexProviderWithClerk>
-  );
+  if (convexClient === null) return <>{children}</>;
+  return <ConvexProviderWithClerk client={convexClient} useAuth={useAuth}>{children}</ConvexProviderWithClerk>;
 }
 
-/** Shows auth loading and refresh states explicitly. */
-function AuthGate({ children }: { children: ReactNode }) {
-  const { isLoaded } = useAuth();
-  if (!isLoaded) {
-    return (
-      <div aria-live="polite" aria-busy="true" role="status">
-        Loading authentication…
-      </div>
-    );
-  }
-  return <>{children}</>;
-}
-
-/**
- * Provides Convex binding for the app.
- * Expects outer ClerkProvider from layout. Falls back when keys absent.
- */
+/** Provides authenticated Convex access or the explicit offline demo tree. */
 export function ConvexClientProvider({ children }: { children: ReactNode }) {
-  const hasKey = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-  if (!hasKey) return <>{children}</>;
+  if (isDemoMode && (!clerkKey || convexClient === null)) return <>{children}</>;
   return <ConvexWithClerk>{children}</ConvexWithClerk>;
 }
