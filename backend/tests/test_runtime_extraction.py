@@ -19,7 +19,6 @@ from backend.extraction_verification import (
     persist_verification_metadata,
 )
 
-
 class FakeUsage:
     """Store token counts."""
 
@@ -29,7 +28,6 @@ class FakeUsage:
         self.completion_tokens = 20
         self.total_tokens = 30
 
-
 class FakeMessage:
     """Store message."""
 
@@ -37,7 +35,6 @@ class FakeMessage:
         """Store."""
         self.content = content
         self.refusal = refusal
-
 
 class FakeChoice:
     """Store choice."""
@@ -47,7 +44,6 @@ class FakeChoice:
         self.message = message
         self.finish_reason = finish_reason
 
-
 class FakeResponse:
     """Store response."""
 
@@ -55,7 +51,6 @@ class FakeResponse:
         """Store."""
         self.choices = choices
         self.usage = usage or FakeUsage()
-
 
 class FakeCompletions:
     """Fake completions."""
@@ -73,14 +68,12 @@ class FakeCompletions:
             raise item
         return item  # type: ignore[return-value]
 
-
 class FakeChat:
     """Chat."""
 
     def __init__(self, completions: FakeCompletions) -> None:
         """Store."""
         self.completions = completions
-
 
 class FakeClient:
     """Client."""
@@ -89,11 +82,9 @@ class FakeClient:
         """Store."""
         self.chat = FakeChat(completions)
 
-
 def valid_json() -> str:
     """Return valid proposed JSON."""
     return json.dumps(proposed().model_dump(mode="json"))
-
 
 def test_success_excerpt_location() -> None:
     """Successful runtime extraction locates every excerpt on declared page."""
@@ -103,7 +94,6 @@ def test_success_excerpt_location() -> None:
     assert verified.extraction_state == "EVIDENCE_VERIFIED"
     assert meta["prompt_sha256"] == sha256(INSTRUCTIONS.encode()).hexdigest()
     assert meta["schema_version"] == "rules-v1"
-
 
 def test_wrong_page_fails_verification() -> None:
     """Wrong page number causes evidence verification to fail."""
@@ -117,7 +107,6 @@ def test_wrong_page_fails_verification() -> None:
     with pytest.raises(ExtractionError):
         verify_extraction(doc, bad)
 
-
 def test_missing_excerpt_fails() -> None:
     """Missing excerpt text fails verification."""
     comps = FakeCompletions([FakeResponse([FakeChoice(FakeMessage(valid_json()))])])
@@ -129,7 +118,6 @@ def test_missing_excerpt_fails() -> None:
     with pytest.raises(ExtractionError):
         verify_extraction(doc, bad)
 
-
 def test_extra_keys_rejected_not_retried_as_transient() -> None:
     """Extra keys are schema failures, not retried as transient."""
     data = json.loads(valid_json())
@@ -139,7 +127,6 @@ def test_extra_keys_rejected_not_retried_as_transient() -> None:
     env = client.extract(document().pages)
     assert env.failure_code == "SCHEMA_VALIDATION_FAILED"
     assert len(comps.calls) == 1
-
 
 def test_prompt_injection_not_followed_and_still_verifies() -> None:
     """Prompt injection text stays as data and does not bypass verification."""
@@ -151,7 +138,6 @@ def test_prompt_injection_not_followed_and_still_verifies() -> None:
     assert verified.extraction_state == "EVIDENCE_VERIFIED"
     # ensure no tools in call
     assert comps.calls[0].get("tools", []) == [] or "tools" not in comps.calls[0]
-
 
 def test_persist_prompt_schema_model_hashes_tokens() -> None:
     """Persisted metadata includes prompt, schema, model hashes, page hashes, tokens."""
@@ -169,12 +155,10 @@ def test_persist_prompt_schema_model_hashes_tokens() -> None:
     assert meta["tokens"]["prompt_tokens"] == 10
     assert len(meta["output_digest"]) == 64
 
-
 def test_excerpt_location_helper() -> None:
     """Helper correctly reports located vs missing excerpts."""
     assert excerpt_located("Average sales turnover must be Rs. 12 Crores.", "Average sales turnover must be Rs. 12 Crores.")
     assert not excerpt_located("Average sales turnover must be Rs. 12 Crores.", "missing")
-
 
 def test_needs_human_review_for_new_material_revision() -> None:
     """New document revision queues human review."""
@@ -184,7 +168,6 @@ def test_needs_human_review_for_new_material_revision() -> None:
     assert needs_human_review(prev, prev) is False
     assert needs_human_review(None, curr) is True
 
-
 def test_runtime_queues_review_on_material_change() -> None:
     """Runtime pipeline queues review for material change."""
     doc = document()
@@ -193,7 +176,6 @@ def test_runtime_queues_review_on_material_change() -> None:
     prev = proposed().model_copy(update={"document_sha256": "x" * 64})
     verified, _ = run_runtime_extraction(doc, client, previous=prev)
     assert verified.review_state == "UNREVIEWED"
-
 
 def test_refusal_is_closed_failure() -> None:
     """Refusal does not produce verified extraction."""

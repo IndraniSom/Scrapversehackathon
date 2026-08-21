@@ -50,7 +50,6 @@ class ComplianceRow(ClosedComplianceModel):
     requirement_revision: int = Field(ge=1)
     organization_id: str = Field(min_length=1)
 
-
 class AmbiguityCandidate(ClosedComplianceModel):
     """Represent AI-proposed ambiguity with paired citations."""
 

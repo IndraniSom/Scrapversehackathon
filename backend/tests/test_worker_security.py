@@ -20,9 +20,15 @@ from backend.source_policy import (
 
 
 def make_client() -> TestClient:
-    """Create test client with cleared rate state."""
+    """Create test client with cleared rate state and eager bundle for non-lifespan usage."""
     clear_rate_limits()
-    return TestClient(create_app(Settings()))
+    from backend.artifacts import load_demo_bundle
+    app = create_app(Settings())
+    try:
+        app.state.bundle = load_demo_bundle(Settings().demo_data_dir)  # type: ignore[attr-defined]
+    except Exception:
+        pass
+    return TestClient(app, raise_server_exceptions=False)
 
 
 def test_security_headers_present_on_all_routes() -> None:

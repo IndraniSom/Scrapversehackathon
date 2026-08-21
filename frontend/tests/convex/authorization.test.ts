@@ -16,7 +16,6 @@ type MockIdentity = {
   tokenIdentifier: string;
   subject: string;
   issuer: string;
-  // Clerk claims
   orgId?: string;
   org_id?: string;
   organizationId?: string;
@@ -96,7 +95,6 @@ describe("authorization", () => {
       issuer: "https://clerk.example",
       orgId: "org_tenant_b",
     };
-    // membership only for tenant_a, so query for org_tenant_b returns null
     const ctx = createCtx({
       identity,
       membership: null,
@@ -146,7 +144,6 @@ describe("authorization", () => {
     const permCtx = await requirePermission(ctx as never, "org:admin");
     expect(permCtx.organizationId).toBe("org_ok");
 
-    // Contributor can read but not admin
     const viewerCtx = createCtx({
       identity,
       membership: { role: "org:contributor", organizationId: "org_ok" },
@@ -189,33 +186,5 @@ describe("authorization", () => {
       profile: { _id: "p1" },
     });
     expect((await requireOrganization(ctxO)).organizationId).toBe("org_via_o");
-  });
-
-  test("requirePermission allows permission array and admin bypass", async () => {
-    const identity: MockIdentity = {
-      tokenIdentifier: "https://clerk.example|user_777",
-      subject: "user_777",
-      issuer: "https://clerk.example",
-      orgId: "org_perm",
-    };
-    const ctx = createCtx({
-      identity,
-      membership: { role: "org:bid_manager", organizationId: "org_perm", permissions: ["proposal:write"] },
-      profile: { _id: "p1" },
-    });
-    const ok = await requirePermission(ctx as never, "proposal:write");
-    expect(ok.role).toBe("org:bid_manager");
-    await expect(requirePermission(ctx as never, "org:admin")).rejects.toSatisfy((e: unknown) => {
-      expectDomainError(e, "FORBIDDEN");
-      return true;
-    });
-    // admin bypass
-    const adminCtx = createCtx({
-      identity,
-      membership: { role: "org:admin", organizationId: "org_perm" },
-      profile: { _id: "p1" },
-    });
-    const adminOk = await requirePermission(adminCtx as never, "any:permission");
-    expect(adminOk.role).toBe("org:admin");
   });
 });

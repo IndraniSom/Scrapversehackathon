@@ -68,15 +68,11 @@ def create_app(settings: Settings) -> FastAPI:
     @asynccontextmanager
     async def lifespan(application: FastAPI) -> AsyncIterator[None]:
         """Install verified bundle before traffic and remove on stop."""
-        try:
-            application.state.bundle = load_demo_bundle(settings.demo_data_dir)
-        except Exception:
-            pass
+        application.state.bundle = load_demo_bundle(settings.demo_data_dir)
         try:
             yield
         finally:
-            if hasattr(application.state, "bundle"):
-                del application.state.bundle
+            del application.state.bundle
 
     app = FastAPI(
         title="BidRadar Read-Only API",

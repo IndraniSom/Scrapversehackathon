@@ -8,7 +8,6 @@
 import { useEffect, useState } from "react";
 import { SideNavigation } from "./side-navigation";
 import { TopContext } from "./top-context";
-
 /**
  * Props for the application shell.
  */
@@ -24,7 +23,6 @@ type AppShellProps = {
   /** Page content. */
   children: React.ReactNode;
 };
-
 /**
  * Layout that wires navigation, header, and main landmark with mobile drawer.
  * Sidebar persists on desktop; drawer handles navigation below 768px.
@@ -39,7 +37,6 @@ export function AppShell({ currentPath, permissions, organizationName, userLabel
     if (open) document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [open]);
-
   return (
     <div className="app-shell-layout">
       <a href="#main-content" className="skip-link">
