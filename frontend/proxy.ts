@@ -22,11 +22,19 @@ const isProtectedRoute = createRouteMatcher([
   "/(product)(.*)",
 ]);
 
-export default clerkMiddleware(async (auth, req) => {
-  if (!process.env.CLERK_SECRET_KEY && !process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) return;
-  if (isPublicRoute(req)) return;
-  if (isProtectedRoute(req)) await auth.protect();
-});
+const hasClerkKeys = Boolean(process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+
+/** No-op when Clerk keys are absent for local deterministic demo. */
+async function noopMiddleware(): Promise<void> {
+  return;
+}
+
+export default hasClerkKeys
+  ? clerkMiddleware(async (auth, req) => {
+      if (isPublicRoute(req)) return;
+      if (isProtectedRoute(req)) await auth.protect();
+    })
+  : (noopMiddleware as unknown as ReturnType<typeof clerkMiddleware>);
 
 export const config = {
   matcher: [

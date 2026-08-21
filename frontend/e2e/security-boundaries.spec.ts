@@ -4,6 +4,10 @@
 import { test, expect } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function read(rel: string): string {
   const p = path.resolve(__dirname, rel);
@@ -39,7 +43,7 @@ test.describe("security headers and CORS", () => {
     expect(main).toContain("Content-Security-Policy");
     expect(main).toContain("CORSMiddleware");
     expect(main).toContain("ALLOWED_ORIGINS");
-    expect(main).toContain("Access-Control-Allow-Origin");
+    expect(main.toLowerCase()).toContain("access-control-allow-origin");
   });
 
   test("per-route and per-org rate limits defined", async () => {

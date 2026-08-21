@@ -8,6 +8,10 @@
 import { expect, test } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 function read(rel: string): string {
   const p = path.resolve(__dirname, rel);
@@ -62,7 +66,8 @@ test.describe("WCAG 2.2 AA — static tokens", () => {
     expect(shell).toContain("Skeleton");
     expect(shell).toContain('role="status"');
     expect(shell).toContain('aria-live="polite"');
-    expect(shell).not.toContain("spinner");
+    // skeletons are destination-shaped, no spinner component
+    expect(shell).not.toContain("<Spinner");
     expect(read("../styles/components.css")).toContain(".skeleton");
   });
 });

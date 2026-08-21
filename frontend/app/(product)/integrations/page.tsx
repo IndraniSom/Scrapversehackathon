@@ -4,6 +4,8 @@
  * Shows connector prepare/status only, checklist guidance,
  * and manual handoff instructions. No autonomous submission.
  */
+"use client";
+
 import { SubmissionChecklist } from "../../../components/submissions/submission-checklist";
 import { ReceiptForm } from "../../../components/submissions/receipt-form";
 
