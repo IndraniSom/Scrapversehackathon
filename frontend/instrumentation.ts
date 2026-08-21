@@ -31,15 +31,18 @@ export async function register(): Promise<void> {
  */
 async function hashIdentifier(value: string): Promise<string> {
   if (!value) return "unknown";
+  // Use Web Crypto when available, else djb2 fallback (edge-safe, no node:crypto)
   try {
-    const { createHash } = await import("node:crypto");
-    return createHash("sha256").update(value).digest("hex").slice(0, 12);
-  } catch {
-    // Fallback for edge runtime without node:crypto
-    let h = 0;
-    for (let i = 0; i < value.length; i++) h = (h * 31 + value.charCodeAt(i)) >>> 0;
-    return h.toString(16).padStart(8, "0");
-  }
+    if (typeof crypto !== "undefined" && crypto.subtle) {
+      const data = new TextEncoder().encode(value);
+      const hash = await crypto.subtle.digest("SHA-256", data);
+      const bytes = new Uint8Array(hash);
+      return Array.from(bytes.slice(0, 6)).map((b) => b.toString(16).padStart(2, "0")).join("");
+    }
+  } catch {}
+  let h = 0;
+  for (let i = 0; i < value.length; i++) h = (h * 31 + value.charCodeAt(i)) >>> 0;
+  return h.toString(16).padStart(8, "0");
 }
 
 /**

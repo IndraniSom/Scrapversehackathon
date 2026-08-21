@@ -7,7 +7,7 @@
 "use client";
 
 import { usePaginatedQuery, useMutation, useQuery } from "convex/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import { FilterRail } from "./filter-rail";
@@ -16,13 +16,9 @@ import { SavedSearchDialog } from "./saved-search-dialog";
 import { parseFiltersFromSearchParams } from "../../lib/opportunityFilters";
 import { api } from "../../convex/_generated/api";
 
-/** Props not needed — client reads URL directly. */
-type DiscoveryClientProps = Record<string, never>;
-
 /** Client discovery pane with URL-synced filters and pagination. */
 export function DiscoveryClient() {
   const searchParams = useSearchParams();
-  const router = useRouter();
   const { parsed } = useMemo(() => parseFiltersFromSearchParams(new URLSearchParams(searchParams.toString())), [searchParams]);
   const [saveOpen, setSaveOpen] = useState(false);
   const { results, status, loadMore } = usePaginatedQuery(api.opportunitySearch.search, { query: parsed.query, filters: (parsed.filters ?? {}) as never }, { initialNumItems: 20 });
@@ -31,25 +27,11 @@ export function DiscoveryClient() {
   const bulkWatch = useMutation(api.watchlists.bulkWatch);
   const bulkUnwatch = useMutation(api.watchlists.bulkUnwatch);
 
-  /** Updates URL with new filter values. */
-  function updateFilter(key: string, value: string): void {
-    const next = new URLSearchParams(searchParams.toString());
-    if (value) next.set(key, value);
-    else next.delete(key);
-    router.push(`/opportunities?${next.toString()}`);
-  }
-
   return (
     <>
       <button type="button" onClick={() => setSaveOpen(true)} className="btn-ghost" style={{ marginBottom: "1rem" }}>Save this search</button>
       <div className="discovery-layout">
-        <FilterRail>
-          <h2>Filters</h2>
-          <label>Keyword<input aria-label="Keyword" value={parsed.query ?? ""} onChange={(e) => updateFilter("q", e.target.value)} placeholder="e.g. pond, cloud" /></label>
-          <label>Source<select aria-label="Source" value={String(parsed.filters.source ?? "")} onChange={(e) => updateFilter("source", e.target.value)}><option value="">All</option><option value="CPPP">CPPP</option><option value="WEST_BENGAL">West Bengal</option><option value="NTPC">NTPC</option><option value="ODISHA">Odisha</option></select></label>
-          <label>Category<select aria-label="Category" value={String(parsed.filters.category ?? "")} onChange={(e) => updateFilter("category", e.target.value)}><option value="">All</option><option value="SOFTWARE">Software</option><option value="WORKS">Works</option><option value="GOODS">Goods</option></select></label>
-          <label>Authority<input aria-label="Authority" value={String(parsed.filters.authority ?? "")} onChange={(e) => updateFilter("authority", e.target.value)} placeholder="authority" /></label>
-        </FilterRail>
+        <FilterRail />
         <div>
           <OpportunityTable rows={(results as unknown as Array<{ _id: string; source: string; sourceTenderId: string; title: string; authority: string; category?: string; lifecycle: string; closesAt?: number; budgetAmount?: number; dataMode?: string; hasAmendment?: boolean; }>) ?? []} isDone={status === "Exhausted"} continueCursor={null} onLoadMore={() => loadMore(20)} onBulkWatch={(ids) => bulkWatch({ opportunityIds: ids as never[] })} onBulkUnwatch={(ids) => bulkUnwatch({ opportunityIds: ids as never[] })} />
           {status === "LoadingFirstPage" ? <p role="status">Loading procurement evidence…</p> : null}
