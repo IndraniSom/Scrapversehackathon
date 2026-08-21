@@ -6,6 +6,7 @@ from unittest.mock import patch
 import pytest
 from document_helpers import write_text_pdf
 
+from backend import ocr as ocr_module
 from backend.documents import DocumentLimits
 from backend.ocr import OcrLimits, OcrTimeoutError, run_ocr_and_parse
 
@@ -63,6 +64,21 @@ class BlankOcr:
     def ocr(self, input_path: Path, output_path: Path) -> None:
         """Write empty-text PDF."""
         write_text_pdf(output_path, [""])
+
+
+def test_concrete_ocr_engine_invokes_bounded_ocrmypdf(tmp_path: Path) -> None:
+    """Concrete engine calls OCRmyPDF with script and network-risk controls."""
+    source = write_text_pdf(tmp_path / "input.pdf", [""])
+    output = tmp_path / "output.pdf"
+    engine_class = getattr(ocr_module, "OcrMyPdfEngine", None)
+    assert engine_class is not None, "concrete OCR engine is missing"
+    with patch("backend.ocr.subprocess.run") as run:
+        engine_class().ocr(source, output)
+    command = run.call_args.args[0]
+    assert command[:3] == ["ocrmypdf", "--output-type", "pdf"]
+    assert "--skip-text" in command
+    assert command[-2:] == [str(source), str(output)]
+    assert run.call_args.kwargs == {"check": True, "timeout": 120}
 
 
 def test_ocr_success_reparses_through_limits(tmp_path: Path) -> None:

@@ -1,6 +1,5 @@
 """Multilingual embeddings via intfloat/multilingual-e5-base, 768-d normalized vectors."""
 
-import hashlib
 import math
 
 MODEL_NAME = "intfloat/multilingual-e5-base"
@@ -13,6 +12,15 @@ ALLOWED_SOURCES = {"CPPP", "WEST_BENGAL", "NTPC", "ODISHA"}
 ALLOWED_LIFECYCLE = {"open", "closed", "cancelled", "archived"}
 
 _model = None
+
+
+class EmbeddingError(ValueError):
+    """Report stable embedding initialization, inference, or dimension failure."""
+
+    def __init__(self, code: str) -> None:
+        """Store one safe embedding failure code."""
+        super().__init__(code)
+        self.code = code
 
 
 def _require_text(text: str) -> str:
@@ -35,39 +43,23 @@ def _l2_normalize(vec: list[float]) -> list[float]:
     return [x / norm for x in vec]
 
 
-def _hash_embedding(text: str) -> list[float]:
-    """Create a deterministic 768-d normalized vector from hashed text."""
-    dim = DIMENSIONS
-    vec: list[float] = []
-    counter = 0
-    while len(vec) < dim:
-        digest = hashlib.sha256(f"{text}:{counter}".encode()).digest()
-        for byte in digest:
-            if len(vec) >= dim:
-                break
-            vec.append((byte / 127.5) - 1.0)
-        counter += 1
-    return _l2_normalize(vec)
-
-
 def _encode(texts: list[str]) -> list[list[float]]:
-    """Encode texts via sentence-transformers or deterministic hash fallback."""
+    """Encode text using configured model and fail closed on any model error."""
+    global _model
     try:
         from sentence_transformers import SentenceTransformer
-
-        global _model
+    except (ImportError, ModuleNotFoundError) as error:
+        raise EmbeddingError("MODEL_UNAVAILABLE") from error
+    try:
         if _model is None:
             _model = SentenceTransformer(MODEL_NAME)
         vectors = _model.encode(texts, normalize_embeddings=True, convert_to_numpy=True)
-        out: list[list[float]] = []
-        for vec in vectors:
-            lst = [float(x) for x in vec]
-            if len(lst) != DIMENSIONS:
-                lst = _hash_embedding(texts[len(out)])
-            out.append(lst)
-        return out
-    except Exception:
-        return [_hash_embedding(t) for t in texts]
+    except Exception as error:
+        raise EmbeddingError("MODEL_INFERENCE_FAILED") from error
+    output = [[float(value) for value in vector] for vector in vectors]
+    if len(output) != len(texts) or any(len(vector) != DIMENSIONS for vector in output):
+        raise EmbeddingError("MODEL_DIMENSION_MISMATCH")
+    return output
 
 
 def embed_query(text: str) -> list[float]:

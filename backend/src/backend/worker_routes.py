@@ -1,122 +1,115 @@
-"""FastAPI internal route for job execution via one-time exchange token."""
+"""Authenticated FastAPI execution boundary for registered worker jobs."""
 
 import os
+from collections.abc import Callable, Mapping
+from pathlib import Path
 
 from fastapi import APIRouter, Header, HTTPException
 
+from backend.document_pipeline import run_document_pipeline
+from backend.documents import DocumentLimits
+from backend.embeddings import MODEL_REVISION, embed_passage, embed_query
+from backend.ocr import OcrMyPdfEngine
 from backend.worker_auth import WorkerAuthError, verify_exchange_token
-from backend.worker_contracts import WorkerJobRequest
+from backend.worker_contracts import JobKind, WorkerJobRequest
 
 router = APIRouter()
+JobPayload = Mapping[str, object]
+JobOutput = dict[str, object]
+JobHandler = Callable[[WorkerJobRequest, JobPayload], JobOutput]
 
-# In-memory job registry for bounded fetch; Convex is the source of truth in production.
 _JOB_STORE: dict[str, WorkerJobRequest] = {}
+_PAYLOAD_STORE: dict[str, dict[str, object]] = {}
+_HANDLERS: dict[JobKind, JobHandler] = {}
 
 
-def _extract_bearer(authorization: str | None, x_worker_token: str | None) -> str:
-    """Extract token from Authorization Bearer or X-Worker-Token header.
-
-    Args:
-        authorization: Raw Authorization header value if present.
-        x_worker_token: Fallback dedicated worker token header.
-
-    Returns:
-        Trimmed token string or empty when no header was supplied.
-    """
+def _extract_bearer(authorization: str | None, worker_token: str | None) -> str:
+    """Extract bearer token without reflecting it in errors."""
     if authorization and authorization.startswith("Bearer "):
         return authorization.removeprefix("Bearer ").strip()
-    if x_worker_token:
-        return x_worker_token.strip()
-    return ""
+    return worker_token.strip() if worker_token else ""
 
 
-def register_job(job: WorkerJobRequest) -> None:
-    """Register a job for internal fetch; used in tests and local wiring.
-
-    Args:
-        job: Validated job request to expose via the execute endpoint.
-    """
+def register_job(job: WorkerJobRequest, payload: Mapping[str, object] | None = None) -> None:
+    """Register bounded job metadata and payload for worker execution."""
     _JOB_STORE[job.jobId] = job
+    _PAYLOAD_STORE[job.jobId] = dict(payload or {})
+
+
+def register_handler(kind: JobKind, handler: JobHandler) -> None:
+    """Register one explicit domain handler for a worker job kind."""
+    _HANDLERS[kind] = handler
 
 
 def clear_jobs() -> None:
-    """Clear the in-memory job registry; test helper."""
+    """Clear local registries used by deterministic tests and single-process workers."""
     _JOB_STORE.clear()
+    _PAYLOAD_STORE.clear()
 
 
 def is_worker_configured() -> bool:
-    """Check required config keys without exposing secret values.
-
-    Returns:
-        True when a worker or HMAC secret env is present; never reads the value.
-    """
-    return "BIDRADAR_WORKER_SECRET" in os.environ or "BIDRADAR_WORKER_HMAC_SECRET" in os.environ
+    """Return whether worker authentication is configured or demo mode is explicit."""
+    return os.getenv("BIDRADAR_DEMO_MODE") == "1" or bool(
+        os.getenv("BIDRADAR_WORKER_SECRET") or os.getenv("BIDRADAR_WORKER_HMAC_SECRET")
+    )
 
 
-@router.get("/health/live")
-def get_liveness() -> dict[str, str]:
-    """Return liveness without touching secrets.
+def _embedding_handler(_job: WorkerJobRequest, payload: JobPayload) -> JobOutput:
+    """Generate one real query or passage embedding from bounded text."""
+    text = payload.get("text")
+    mode = payload.get("mode", "query")
+    if not isinstance(text, str) or mode not in {"query", "passage"}:
+        raise ValueError("INVALID_EMBEDDING_INPUT")
+    vector = embed_query(text) if mode == "query" else embed_passage(text)
+    return {"embedding": vector, "modelRevision": MODEL_REVISION}
 
-    Returns:
-        Minimal ok payload for orchestrator liveness probes.
-    """
-    return {"status": "ok"}
+
+def _document_handler(_job: WorkerJobRequest, payload: JobPayload) -> JobOutput:
+    """Parse a bounded local document and expose safe structural metadata."""
+    path = payload.get("path")
+    if not isinstance(path, str):
+        raise TypeError("INVALID_DOCUMENT_INPUT")
+    result = run_document_pipeline(Path(path), DocumentLimits())
+    return {"result": result.model_dump(mode="json")}
 
 
-@router.get("/health/ready")
-def get_readiness() -> dict[str, str]:
-    """Return readiness; verifies config presence without fetching values.
+def _ocr_handler(_job: WorkerJobRequest, payload: JobPayload) -> JobOutput:
+    """OCR a bounded local PDF using the concrete isolated OCR engine."""
+    path = payload.get("path")
+    if not isinstance(path, str):
+        raise TypeError("INVALID_DOCUMENT_INPUT")
+    result = run_document_pipeline(Path(path), DocumentLimits(), ocr_engine=OcrMyPdfEngine())
+    return {"result": result.model_dump(mode="json")}
 
-    Returns:
-        ok when configured, otherwise raises 503 without leaking secret state.
-    """
-    if not is_worker_configured():
-        # Soft-fail locally: still expose endpoint but signal not-ready via exception path
-        # when env is expected in production; keep 200 in dev to avoid breaking local loops.
-        # For contract compliance we raise 503 only when explicitly required.
-        return {"status": "ok"}
-    return {"status": "ok"}
+
+register_handler("EMBEDDING", _embedding_handler)
+register_handler("DOCUMENT_PARSE", _document_handler)
+register_handler("DOCUMENT_OCR", _ocr_handler)
 
 
 @router.post("/internal/v1/jobs/{job_id}/execute")
 def execute_job(
     job_id: str,
     authorization: str | None = Header(default=None),
-    x_worker_token: str | None = Header(default=None, alias="X-Worker-Token"),
+    worker_token: str | None = Header(default=None, alias="X-Worker-Token"),
 ) -> dict[str, object]:
-    """Verify one-time token constant-time and return bounded job input.
-
-    Args:
-        job_id: Path job identifier to fetch.
-        authorization: Bearer token header.
-        x_worker_token: Alternate worker token header.
-
-    Returns:
-        Bounded job payload including traceId and inputHashes.
-
-    Raises:
-        HTTPException: On missing token (401), not found (404), or auth failure.
-    """
-    token = _extract_bearer(authorization, x_worker_token)
+    """Authenticate, dispatch, and return one bounded job result."""
+    token = _extract_bearer(authorization, worker_token)
     if not token:
-        raise HTTPException(
-            status_code=401, detail={"code": "UNAUTHORIZED", "message": "Missing token."}
-        )
+        raise HTTPException(status_code=401, detail={"code": "UNAUTHORIZED", "message": "Missing token."})
     job = _JOB_STORE.get(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Job not found."})
     try:
         verify_exchange_token(token, job_id, job.organizationId)
-    except WorkerAuthError as exc:
-        code_map = {
-            "EXPIRED_TOKEN": 401,
-            "REPLAYED_TOKEN": 409,
-            "INVALID_AUDIENCE": 401,
-            "INVALID_JOB": 403,
-            "INVALID_ORGANIZATION": 403,
-            "INVALID_TOKEN": 401,
-        }
-        status = code_map.get(exc.code, 401)
-        raise HTTPException(status_code=status, detail={"code": exc.code, "message": str(exc)}) from exc
-    # Return bounded job input; traceId and idempotency are included by model_dump.
-    return job.model_dump(mode="json")
+    except WorkerAuthError as error:
+        status = {"REPLAYED_TOKEN": 409, "INVALID_JOB": 403, "INVALID_ORGANIZATION": 403}.get(error.code, 401)
+        raise HTTPException(status_code=status, detail={"code": error.code, "message": str(error)}) from error
+    handler = _HANDLERS.get(job.kind)
+    if handler is None:
+        raise HTTPException(status_code=422, detail={"code": "UNSUPPORTED_JOB_KIND", "message": "Worker handler unavailable."})
+    try:
+        output = handler(job, _PAYLOAD_STORE.get(job_id, {}))
+    except (TypeError, ValueError) as error:
+        raise HTTPException(status_code=422, detail={"code": str(error), "message": "Job input is invalid."}) from error
+    return {"jobId": job.jobId, "organizationId": job.organizationId, "kind": job.kind, "status": "SUCCEEDED", "traceId": job.traceId, "output": output}

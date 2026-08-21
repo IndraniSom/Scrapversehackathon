@@ -1,9 +1,12 @@
 """Tests for multilingual e5 embeddings, prefixes, filters, and recall."""
 
 import math
+import sys
+from unittest.mock import patch
 
 import pytest
 
+from backend import embeddings as embedding_module
 from backend.embeddings import (
     DIMENSIONS,
     MODEL_NAME,
@@ -16,6 +19,27 @@ from backend.embeddings import (
     parse_opportunity_filters,
     recall_at_k,
 )
+
+
+class FakeEmbeddingModel:
+    """Deterministic test-only model implementing SentenceTransformer encode."""
+
+    def encode(self, texts: list[str], **_options: object) -> list[list[float]]:
+        """Return normalized 768-dimensional vectors derived from input bytes."""
+        vectors: list[list[float]] = []
+        for text in texts:
+            vector = [0.0] * DIMENSIONS
+            for index, byte in enumerate(text.encode()):
+                vector[index % DIMENSIONS] += float(byte + 1)
+            norm = math.sqrt(sum(value * value for value in vector))
+            vectors.append([value / norm for value in vector])
+        return vectors
+
+
+@pytest.fixture(autouse=True)
+def fake_embedding_model() -> None:
+    """Avoid network model downloads while testing embedding contracts."""
+    embedding_module._model = FakeEmbeddingModel()
 
 
 def test_embed_query_dimension_is_768() -> None:
@@ -120,3 +144,11 @@ def test_cosine_and_prefix_batch_consistency() -> None:
     assert cosine_similarity(q, q2) == pytest.approx(1.0, abs=1e-5)
     batch = embed_queries(["test query", "other"])
     assert batch[0] == pytest.approx(q, abs=1e-6)
+
+
+def test_model_failure_is_not_replaced_with_hash_vectors() -> None:
+    """Missing model fails closed with stable code instead of meaningless vectors."""
+    embedding_module._model = None
+    with patch.dict(sys.modules, {"sentence_transformers": None}):
+        with pytest.raises(ValueError, match="MODEL_UNAVAILABLE"):
+            embed_query("must fail closed")

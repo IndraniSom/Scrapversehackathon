@@ -23,7 +23,7 @@ export const sourceTables = {
   sourceRuns: defineTable({
     organizationId: v.string(),
     connectorId: v.id("sourceConnectors"),
-    providerRunId: v.string(),
+    providerRunId: v.optional(v.string()),
     status: v.union(
       v.literal("queued"),
       v.literal("running"),

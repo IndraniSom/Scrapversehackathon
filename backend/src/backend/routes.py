@@ -10,6 +10,7 @@ from backend.contracts.artifacts import DemoBundle
 from backend.contracts.source import OpportunityId, SourceProof
 from backend.contracts.views import AmendmentImpactView, AssessmentView, OpportunityList
 from backend.source_views import build_public_verified_source_proof
+from backend.worker_routes import is_worker_configured
 
 
 class OpportunityNotFound(LookupError):
@@ -66,6 +67,8 @@ def get_liveness() -> HealthResponse:
 def get_readiness(request: Request) -> HealthResponse:
     """Report readiness only while the validated bundle remains installed."""
     _bundle(request)
+    if not is_worker_configured():
+        raise DemoUnavailable
     return HealthResponse(status="ok")
 
 

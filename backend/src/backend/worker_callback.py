@@ -3,6 +3,7 @@
 import hashlib
 import hmac
 import json
+import os
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import ValidationError
@@ -51,7 +52,9 @@ def submit_job_result(
     x_worker_signature: str | None = Header(default=None, alias="X-Worker-Signature"),
 ) -> dict[str, object]:
     """Verify signed result and reject stale or replayed completions."""
-    secret = "test-secret"  # In production, read from env via safe accessor
+    secret = os.getenv("BIDRADAR_WORKER_HMAC_SECRET")
+    if not secret:
+        raise HTTPException(status_code=503, detail={"code": "WORKER_NOT_CONFIGURED", "message": "Worker callback is unavailable."})
     signature = x_worker_signature or str(body.get("signature") or "")
     # Separate signature field for verification
     payload = dict(body)

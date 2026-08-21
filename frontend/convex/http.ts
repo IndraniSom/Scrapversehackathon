@@ -3,7 +3,7 @@ import { httpRouter } from "convex/server";
 import { Webhook } from "svix";
 import { httpAction } from "./_generated/server";
 import { internal } from "./_generated/api";
-import { constantTimeEqual } from "./lib/keyComparison";
+import { brightDataWebhook } from "./brightDataWebhook";
 
 const http = httpRouter();
 
@@ -26,15 +26,6 @@ function stringValue(value: unknown): string | null {
 async function sha256(value: string): Promise<string> {
   const bytes = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value)));
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
-/** Verifies an HMAC-SHA256 signature over the unparsed Bright Data body. */
-async function verifyBrightDataSignature(body: string, signature: string | null, secret: string): Promise<boolean> {
-  if (signature === null || secret.length === 0) return false;
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const bytes = new Uint8Array(await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(body)));
-  const expected = `sha256=${Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
-  return constantTimeEqual(signature, expected);
 }
 
 /** Verifies a Clerk Svix payload and rejects a missing signing secret. */
@@ -170,24 +161,6 @@ http.route({ path: "/exports", method: "GET", handler: httpAction(async (ctx, re
   return jsonResponse({ organizationId: connection.organizationId, exportedAt });
 }) });
 
-/** Receives Bright Data results only with a valid HMAC over the exact body. */
-http.route({ path: "/brightdata/webhook", method: "POST", handler: httpAction(async (ctx, request) => {
-  const secret = process.env.BRIGHT_DATA_WEBHOOK_SECRET ?? "";
-  if (secret.length === 0) return jsonResponse({ code: "UNAUTHORIZED" }, 401);
-  const body = await request.text();
-  const signature = request.headers.get("x-brightdata-signature") ?? request.headers.get("x-webhook-signature");
-  if (!await verifyBrightDataSignature(body, signature, secret)) return jsonResponse({ code: "UNAUTHORIZED" }, 401);
-  let payload: unknown;
-  try { payload = JSON.parse(body); } catch { return jsonResponse({ code: "VALIDATION_FAILED" }, 400); }
-  if (!isRecord(payload)) return jsonResponse({ code: "VALIDATION_FAILED" }, 400);
-  const providerRunId = stringValue(payload.providerRunId);
-  const connectorId = stringValue(payload.connectorId);
-  if (providerRunId === null || connectorId === null) return jsonResponse({ code: "VALIDATION_FAILED" }, 400);
-  const startedAt = typeof payload.startedAt === "number" ? payload.startedAt : Date.now();
-  const completedAt = typeof payload.completedAt === "number" ? payload.completedAt : Date.now();
-  if (completedAt < startedAt) return jsonResponse({ code: "VALIDATION_FAILED", reason: "Invalid chronology" }, 400);
-  await ctx.runMutation(internal.sourceRuns.handleWebhook, { connectorId, providerRunId, collectorVersion: stringValue(payload.collectorVersion) ?? "unknown", startedAt, completedAt, rawSnapshotHash: stringValue(payload.rawSnapshotHash) ?? stringValue(payload.digest) ?? "", digest: stringValue(payload.digest) ?? stringValue(payload.rawSnapshotHash) ?? "", status: stringValue(payload.status) ?? "succeeded", records: Array.isArray(payload.records) ? payload.records : undefined, failureCode: stringValue(payload.failureCode) ?? undefined });
-  return jsonResponse({ ok: true, providerRunId });
-}) });
+http.route({ path: "/brightdata/webhook", method: "POST", handler: brightDataWebhook });
 
 export default http;

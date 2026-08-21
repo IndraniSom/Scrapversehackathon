@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import multiprocessing
+import subprocess
 import tempfile
 from pathlib import Path
 from typing import Protocol
@@ -45,6 +46,28 @@ class OcrEngine(Protocol):
     def ocr(self, input_path: Path, output_path: Path) -> None:
         """Render OCR output PDF without network; Args: input_path, output_path."""
         ...
+
+
+class OcrMyPdfEngine:
+    """Concrete offline OCRmyPDF adapter for the isolated child process."""
+
+    def ocr(self, input_path: Path, output_path: Path) -> None:
+        """Run one bounded OCRmyPDF conversion without shell expansion."""
+        subprocess.run(
+            [
+                "ocrmypdf",
+                "--output-type",
+                "pdf",
+                "--skip-text",
+                "--jobs",
+                "1",
+                "--quiet",
+                str(input_path),
+                str(output_path),
+            ],
+            check=True,
+            timeout=120,
+        )
 
 
 def _apply_limits(cpu_seconds: int, memory_bytes: int) -> None:

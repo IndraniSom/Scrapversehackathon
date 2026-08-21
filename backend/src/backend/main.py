@@ -19,6 +19,8 @@ from backend.config import Settings
 from backend.contracts.api import ErrorCode, failure
 from backend.observability import ObservabilityMiddleware
 from backend.routes import DemoUnavailable, OpportunityNotFound, router
+from backend.worker_callback import router as worker_callback_router
+from backend.worker_routes import router as worker_router
 
 CONTRACT_PATH = Path(__file__).resolve().parents[3] / "contracts" / "api-v1.openapi.json"
 CONTRACT_SHA256 = "bb7df948805027b7325d243a094e48f290371547ae39c2dfd27de093414ca2b1"
@@ -128,6 +130,8 @@ def create_app(settings: Settings) -> FastAPI:
         return response
 
     app.include_router(router)
+    app.include_router(worker_router)
+    app.include_router(worker_callback_router)
     _install_handlers(app)
     frozen = _load_frozen_contract()
 
