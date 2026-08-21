@@ -1,4 +1,4 @@
-"""Review copilot that summarizes comments into a checklist without resolving."""
+"""Review copilot that summarizes comments into a checklist without resolving, dismissing, or mutating states."""
 
 from __future__ import annotations
 
@@ -42,7 +42,7 @@ def _summarize_body(body: str) -> str:
 
 
 def summarize_comments(comments: list[ProposalComment]) -> list[ChecklistItem]:
-    """Group open comments by section and anchor into a checklist without mutation."""
+    """Group open comments by section and anchor into a checklist without resolving or mutating states."""
     grouped: dict[tuple[str | None, str | None], list[ProposalComment]] = {}
     for comment in comments:
         key = (comment.section_id, comment.anchor)

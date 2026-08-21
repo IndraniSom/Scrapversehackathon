@@ -1,4 +1,4 @@
-"""Grounded proposal drafting with citation and entailment checks."""
+"""Grounded proposal drafting with citation and entailment checks; factual blocks require source IDs and verification, else AUTHOR_INPUT_REQUIRED."""
 
 from __future__ import annotations
 
