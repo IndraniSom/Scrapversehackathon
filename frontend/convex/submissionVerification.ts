@@ -30,7 +30,8 @@ async function verifiedActor(token: string): Promise<VerifiedActor> {
   if (!issuer) throwValidation("Clerk issuer is not configured.");
   const { payload } = await jwtVerify(token, createRemoteJWKSet(new URL(`${issuer.replace(/\/$/, "")}/.well-known/jwks.json`)), { issuer });
   const expectedOrigin = process.env.BIDRADAR_FRONTEND_ORIGIN;
-  if (expectedOrigin && payload.azp !== expectedOrigin) throwForbidden("Authorized party mismatch.");
+  if (!expectedOrigin) throwValidation("Frontend origin is not configured.");
+  if (payload.azp !== expectedOrigin) throwForbidden("Authorized party mismatch.");
   return actorFromClaims(payload);
 }
 

@@ -22,7 +22,7 @@ export const prepare = internalQuery({
     const sections = await ctx.db.query("proposalSections").withIndex("by_organization_and_id", (query) => query.eq("organizationId", auth.organizationId).eq("proposalId", args.proposalId)).collect();
     if (!sections.length || sections.some((section) => section.state !== "LOCKED" || !section.body?.trim())) throwValidation("Every proposal section must be locked and non-empty.");
     const rows = await ctx.db.query("complianceRows").withIndex("by_organization_and_id", (query) => query.eq("organizationId", auth.organizationId).eq("proposalId", args.proposalId)).collect();
-    if (rows.some((row) => row.status !== "compliant" || !row.evidence || !row.responseLocation)) throwValidation("Compliance matrix has unresolved rows.");
+    if (!rows.length || rows.some((row) => row.status !== "compliant" || !row.evidence || !row.responseLocation)) throwValidation("Compliance matrix must be complete and contain no unresolved rows.");
     const compliance = ["requirement_id,response_location,evidence,status", ...rows.map((row) => [String(row.requirementId), row.responseLocation ?? "", row.evidence ?? "", row.status].map(csv).join(","))].join("\n") + "\n";
     return { organizationId: auth.organizationId, userId: auth.clerkUserId, body: { proposal_id: String(proposal._id), title: `Proposal ${String(proposal._id)}`, revision: proposal.lockedRevision, sections: sections.map((section) => ({ title: section.title, body: section.body ?? "", citation: section.instructionCitation, order: section.order, state: section.state })), compliance_csv: compliance } };
   },

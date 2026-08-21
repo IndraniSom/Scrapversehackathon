@@ -9,6 +9,7 @@ import { isAllowedPortal, isOfficialUrl, isSha256 } from "../../convex/integrati
 const integrationsPath = path.resolve(__dirname, "../../convex/integrations.ts");
 const submissionsPath = path.resolve(__dirname, "../../convex/submissions.ts");
 const verificationPath = path.resolve(__dirname, "../../convex/submissionVerification.ts");
+const proposalExportPath = path.resolve(__dirname, "../../convex/proposalExportData.ts");
 const checklistPath = path.resolve(__dirname, "../../components/submissions/submission-checklist.tsx");
 const receiptPath = path.resolve(__dirname, "../../components/submissions/receipt-form.tsx");
 const integrationsPagePath = path.resolve(__dirname, "../../app/(product)/integrations/page.tsx");
@@ -97,5 +98,7 @@ describe("submission connector boundary", () => {
   test("reverification and approval are enforced at separate layers", () => {
     expect(read(integrationsPagePath)).toMatch(/useReverification/);
     expect(read(submissionsPath)).toMatch(/Approved valid package required/);
+    expect(read(verificationPath)).toMatch(/if \(!expectedOrigin\) throwValidation/);
+    expect(read(proposalExportPath)).toMatch(/if \(!rows\.length \|\| rows\.some/);
   });
 });
