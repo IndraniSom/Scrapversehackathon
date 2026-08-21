@@ -17,6 +17,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from backend.artifacts import load_demo_bundle
 from backend.config import Settings
 from backend.contracts.api import ErrorCode, failure
+from backend.observability import ObservabilityMiddleware
 from backend.routes import DemoUnavailable, OpportunityNotFound, router
 
 CONTRACT_PATH = Path(__file__).resolve().parents[3] / "contracts" / "api-v1.openapi.json"
@@ -39,6 +40,11 @@ RATE_LIMITS: dict[str, tuple[int, int]] = {
     "default": (120, 60),
     "/api/v1/opportunities": (60, 60),
     "/health": (120, 60),
+    "/api/files": (10, 60),
+    "/api/search": (60, 60),
+    "/api/ai": (20, 60),
+    "/api/export": (10, 60),
+    "/webhook": (30, 60),
 }
 
 _request_log: dict[str, list[float]] = {}
@@ -82,6 +88,7 @@ def create_app(settings: Settings) -> FastAPI:
         openapi_url=None,
         lifespan=lifespan,
     )
+    app.add_middleware(ObservabilityMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=ALLOWED_ORIGINS,
