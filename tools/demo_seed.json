@@ -1,0 +1,498 @@
+{
+  "amendments": [
+    {
+      "actor": "AUTHORITY",
+      "amendmentSha256": "f5f930611b844b858559a471a6dda67b96d769f1f59a45561f8884f327cb1542",
+      "baseSha256": "f4e7ce45dcc87ddde45e01abb3c5615773ccba7f7542bd454949c978201fdd4e",
+      "diff": "Turnover threshold 12cr \u2192 6cr",
+      "disposition": "ACCEPTED",
+      "effectiveChange": true,
+      "id": "amd-01",
+      "opportunityId": "opp-02-west_bengal-52bd5aa3",
+      "replacesDocumentId": "doc-base-01"
+    },
+    {
+      "actor": "BIDDER",
+      "amendmentSha256": "5b757625f8b021621c2628824d71c79ed5aee1b048f6ed0609ecd132f327c5d8",
+      "baseSha256": "ee8128bd66cc1524cd1989ceb62035efbe5f7dce4dee958dda8aee7eef571454",
+      "diff": "Bidder requested extension \u2014 rejected",
+      "disposition": "REJECTED",
+      "effectiveChange": false,
+      "id": "amd-02",
+      "opportunityId": "opp-06-west_bengal-3fbc6f5d",
+      "replacesDocumentId": null
+    }
+  ],
+  "companies": [
+    {
+      "certifications": [
+        {
+          "name": "ISO 9001",
+          "validUntil": "2027-12-31"
+        }
+      ],
+      "id": "comp_alpha_1",
+      "legalName": "Alpha Systems Pvt Ltd",
+      "organizationId": "org_alpha",
+      "registrationId": "CIN-U72900MH2020PTC111111",
+      "turnoverEvidence": [
+        {
+          "amountInr": "95000000",
+          "audited": true,
+          "fy": "2022-23"
+        }
+      ]
+    },
+    {
+      "certifications": [
+        {
+          "name": "CMMI DEV L3",
+          "validUntil": "2026-09-30"
+        }
+      ],
+      "id": "comp_alpha_2",
+      "legalName": "Alpha Infra Solutions",
+      "organizationId": "org_alpha",
+      "registrationId": "CIN-U72900MH2021PTC222222",
+      "turnoverEvidence": [
+        {
+          "amountInr": "120000000",
+          "audited": true,
+          "fy": "2023-24"
+        }
+      ]
+    },
+    {
+      "certifications": [
+        {
+          "name": "ISO 27001",
+          "validUntil": "2027-06-30"
+        }
+      ],
+      "id": "comp_beta_1",
+      "legalName": "Beta Digital Works",
+      "organizationId": "org_beta",
+      "registrationId": "CIN-U72900KA2022PTC333333",
+      "turnoverEvidence": [
+        {
+          "amountInr": "60000000",
+          "audited": true,
+          "fy": "2023-24"
+        }
+      ]
+    }
+  ],
+  "compliance": [
+    {
+      "category": "MISSING_DATA",
+      "evidence": "evidence-0",
+      "requirementId": "req-0",
+      "status": "compliant"
+    },
+    {
+      "category": "FAILED_REQUIREMENT",
+      "evidence": "evidence-1",
+      "requirementId": "req-1",
+      "status": "compliant"
+    },
+    {
+      "category": "REVIEW_REQUIRED",
+      "evidence": "evidence-2",
+      "requirementId": "req-2",
+      "status": "gap"
+    },
+    {
+      "category": "OWNER_REQUIRED",
+      "evidence": "evidence-3",
+      "requirementId": "req-3",
+      "status": "gap"
+    }
+  ],
+  "contractSha256": "bb7df948805027b7325d243a094e48f290371547ae39c2dfd27de093414ca2b1",
+  "documentStates": [
+    {
+      "pages": 12,
+      "quality": "parsed"
+    },
+    {
+      "pages": 8,
+      "quality": "needsOcr"
+    },
+    {
+      "quality": "invalid",
+      "reason": "encrypted"
+    }
+  ],
+  "exports": {
+    "generatedAt": "2026-08-21T08:00:00Z",
+    "manifest": [
+      {
+        "bytes": 1024,
+        "mime": "application/pdf",
+        "path": "assessment.pdf",
+        "sha256": "8e2f462bfe2e42aac1b117814e3dbaabca46a2778245f23fb47155f50cb6a1b8"
+      },
+      {
+        "bytes": 1536,
+        "mime": "text/csv",
+        "path": "compliance.csv",
+        "sha256": "a5c6afe3ef73d46c6e54d1aef0425a293547627d04238f91328ab9aae6bd0a3a"
+      },
+      {
+        "bytes": 2048,
+        "mime": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        "path": "proposal.docx",
+        "sha256": "1e4a6331b21a2bb465acda8e07a90b656eb2616fb3644ebf47507ae6f1c789aa"
+      },
+      {
+        "bytes": 2560,
+        "mime": "application/json",
+        "path": "evidence.json",
+        "sha256": "196c966275567bb72f0a18568086a01b2614fb975024bc17fdf83e981ae400f4"
+      },
+      {
+        "bytes": 3072,
+        "mime": "application/zip",
+        "path": "package.zip",
+        "sha256": "e4a255861e1e2a7caaed1b4a41cb5f4c736486be8d7d348a94c3b00e9ebb85b1"
+      }
+    ],
+    "revision": 4
+  },
+  "generatedAt": "2026-08-21T08:00:00Z",
+  "opportunities": [
+    {
+      "authority": "CPPP Authority",
+      "budgetAmount": 5000000,
+      "canonicalUrl": "https://example.gov.in/tenders/opp-01-cppp-7a059707",
+      "category": "SOFTWARE",
+      "closesAt": 1726800000000,
+      "dataMode": "LIVE",
+      "hasAmendment": false,
+      "id": "opp-01-cppp-7a059707",
+      "lifecycle": "open",
+      "organizationId": "org_alpha",
+      "sha256": "14b467c290420b035afa98ab154b8fe8ad1e4b002417a1587238bc5b58553b8d",
+      "snapshotSha256": "dafa66c3ce54bd521a76d35270eca0886f635937674b0c39194660f00082e02a",
+      "source": "CPPP",
+      "sourceTenderId": "CPPP-2026-1000",
+      "title": "Cloud operations support"
+    },
+    {
+      "authority": "WEST_BENGAL Authority",
+      "budgetAmount": 6000000,
+      "canonicalUrl": "https://example.gov.in/tenders/opp-02-west_bengal-52bd5aa3",
+      "category": "WORKS",
+      "closesAt": 1726886400000,
+      "dataMode": "RECORDED_BRIGHT_DATA_SNAPSHOT",
+      "hasAmendment": true,
+      "id": "opp-02-west_bengal-52bd5aa3",
+      "lifecycle": "open",
+      "organizationId": "org_alpha",
+      "sha256": "3b8dfc2741ebbb2a42070070d362d98642d89f32790d6b90900fd2fc653caddf",
+      "snapshotSha256": "071f719dde21c0c8f8671feb4f9a549b4ba14d32fdac9087b8f2219aad084362",
+      "source": "WEST_BENGAL",
+      "sourceTenderId": "WEST_BENGAL-2026-1001",
+      "title": "Pond Monitoring and Advisory System"
+    },
+    {
+      "authority": "NTPC Authority",
+      "budgetAmount": 7000000,
+      "canonicalUrl": "https://example.gov.in/tenders/opp-03-ntpc-c9864733",
+      "category": "WORKS",
+      "closesAt": 1726972800000,
+      "dataMode": "MANUAL_FIXTURE",
+      "hasAmendment": false,
+      "id": "opp-03-ntpc-c9864733",
+      "lifecycle": "open",
+      "organizationId": "org_alpha",
+      "sha256": "94048fc6583baf12792198740e05d0ca56a08421cb34630c34ed6606c16565fd",
+      "snapshotSha256": "bcfc7fc178fb615a5bd31dedde6af61a600e5e70431eba2a7fc2c9c250e4c6cc",
+      "source": "NTPC",
+      "sourceTenderId": "NTPC-2026-1002",
+      "title": "Highway maintenance"
+    },
+    {
+      "authority": "ODISHA Authority",
+      "budgetAmount": 8000000,
+      "canonicalUrl": "https://example.gov.in/tenders/opp-04-odisha-43c044dd",
+      "category": "SOFTWARE",
+      "closesAt": 1727059200000,
+      "dataMode": "LIVE",
+      "hasAmendment": false,
+      "id": "opp-04-odisha-43c044dd",
+      "lifecycle": "open",
+      "organizationId": "org_alpha",
+      "sha256": "dc78ef543407ec0dc1d8e9f7cf0ffb22c517f1899320e5bab77327ad8d40c7fe",
+      "snapshotSha256": "a89b5f9d2f42f5cb2efdc2c9112e72a3206440f4788383d4f938b84af267dfe0",
+      "source": "ODISHA",
+      "sourceTenderId": "ODISHA-2026-1003",
+      "title": "Medical equipment supply"
+    },
+    {
+      "authority": "CPPP Authority",
+      "budgetAmount": 9000000,
+      "canonicalUrl": "https://example.gov.in/tenders/opp-05-cppp-d9ec6e7f",
+      "category": "WORKS",
+      "closesAt": 1727145600000,
+      "dataMode": "RECORDED_BRIGHT_DATA_SNAPSHOT",
+      "hasAmendment": false,
+      "id": "opp-05-cppp-d9ec6e7f",
+      "lifecycle": "open",
+      "organizationId": "org_alpha",
+      "sha256": "825a89ef51fd885ea32da5a2a9aca9dcd332d97791a9990914da7a059f5bf093",
+      "snapshotSha256": "53c9f7218c0febb99fefc1d74ef416476041b41584a8888b69faa94b0e716550",
+      "source": "CPPP",
+      "sourceTenderId": "CPPP-2026-1004",
+      "title": "Solar plant installation"
+    },
+    {
+      "authority": "WEST_BENGAL Authority",
+      "budgetAmount": 10000000,
+      "canonicalUrl": "https://example.gov.in/tenders/opp-06-west_bengal-3fbc6f5d",
+      "category": "WORKS",
+      "closesAt": 1727232000000,
+      "dataMode": "MANUAL_FIXTURE",
+      "hasAmendment": true,
+      "id": "opp-06-west_bengal-3fbc6f5d",
+      "lifecycle": "open",
+      "organizationId": "org_alpha",
+      "sha256": "b4d98bbe1f42d55f107e1343e02929be37264535ceba14ad687402bc4ad6c42d",
+      "snapshotSha256": "ff4f5d1b52982fc63f864cc6b055f103f1346e380de89852eb25bb35f8247571",
+      "source": "WEST_BENGAL",
+      "sourceTenderId": "WEST_BENGAL-2026-1005",
+      "title": "Water treatment plant"
+    },
+    {
+      "authority": "NTPC Authority",
+      "budgetAmount": 11000000,
+      "canonicalUrl": "https://example.gov.in/tenders/opp-07-ntpc-df62aa54",
+      "category": "SOFTWARE",
+      "closesAt": 1727318400000,
+      "dataMode": "LIVE",
+      "hasAmendment": false,
+      "id": "opp-07-ntpc-df62aa54",
+      "lifecycle": "open",
+      "organizationId": "org_alpha",
+      "sha256": "2823be5e436a917436b4dbfd6e78da5b329384187c5ae5f2db77384bd71edefc",
+      "snapshotSha256": "5b6ea1318b98ef59ee451eecdfbd67eace8dc45703b710b9d74d3f73b81a7be8",
+      "source": "NTPC",
+      "sourceTenderId": "NTPC-2026-1006",
+      "title": "School infrastructure"
+    },
+    {
+      "authority": "ODISHA Authority",
+      "budgetAmount": 12000000,
+      "canonicalUrl": "https://example.gov.in/tenders/opp-08-odisha-45e23555",
+      "category": "WORKS",
+      "closesAt": 1727404800000,
+      "dataMode": "RECORDED_BRIGHT_DATA_SNAPSHOT",
+      "hasAmendment": false,
+      "id": "opp-08-odisha-45e23555",
+      "lifecycle": "open",
+      "organizationId": "org_alpha",
+      "sha256": "cc595a3d4df6674bbc75f6e5bf74e411235c34fd64e01e6c9610dc9c3d3e7119",
+      "snapshotSha256": "2ff258c1e2d98f29d58147e7ded322c427bb49cbbde0825f2ad133ff3ae6ef50",
+      "source": "ODISHA",
+      "sourceTenderId": "ODISHA-2026-1007",
+      "title": "Data center upgrade"
+    },
+    {
+      "authority": "CPPP Authority",
+      "budgetAmount": 13000000,
+      "canonicalUrl": "https://example.gov.in/tenders/opp-09-cppp-8dbf274b",
+      "category": "WORKS",
+      "closesAt": 1727491200000,
+      "dataMode": "MANUAL_FIXTURE",
+      "hasAmendment": false,
+      "id": "opp-09-cppp-8dbf274b",
+      "lifecycle": "open",
+      "organizationId": "org_beta",
+      "sha256": "3307b9ab097e774f5cecb2232751b089aa12b8768f8920cbb2b5901205064d9e",
+      "snapshotSha256": "5a42297929fdc112395ed9105e9cb895aede57c053085235b3adf4454445b216",
+      "source": "CPPP",
+      "sourceTenderId": "CPPP-2026-1008",
+      "title": "Railway signaling"
+    },
+    {
+      "authority": "WEST_BENGAL Authority",
+      "budgetAmount": 14000000,
+      "canonicalUrl": "https://example.gov.in/tenders/opp-10-west_bengal-729c127a",
+      "category": "SOFTWARE",
+      "closesAt": 1727577600000,
+      "dataMode": "LIVE",
+      "hasAmendment": false,
+      "id": "opp-10-west_bengal-729c127a",
+      "lifecycle": "open",
+      "organizationId": "org_beta",
+      "sha256": "ef1ad6f7466766f8063e38229d53318fbe91eca68c9ca2c8f44e0c70a93b5518",
+      "snapshotSha256": "ec8983021267936a6bb558c3e05c694812594108ab0ea895ef3f61c1d0225db8",
+      "source": "WEST_BENGAL",
+      "sourceTenderId": "WEST_BENGAL-2026-1009",
+      "title": "Port logistics"
+    },
+    {
+      "authority": "NTPC Authority",
+      "budgetAmount": 15000000,
+      "canonicalUrl": "https://example.gov.in/tenders/opp-11-ntpc-7a3ce3cd",
+      "category": "WORKS",
+      "closesAt": 1727664000000,
+      "dataMode": "RECORDED_BRIGHT_DATA_SNAPSHOT",
+      "hasAmendment": false,
+      "id": "opp-11-ntpc-7a3ce3cd",
+      "lifecycle": "open",
+      "organizationId": "org_beta",
+      "sha256": "1168d548a9186820e8224ff223c1b6fa995b7a87e2b2ee31358978c8a88126ef",
+      "snapshotSha256": "e03e4a854375fb788e3234fbe356d2d8fc1f65d19d0575c391596ce4d6b0b85c",
+      "source": "NTPC",
+      "sourceTenderId": "NTPC-2026-1010",
+      "title": "Urban surveillance"
+    },
+    {
+      "authority": "ODISHA Authority",
+      "budgetAmount": 16000000,
+      "canonicalUrl": "https://example.gov.in/tenders/opp-12-odisha-86374b52",
+      "category": "WORKS",
+      "closesAt": 1727750400000,
+      "dataMode": "MANUAL_FIXTURE",
+      "hasAmendment": false,
+      "id": "opp-12-odisha-86374b52",
+      "lifecycle": "open",
+      "organizationId": "org_beta",
+      "sha256": "113ac4b7ab742008e847287a45aa67b3f480ae1fb7eb1c04873e03beeeb1567a",
+      "snapshotSha256": "225b9489eec832543a13ded207908a92f6dd37b7191bebaa9775aafdf0fe82d0",
+      "source": "ODISHA",
+      "sourceTenderId": "ODISHA-2026-1011",
+      "title": "E-governance platform"
+    }
+  ],
+  "organizations": [
+    {
+      "clerkOrganizationId": "org_alpha_clerk",
+      "displayName": "Alpha Procurement Collective",
+      "id": "org_alpha",
+      "slug": "alpha-procurement",
+      "timezone": "Asia/Kolkata"
+    },
+    {
+      "clerkOrganizationId": "org_beta_clerk",
+      "displayName": "Beta Ventures Pvt Ltd",
+      "id": "org_beta",
+      "slug": "beta-ventures",
+      "timezone": "Asia/Kolkata"
+    }
+  ],
+  "outcome": {
+    "lessons": [
+      "Update turnover evidence early"
+    ],
+    "reasonCategories": [
+      "competitive_pricing",
+      "strong_evidence"
+    ],
+    "result": "WON",
+    "value": 12000000
+  },
+  "proposal": {
+    "approvalGate": {
+      "decision": "APPROVED",
+      "requiredRole": "org:bid_manager"
+    },
+    "comments": [
+      {
+        "body": "Verify turnover evidence",
+        "id": "c1",
+        "resolutionState": "open"
+      }
+    ],
+    "companyId": "comp_alpha_1",
+    "compliance": [
+      {
+        "category": "MISSING_DATA",
+        "evidence": "evidence-0",
+        "requirementId": "req-0",
+        "status": "compliant"
+      },
+      {
+        "category": "FAILED_REQUIREMENT",
+        "evidence": "evidence-1",
+        "requirementId": "req-1",
+        "status": "compliant"
+      },
+      {
+        "category": "REVIEW_REQUIRED",
+        "evidence": "evidence-2",
+        "requirementId": "req-2",
+        "status": "gap"
+      },
+      {
+        "category": "OWNER_REQUIRED",
+        "evidence": "evidence-3",
+        "requirementId": "req-3",
+        "status": "gap"
+      }
+    ],
+    "id": "prop-01",
+    "lockedRevision": 4,
+    "opportunityId": "opp-02-west_bengal-52bd5aa3",
+    "sections": [
+      {
+        "body": "Body for Cover Letter",
+        "id": "sec-0",
+        "instructionCitation": "Instruction \u00a71",
+        "order": 0,
+        "state": "APPROVED",
+        "title": "Cover Letter"
+      },
+      {
+        "body": "Body for Technical Approach",
+        "id": "sec-1",
+        "instructionCitation": "Instruction \u00a72",
+        "order": 1,
+        "state": "APPROVED",
+        "title": "Technical Approach"
+      },
+      {
+        "body": "Body for Compliance Matrix",
+        "id": "sec-2",
+        "instructionCitation": "Instruction \u00a73",
+        "order": 2,
+        "state": "READY_FOR_REVIEW",
+        "title": "Compliance Matrix"
+      },
+      {
+        "body": "Body for Financial Bid",
+        "id": "sec-3",
+        "instructionCitation": "Instruction \u00a74",
+        "order": 3,
+        "state": "DRAFTING",
+        "title": "Financial Bid"
+      }
+    ]
+  },
+  "sourceRuns": [
+    {
+      "collector": "ntpc-v2",
+      "providerRunId": "j_demo_001",
+      "rawSha256": "fd7ff1b6ec78c7b6efc52f00b0a1aac6afcaa1d1d2ab2112448f21302dd30371",
+      "status": "SUCCESS"
+    },
+    {
+      "collector": "cppp-v1",
+      "providerRunId": "j_demo_002",
+      "rawSha256": "610ad04ff569d78a4bb98be81d8d4eab0fec44a6926311b57e5ad99fe6cc508a",
+      "status": "SUCCESS"
+    }
+  ],
+  "submission": {
+    "aiCanSubmit": false,
+    "approvalVerified": true,
+    "officialUrl": "https://eprocure.gov.in/eprocure/app",
+    "receipt": {
+      "acknowledgementNumber": "ACK-2026-0001",
+      "digest": "54b7f051ccf974c8eaa9c0d7704d9f8675721d3cbfc3af54ede73bb59206e089",
+      "portalTimestamp": "2026-08-21T09:30:00Z"
+    },
+    "stepUpVerified": true
+  }
+}

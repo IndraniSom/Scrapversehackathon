@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bidradar.test/contracts/worker/job-result.schema.json",
+  "title": "WorkerJobResult",
+  "description": "Signed result callback. Must match jobId, inputRevision, inputHashes and traceId; stale or replayed results are rejected.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "jobId",
+    "organizationId",
+    "kind",
+    "inputRevision",
+    "inputHashes",
+    "traceId",
+    "status",
+    "outputDigest",
+    "signature"
+  ],
+  "properties": {
+    "jobId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "organizationId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^org_[A-Za-z0-9_-]+$"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "SOURCE_COLLECTION",
+        "DOCUMENT_PARSE",
+        "DOCUMENT_OCR",
+        "REQUIREMENT_EXTRACTION",
+        "EMBEDDING",
+        "ASSESSMENT",
+        "AMENDMENT_DIFF",
+        "TENDER_BRIEF",
+        "TENDER_QA",
+        "COMPLIANCE_MATRIX",
+        "PROPOSAL_OUTLINE",
+        "PROPOSAL_DRAFT",
+        "CLAIM_REVIEW",
+        "EXPORT",
+        "SUBMISSION_PACKAGE",
+        "NOTIFICATION"
+      ]
+    },
+    "inputRevision": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "inputHashes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+    },
+    "traceId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["SUCCEEDED", "RETRYABLE_FAILURE", "FAILED", "NEEDS_REVIEW"]
+    },
+    "outputDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "outputRefs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "safeFailureCode": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$"
+    },
+    "providerVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "modelVersion": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "usage": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "promptTokens": { "type": "integer", "minimum": 0 },
+        "completionTokens": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "signature": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "completedAt": {
+      "type": "integer",
+      "minimum": 0
+    }
+  }
+}

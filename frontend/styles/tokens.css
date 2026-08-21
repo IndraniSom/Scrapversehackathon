@@ -1,0 +1,73 @@
+/**
+ * Design tokens for BidRadar — editorial precision, industrial restraint.
+ * One green accent, paper-white surfaces, stone borders, ink text.
+ * Typography: Newsreader (display), IBM Plex Sans (UI), IBM Plex Mono (hashes).
+ */
+
+:root {
+  /* Surfaces — warm paper, not pure white */
+  --surface: oklch(0.998 0.002 85);
+  --surface-subtle: oklch(0.968 0.006 95);
+  --surface-strong: oklch(0.94 0.008 95);
+  --surface-raised: oklch(1 0 0);
+  --text: oklch(0.22 0.015 140);
+  --muted: oklch(0.48 0.015 140);
+  --faint: oklch(0.62 0.01 140);
+  --border: oklch(0.86 0.01 95);
+  --border-strong: oklch(0.80 0.012 95);
+  --action: oklch(0.38 0.11 142);
+  --action-hover: oklch(0.32 0.10 142);
+  --action-subtle: oklch(0.96 0.03 142);
+  --focus: oklch(0.55 0.17 250);
+
+  /* States — muted, not candy */
+  --success: oklch(0.38 0.11 145);
+  --success-surface: oklch(0.95 0.03 145);
+  --warning: oklch(0.48 0.10 75);
+  --warning-surface: oklch(0.96 0.04 75);
+  --error: oklch(0.48 0.15 28);
+  --error-surface: oklch(0.96 0.04 28);
+  --unknown: oklch(0.45 0.09 260);
+  --unknown-surface: oklch(0.96 0.03 260);
+
+  /* Shape */
+  --radius: 10px;
+  --radius-sm: 8px;
+  --radius-xs: 6px;
+  --radius-full: 999px;
+
+  /* Space — 4/8 rhythm */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+
+  /* Shell */
+  --sidebar-width: 268px;
+  --header-height: 64px;
+  --content-max: 1180px;
+  --measure: 68ch;
+
+  /* Type — editorial + utilitarian */
+  --font-display: "Newsreader", ui-serif, Georgia, serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  --tracking-tight: -0.02em;
+  --tracking-wide: 0.02em;
+  --leading-tight: 1.15;
+  --leading-normal: 1.55;
+
+  /* Motion — restrained 150-250ms */
+  --duration-fast: 180ms;
+  --duration-normal: 220ms;
+  --ease-default: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --duration-fast: 0.01ms; --duration-normal: 0.01ms; }
+}

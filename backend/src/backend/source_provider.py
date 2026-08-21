@@ -1,9 +1,21 @@
 """Closed NTPC provider record contract and deterministic normalization."""
 
+import json
 import re
 from collections.abc import Mapping
 from hashlib import sha256
 from urllib.parse import urlsplit
+
+# Hosts permitted for official document fetch and version lineage.
+ALLOWED_DOCUMENT_HOSTS = frozenset({
+    "www.eprocure.gov.in",
+    "eprocure.gov.in",
+    "wbtenders.gov.in",
+    "www.wbtenders.gov.in",
+    "ntpctender.ntpc.co.in",
+    "odisha.gov.in",
+    "www.odisha.gov.in",
+})
 
 from pydantic import (
     BaseModel,
@@ -135,3 +147,53 @@ def _is_supported_record(record: Mapping[str, JsonValue]) -> bool:
         except ValidationError:
             continue
     return False
+
+
+def stable_source_key(source: str, source_tender_id: str) -> str:
+    """Return the stable source key used for deduplication and version lookup."""
+    return f"{source}:{source_tender_id}"
+
+
+def canonical_opportunity_digest(fields: Mapping[str, JsonValue]) -> str:
+    """Compute an immutable version digest from canonical normalized fields."""
+    canonical = json.dumps(fields, sort_keys=True, separators=(",", ":"))
+    return sha256(canonical.encode()).hexdigest()
+
+
+def opportunity_version_digest(summary: OpportunitySummary, document_hashes: list[str] | None = None) -> str:
+    """Derive a version digest covering all fields that should trigger a new version."""
+    payload: dict[str, JsonValue] = {
+        "authority": summary.authority,
+        "canonical_url": summary.canonical_url,
+        "category": summary.category,
+        "closes_at": summary.closes_at.isoformat() if summary.closes_at else None,
+        "document_hashes": sorted(document_hashes or []),
+        "published_at": summary.published_at.isoformat() if summary.published_at else None,
+        "reference_number": summary.reference_number,
+        "source": summary.source,
+        "source_tender_id": summary.source_tender_id,
+        "title": summary.title,
+    }
+    return canonical_opportunity_digest(payload)
+
+
+def should_create_new_version(existing_digest: str | None, new_digest: str) -> bool:
+    """Return true only when the digest changes, preserving immutable history."""
+    if not existing_digest:
+        return True
+    return existing_digest != new_digest
+
+
+def is_allowlisted_document_url(url: str) -> bool:
+    """Return true when the URL is credential-free https and host-allowlisted."""
+    try:
+        parsed = urlsplit(url)
+        if parsed.scheme != "https":
+            return False
+        if parsed.username or parsed.password or parsed.port:
+            return False
+        if parsed.fragment:
+            return False
+        return parsed.hostname in ALLOWED_DOCUMENT_HOSTS
+    except ValueError:
+        return False

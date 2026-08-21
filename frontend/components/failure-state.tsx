@@ -1,3 +1,8 @@
+/**
+ * Explicit failure state with alert role.
+ *
+ * Shows safe copy without exposing internals.
+ */
 import Link from "next/link";
 
 import type { ApiFailureKind } from "../lib/api";
@@ -17,24 +22,30 @@ const failureCopy = {
   },
 } satisfies Record<ApiFailureKind, { title: string; detail: string }>;
 
-/** Renders an explicit, above-fold expected failure without exposing internals. */
+/** Failure banner with heading and recovery link. */
 export function FailureState({ kind }: { kind: ApiFailureKind }) {
   const copy = failureCopy[kind];
   return (
     <main className="page-shell state-page" id="main-content">
-      <section className="state-banner error-banner" role="alert">
+      <section className="state-banner error-banner" role="alert" aria-live="assertive">
         <StatusMark />
         <div>
           <h1>{copy.title}</h1>
           <p>{copy.detail}</p>
-          <Link className="text-link" href="/">Return to opportunity register</Link>
+          <Link className="text-link" href="/">
+            Return to opportunity register
+          </Link>
         </div>
       </section>
     </main>
   );
 }
 
-/** Supplies a decorative warning mark while status remains textual. */
+/** Decorative mark with hidden text alternative via badge. */
 function StatusMark() {
-  return <span className="state-mark" aria-hidden="true">!</span>;
+  return (
+    <span className="state-mark" aria-hidden="true">
+      !
+    </span>
+  );
 }

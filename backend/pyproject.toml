@@ -14,6 +14,8 @@ dependencies = [
     "pydantic==2.13.4",
     "pydantic-settings==2.15.0",
     "pypdf==6.16.1",
+    "python-docx==1.2.0",
+    "sentence-transformers==6.0.0",
     "uvicorn==0.52.4",
 ]
 
@@ -39,3 +41,8 @@ testpaths = ["tests"]
 
 [tool.ruff]
 target-version = "py313"
+
+[tool.ruff.lint]
+# Keep backend lint focused on correctness (E/F) and allow intentional
+# broad-except / cleanup patterns in pipeline/OCR and test scaffolding.
+ignore = ["BLE001", "S110", "FURB162", "F841", "SIM103", "SIM117", "SIM222", "C408"]

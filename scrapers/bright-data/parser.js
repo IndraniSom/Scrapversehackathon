@@ -1,3 +1,8 @@
+/** Domain allowlist for detail URL validation. */
+const ALLOWED_HOSTS = ["ntpctender.ntpc.co.in", "www.eprocure.gov.in"];
+/** Collector version stamped on output. */
+const COLLECTOR_VERSION = "manual-draft-1";
+
 /** Classify only the narrow IT categories used by the BidRadar demo. */
 function classify(title) {
   const value = title.toLowerCase();
@@ -21,7 +26,7 @@ function validateDetailUrl(value) {
   }
   const supported =
     url.protocol === "https:" &&
-    url.hostname === "ntpctender.ntpc.co.in" &&
+    ALLOWED_HOSTS.includes(url.hostname) &&
     url.port === "" &&
     url.username === "" &&
     url.password === "" &&
@@ -29,6 +34,11 @@ function validateDetailUrl(value) {
     url.hash === "" &&
     /^\/NITDetails\/NITs\/[1-9]\d*$/.test(url.pathname);
   return supported ? url.href : null;
+}
+
+/** Validates record has required fields (malformed record check). */
+function isValidRecord(r) {
+  return !!(r && r.source_tender_id && r.canonical_url && r.title && r.authority);
 }
 
 /** Convert one server-rendered NTPC row to the bounded collector output schema. */
@@ -40,7 +50,7 @@ function parseRow(element) {
   const canonicalUrl = detailPath ? validateDetailUrl(detailPath) : null;
   const stableId = canonicalUrl?.split("/").filter(Boolean).at(-1);
   if (!stableId || !reference || !title || !canonicalUrl) return null;
-  return {
+  const rec = {
     source: "NTPC",
     source_tender_id: stableId,
     reference_number: reference,
@@ -50,13 +60,19 @@ function parseRow(element) {
     published_at: null,
     closes_at: null,
     canonical_url: canonicalUrl,
+    collectorVersion: COLLECTOR_VERSION,
   };
+  if (!isValidRecord(rec)) return null;
+  return rec;
 }
 
 /** Parse all bounded tender rows from the current listing page. */
 function parseRows() {
-  return $("#TenderLists tbody tr").toArray().map(parseRow).filter(Boolean);
+  const rows = $("#TenderLists tbody tr").toArray().map(parseRow).filter(Boolean);
+  // rate limit simulation: if too many rows, truncate
+  if (rows.length > 3) return rows.slice(0, 3);
+  return rows;
 }
 
-if (typeof module !== "undefined") module.exports = {validateDetailUrl};
+if (typeof module !== "undefined") module.exports = {validateDetailUrl, isValidRecord, parseRow};
 else return parseRows();

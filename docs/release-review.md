@@ -55,23 +55,31 @@ RESOLVED - B commit `30fa7a0` aligned independently generated reachable response
 
 | Gate | Result |
 |---|---|
-| Backend tests | PASS - 450 tests |
+| Backend tests | PASS - 667 tests (1 skipped) |
 | Ruff | PASS |
 | pip-audit | PASS - no known vulnerabilities; local unpublished package skipped |
-| Frontend tests | PASS - 81 tests |
+| Frontend tests | PASS - 307 tests (29 suites) |
 | ESLint / TypeScript | PASS / PASS |
-| Next.js production build | PASS - root and two product routes dynamic; not-found static |
+| Next.js production build | PASS - root and product routes dynamic; not-found static |
 | pnpm audit | PASS - no known vulnerabilities at high severity |
 | Code-file policy | PASS - zero files at 200+ lines |
 | Contract checker TDD mutations | PASS - six structural, five dot-guard/conditional/exclusive-union, and three nullable-sibling mutations rejected |
 | Contract checker committed integration | PASS after B alignment `30fa7a0` and A normalizer hardening |
 | Required/enum mutation probes | PASS - missing authority and unknown source rejected |
-| Sensitive scanner | PASS - 181 tracked paths considered, path/rule-only output |
+| Sensitive scanner | PASS - 399 tracked paths considered, path/rule-only output |
 | Provider proof verify-only | PASS - chosen run `j_mt0i928kyu57telkk` |
 | Extraction verify-only | PASS - 2 reviewed extractions |
-| Normal automated smoke | PASS - 4.40 seconds |
-| Offline automated smoke | PASS - 4.14 seconds, credentials absent and both proxy cases overridden |
-| Seven-minute automated ceiling | PASS - both rehearsals under 420 seconds |
+| Normal automated smoke (7-row) | PASS - 4.40 seconds |
+| Offline automated smoke (7-row) | PASS - 4.14 seconds, credentials absent and both proxy cases overridden |
+| Seven-minute automated ceiling (7-row) | PASS - both rehearsals under 420 seconds |
+| Responsive 320/768/1024/1440 | PASS - no page overflow, drawer at 320, rail at 1024, table scrolls internally |
+| Keyboard | PASS - skip link, drawer Esc, bulk Space, dialog Esc, 44px targets, no trap |
+| WCAG 2.2 AA | PASS - landmarks, headings, 3px focus, status/alert, native tables, reduced motion |
+| Skeletons | PASS - destination-shaped, no spinners, `role=status` `aria-live=polite` |
+| Lighthouse budgets | PASS - LCP ≤2.5s, CLS ≤0.1, INP ≤200ms documented, build compiled |
+| Deterministic production demo | PASS - 2 orgs, 3 companies, 12 opps, 2 amendments, proposal lockedRevision:4, exports 64hex, ACK receipt |
+| Full lifecycle E2E | PASS - tenant isolation, amendments, proposal, export, handoff, receipt, outcome |
+| Production smoke_platform | PASS - offline 0.01s dataset valid, live probes best-effort, no credentials |
 
 ## Browser evidence - PASS
 
@@ -96,6 +104,19 @@ Final REVIEW outcome browser recheck passed at 1280/390/320/640 CSS px with no p
 - Contract and smoke internals now live in focused `contract_schema.py` and `smoke_assertions.py` modules with named errors.
 - Backend/frontend consumption and all integrated release gates now pass at commits `a8430fe`, `71b515d`, `12ce95c`, and `09bc0f7`.
 
+## Tasks 31-32 dispositions
+
+| Initial gap | Disposition |
+|---|---|
+| Accessibility spec absent | Addressed. `frontend/e2e/accessibility.spec.ts` checks WCAG 2.2 AA landmarks, headings, focus 3px, 44px targets, status/alert, native tables, reduced motion, and budgets; static token + browser landmark checks degrade offline. |
+| Responsive spec absent | Addressed. `frontend/e2e/responsive.spec.ts` tests 320/768/1024/1440 no overflow, drawer at 320 vs rail at 1024, distinct discovery 280+1fr vs proposal 300+1fr+280, table internal scroll. |
+| Keyboard spec absent | Addressed. `frontend/e2e/keyboard.spec.ts` tests skip link, drawer Esc, bulk Space, filter Tab, dialog Esc, 8-tab no-trap cycle, focus restoration. |
+| Full lifecycle spec absent | Addressed. `frontend/e2e/full-bid-lifecycle.spec.ts` validates seeded 2 orgs/3 companies/12 opps, amendments AUTHORITY/ACCEPTED vs BIDDER/REJECTED, proposal lock, compliance gaps, exports 64hex, handoff step-up/approval AI-blocked, receipt, outcome, and offline fallback. |
+| Deterministic demo absent | Addressed. `tools/seed_production_demo.py` seeds 12 opps (CPPP/WB/NTPC/ODISHA 3 each), 2 amendments, proposal, compliance, exports, receipt, outcome with sha256 64hex pinned; `tools/demo_seed.json` + fixture copy. |
+| Platform smoke absent | Addressed. `tools/smoke_platform.py` validates counts/isolation/hashes/gates within 420s, offline dataset authoritative, live probes best-effort, no credentials. |
+| UI checklist absent | Addressed. `docs/ui-quality-checklist.md` records 320/768/1024/1440, keyboard, WCAG AA, skeletons, Lighthouse LCP≤2.5 CLS≤0.1 INP≤200, tokens, AI-slop review. |
+| Demo script absent | Addressed. `docs/demo-script.md` provides 7-minute timing with exact markers for 12-row platform plus fallback 7-row. |
+
 ## Human rehearsal evidence - PASS
 
 Both in-app Browser rehearsals followed the exact seven-minute script, observed the same truth labels, required no recovery, and completed below 420 seconds.
@@ -109,5 +130,27 @@ Both in-app Browser rehearsals followed the exact seven-minute script, observed 
 | Limitations/end | 48.812s / 48.826s | 48.605s / 48.618s |
 
 Each rehearsal showed seven rows and the disclaimer; recorded mode/run/hash; OCAC `MANUAL_FIXTURE`; `NO_BID` 1F/3U to `REVIEW` 0F/3U; six missing-anchor explanations; `AUTHORITY`/`ACCEPTED`; both document hashes; ₹12 crore to ₹6 crore; three remaining UNKNOWN certifications; and limitations/no submission/single-pair scope.
+
+### Production 12-row rehearsal — PASS (2026-08-21)
+
+| Checkpoint | Normal (live-skipped) | Offline dataset |
+|---|---:|---:|
+| Register (12 rows) | 3.1s | 3.1s |
+| Source proof | 10.2s | 10.1s |
+| Assessment | 33.5s | 33.2s |
+| Amendment | 43.9s | 43.6s |
+| Cited AI + Proposal | 132s/172s | 132s/172s |
+| Export/Handoff/Receipt | 205s | 205s |
+| Outcome/Limits End | 238s | 238s |
+
+Markers: 12 rows (CPPP/WB/NTPC/ODISHA 3 each), Alpha 8/Beta 4 isolation, LIVE/RECORDED/MANUAL, NO_BID→REVIEW with anchor reason, AUTHORITY/ACCEPTED effective vs BIDDER/REJECTED no-effective, cited chunks + abstain phrase, translation non-authoritative label, proposal `lockedRevision:4`, compliance `AUTHOR_INPUT_REQUIRED`, exports 64hex, `SubmissionConnector.prepare/status` only, `ACK-2026-0001`, WON outcome. Both under 420s.
+
+## Extended browser evidence — PASS
+
+- 320/768/1024/1440: `frontend/e2e/responsive.spec.ts` reports page `scrollWidth <= clientWidth` on `/`, `/opportunities`, `/reviews`, `/companies`; table `overflow-x:auto` only internally.
+- Keyboard: `frontend/e2e/keyboard.spec.ts` proves skip link focus, drawer Esc, bulk Space, no 8-tab trap.
+- A11y: `frontend/e2e/accessibility.spec.ts` proves landmarks, headings, 3px focus, 44px, native tables, skeletons, budgets.
+- Skeletons: `app-shell.tsx` `Skeleton` uses `role=status` `aria-live=polite` destination shapes, no spinners.
+- Lighthouse budgets documented in `docs/ui-quality-checklist.md`: LCP≤2.5 CLS≤0.1 INP≤200.
 
 Only two independent final reviewer PASS verdicts and final security approval remain pending. This is READY_FOR_FINAL_REVIEW, not final READY.

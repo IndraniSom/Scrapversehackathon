@@ -50,6 +50,14 @@ class ParsedDocument(BaseModel):
     pages: list[PageText] = Field(min_length=1)
 
 
+def _is_decompression_error(error: Exception) -> bool:
+    """Detect decompression-bomb or resource-exhaustion signals safely."""
+    if isinstance(error, (MemoryError, RecursionError)):
+        return True
+    msg = str(error).lower()
+    return "decompression" in msg or "bomb" in msg or "exhaust" in msg
+
+
 def parse_pdf(path: Path, limits: DocumentLimits) -> ParsedDocument:
     """Parse one bounded local digital-text PDF without network, OCR, or execution."""
     try:
@@ -67,7 +75,9 @@ def parse_pdf(path: Path, limits: DocumentLimits) -> ParsedDocument:
         page_count = len(reader.pages)
     except DocumentError:
         raise
-    except (PdfReadError, PdfStreamError, ValueError) as error:
+    except (PdfReadError, PdfStreamError, ValueError, MemoryError, RecursionError) as error:
+        if _is_decompression_error(error):
+            raise DocumentError("DECOMPRESSION_LIMIT") from error
         raise DocumentError("CORRUPT_PDF") from error
     if page_count > limits.max_pages:
         raise DocumentError("TOO_MANY_PAGES")
@@ -88,7 +98,9 @@ def parse_pdf(path: Path, limits: DocumentLimits) -> ParsedDocument:
                 )
     except DocumentError:
         raise
-    except (PdfReadError, PdfStreamError, KeyError, ValueError) as error:
+    except (PdfReadError, PdfStreamError, KeyError, ValueError, MemoryError, RecursionError) as error:
+        if _is_decompression_error(error):
+            raise DocumentError("DECOMPRESSION_LIMIT") from error
         raise DocumentError("CORRUPT_PDF") from error
     if not pages:
         raise DocumentError("NEEDS_OCR")

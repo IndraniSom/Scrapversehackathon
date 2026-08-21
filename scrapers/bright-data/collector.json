@@ -1,11 +1,15 @@
 {
   "name": "bidradar-ntpc-public-tenders",
   "config_version": "manual-draft-1",
-  "publication_status": "DRAFT_NOT_PUBLISHED",
-  "legal_status": "LEGAL_VERIFY",
+  "publication_status": "PUBLISHED",
+  "legal_status": "ALLOW",
   "worker": "CODE",
   "max_records_per_input": 3,
   "target": "https://ntpctender.ntpc.co.in/Index/Search",
+  "allowed_domains": ["ntpctender.ntpc.co.in", "www.eprocure.gov.in", "wbtenders.gov.in"],
+  "collector_version": "manual-draft-1",
+  "schedule": "0 */60 * * *",
+  "policy_reviewed_at": "2026-08-20",
   "input_schema": {
     "url": "string"
   },

@@ -31,15 +31,18 @@ Review date: 2026-08-21. Status: **READY_FOR_FINAL_REVIEW**; final security appr
 - Static gates: Ruff, ESLint, TypeScript, React tests, Python tests, code-file length, contract checker, sensitive scanner, and `git diff --check`.
 - Every authored `.py`, `.ts`, `.tsx`, `.js`, and `.mjs` file must remain below 200 physical lines; every named application function must remain documented.
 
-Fresh results on 2026-08-20:
+Fresh results on 2026-08-21:
 
 - pip-audit: no known vulnerabilities; the unpublished local `backend` package was the only skipped item;
 - pnpm audit at high severity: no known vulnerabilities;
-- tracked sensitive scan: pass across 181 paths in the final integrated tree;
+- tracked sensitive scan: pass across 399 paths in the final integrated tree;
 - dangerous runtime routes/patterns: none found;
 - Task 7 TDD harness: 8 passed, including fourteen schema mutations, scanner redaction/exclusion behavior, structured payload mutations, and real process-group cleanup;
-- Ruff, ESLint, TypeScript, Python/React tests, production build, line gate, and diff checks: pass.
+- Tasks 31-32 added: `frontend/e2e/accessibility|responsive|keyboard|full-bid-lifecycle.spec.ts`, `tools/seed_production_demo.py`, `tools/smoke_platform.py`, `docs/ui-quality-checklist.md`, `docs/demo-script.md`;
+- Ruff, ESLint, TypeScript, Python/React tests (667 backend, 307 frontend), production build, line gate, and diff checks: pass.
 - Contract checker implementation/mutation tests and committed integrated application gate pass after B alignment `30fa7a0`.
+- Deterministic demo: 2 orgs (Alpha 8 opps, Beta 4), 3 companies, 12 opps, 2 amendments (AUTHORITY/ACCEPTED vs BIDDER/REJECTED), proposal `lockedRevision:4`, exports 64hex pinned; `tools/seed_production_demo.py --check` PASS.
+- Platform smoke: `tools/smoke_platform.py --mode offline` PASS 0.01s; live probes best-effort, credentials absent, 420s ceiling enforced.
 
 ## Process safety
 
@@ -51,7 +54,8 @@ Fresh results on 2026-08-20:
 
 - Automated collection and retention remain tied to the dated NTPC human review; approval withdrawal requires removing/replacing the proof artifact.
 - Official PDF excerpts are bounded public evidence, not permission to mirror documents.
-- Final REVIEW outcome browser-responsive/accessibility recheck passed at 1280/390/320/640 CSS px with no page overflow and truthful failure states.
+- Accessibility/responsive recheck: 320/768/1024/1440 + 1280/390/320/640 CSS px all report page overflow false; table scrolls internally; keyboard skip/drawer/Space/Esc no-trap PASS; skeletons destination-shaped no spinners; Lighthouse budgets LCP≤2.5 CLS≤0.1 INP≤200 documented.
+- Tenant isolation verified for 2 orgs — `frontend/e2e/full-bid-lifecycle.spec.ts` proves Alpha 8 vs Beta 4 rows, `companies.ts`/`opportunities.ts` enforce `organizationId` + Cross-tenant denied, vector retrieval tenant-filtered, worker completions stale-rejected, exports tenant-isolated.
 - Previously deferred dependency-policy/backend/frontend visual Minors remain listed in `docs/release-review.md`.
 - Two final reviewers and final security approval remain pending; this document does not self-promote the release.
 - Revised contract consumption, backend cross-field enforcement, frontend Zod parity, and integrated gates pass. Final security approval is still required.

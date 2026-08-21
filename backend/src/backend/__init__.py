@@ -6,7 +6,7 @@ from backend.config import Settings
 
 
 def main() -> None:
-    """Run the offline FastAPI application with validated bind settings."""
+    """Run the FastAPI processing service with validated bind settings."""
     settings = Settings()
     uvicorn.run(
         "backend.main:app",

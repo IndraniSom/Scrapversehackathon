@@ -1,11 +1,23 @@
-/** Shows an immediate, reduced-motion-safe skeleton while route data resolves. */
+/**
+ * Skeleton fallback for procurement routes.
+ *
+ * Uses destination-shaped blocks and respects reduced motion.
+ */
 export default function Loading() {
   return (
-    <main className="page-shell state-page" id="main-content">
-      <section className="loading-state" role="status" aria-live="polite">
-        <span className="loading-mark" aria-hidden="true" />
-        <div><h1>Loading procurement evidence</h1><p>Validating the backend response and source provenance.</p></div>
-      </section>
+    <main className="page-shell" id="main-content" aria-busy="true">
+      <div className="skeleton" role="status" aria-live="polite">
+        <span className="sr-only">Loading procurement evidence. Validating backend response.</span>
+        <div className="skeleton-line full" aria-hidden="true" />
+        <div className="skeleton-line medium" aria-hidden="true" />
+        <div className="skeleton-line short" aria-hidden="true" />
+        <div className="skeleton-block" aria-hidden="true" />
+        <div className="skeleton-table" aria-hidden="true">
+          <div className="skeleton-row" />
+          <div className="skeleton-row" />
+          <div className="skeleton-row" />
+        </div>
+      </div>
     </main>
   );
 }

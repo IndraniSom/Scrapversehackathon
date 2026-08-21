@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bidradar.test/contracts/worker/job-request.schema.json",
+  "title": "WorkerJobRequest",
+  "description": "Bounded input the worker fetches via one-time exchange token. Covers tenant, kind, idempotency, revision and trace.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "jobId",
+    "organizationId",
+    "kind",
+    "status",
+    "idempotencyKey",
+    "inputRevision",
+    "inputHashes",
+    "attempt",
+    "maxAttempts",
+    "traceId",
+    "requestedBy",
+    "createdAt"
+  ],
+  "properties": {
+    "jobId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    },
+    "organizationId": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^org_[A-Za-z0-9_-]+$"
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "SOURCE_COLLECTION",
+        "DOCUMENT_PARSE",
+        "DOCUMENT_OCR",
+        "REQUIREMENT_EXTRACTION",
+        "EMBEDDING",
+        "ASSESSMENT",
+        "AMENDMENT_DIFF",
+        "TENDER_BRIEF",
+        "TENDER_QA",
+        "COMPLIANCE_MATRIX",
+        "PROPOSAL_OUTLINE",
+        "PROPOSAL_DRAFT",
+        "CLAIM_REVIEW",
+        "EXPORT",
+        "SUBMISSION_PACKAGE",
+        "NOTIFICATION"
+      ]
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "QUEUED",
+        "DISPATCHED",
+        "RUNNING",
+        "NEEDS_REVIEW",
+        "SUCCEEDED",
+        "RETRYABLE_FAILURE",
+        "FAILED",
+        "CANCELLED"
+      ]
+    },
+    "idempotencyKey": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128
+    },
+    "inputRevision": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "inputHashes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "items": {
+        "type": "string",
+        "pattern": "^[a-f0-9]{64}$"
+      }
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 10
+    },
+    "maxAttempts": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10
+    },
+    "traceId": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "requestedBy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "createdAt": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "progressStage": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64
+    },
+    "safeFailureCode": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Z0-9_]*$"
+    },
+    "outputRefs": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}
