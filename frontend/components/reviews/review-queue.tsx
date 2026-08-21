@@ -31,6 +31,8 @@ export function ReviewQueue({ tasks, onSelect, selectedId }: Props) {
   const [priority, setPriority] = useState("");
   const [state, setState] = useState("");
   const [dueBefore, setDueBefore] = useState("");
+  const [tender, setTender] = useState("");
+  const [reason, setReason] = useState("");
 
   const filtered = useMemo(() => {
     return tasks.filter((t) => {
@@ -38,9 +40,11 @@ export function ReviewQueue({ tasks, onSelect, selectedId }: Props) {
       if (priority && t.priority !== priority) return false;
       if (state && t.state !== state) return false;
       if (dueBefore && t.dueAt && t.dueAt > Number(dueBefore)) return false;
+      if (tender && !t.targetId.toLowerCase().includes(tender.toLowerCase())) return false;
+      if (reason && !(t.decision ?? "").toLowerCase().includes(reason.toLowerCase())) return false;
       return true;
     });
-  }, [tasks, assignee, priority, state, dueBefore]);
+  }, [tasks, assignee, priority, state, dueBefore, tender, reason]);
 
   return (
     <section aria-labelledby="review-queue-title">
@@ -49,6 +53,10 @@ export function ReviewQueue({ tasks, onSelect, selectedId }: Props) {
         <label>
           Assignee
           <input value={assignee} onChange={(e) => setAssignee(e.target.value)} placeholder="assignee id" />
+        </label>
+        <label>
+          Tender
+          <input value={tender} onChange={(e) => setTender(e.target.value)} placeholder="tender id" />
         </label>
         <label>
           Priority
@@ -68,6 +76,10 @@ export function ReviewQueue({ tasks, onSelect, selectedId }: Props) {
             <option value="approved">Approved</option>
             <option value="rejected">Rejected</option>
           </select>
+        </label>
+        <label>
+          Reason
+          <input value={reason} onChange={(e) => setReason(e.target.value)} placeholder="extraction reason" />
         </label>
         <label>
           Due before

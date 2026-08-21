@@ -117,58 +117,34 @@ export const detectAmendment = mutation({
     const auth = await requireOrganization(ctx);
     if (auth.organizationId !== args.organizationId) throwForbidden("Cross-tenant access denied.");
     if (args.changedRuleIds.length === 0) throwValidation("changedRuleIds required.");
-    // Deterministic diff before any AI narrative
+    if (args.authorityStatement.disposition === "AMBIGUOUS") throwValidation("Ambiguous precedence rejected.");
     const oldMap: Record<string, string> = {};
     const newMap: Record<string, string> = {};
-    for (const id of args.changedRuleIds) {
-      oldMap[id] = args.oldRuleJson ?? "";
-      newMap[id] = args.newRuleJson ?? "";
-    }
+    for (const id of args.changedRuleIds) { oldMap[id] = args.oldRuleJson ?? ""; newMap[id] = args.newRuleJson ?? ""; }
     const diff = deterministicDiff(oldMap, newMap);
-    // Topology: only declared ids may differ; detect silent changes
-    if (diff.length !== args.changedRuleIds.length || !diff.every((id) => args.changedRuleIds.includes(id))) {
-      throwValidation("Unrelated silent rule change detected.");
-    }
-    // Ambiguous precedence: duplicate or ambiguous disposition
-    if (args.authorityStatement.disposition === "AMBIGUOUS") throwValidation("Ambiguous precedence rejected.");
+    if (diff.length !== args.changedRuleIds.length || !diff.every((id) => args.changedRuleIds.includes(id))) throwValidation("Unrelated silent rule change detected.");
     const applied = isAuthorityApplied(args.authorityStatement, args.baseDocumentId);
-    // AI only after deterministic diff
-    const mapping = aiProposeMapping(diff, { [args.changedRuleIds[0]]: args.oldClause ?? "" }, { [args.changedRuleIds[0]]: args.newClause ?? "" });
+    const oldClauses: Record<string, string> = {};
+    const newClauses: Record<string, string> = {};
+    for (const id of diff) { oldClauses[id] = args.oldClause ?? ""; newClauses[id] = args.newClause ?? ""; }
+    const mapping = aiProposeMapping(diff, oldClauses, newClauses);
     const narrative = aiSummarize(applied, diff);
     void mapping;
     const now = Date.now();
     const id = await ctx.db.insert("amendmentImpacts", {
-      organizationId: args.organizationId,
-      opportunityId: args.opportunityId,
-      authorityStatement: JSON.stringify(args.authorityStatement),
-      oldRule: args.oldRuleJson,
-      newRule: args.newRuleJson,
-      transition: narrative,
-      applied,
-      createdAt: now,
+      organizationId: args.organizationId, opportunityId: args.opportunityId, authorityStatement: JSON.stringify(args.authorityStatement),
+      oldRule: args.oldRuleJson, newRule: args.newRuleJson, transition: narrative, applied, createdAt: now,
     });
     if (applied) {
-      // Mark affected work items stale — by organization, then filter by opportunity link
       const compliance = await ctx.db.query("complianceRows").withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId)).collect().catch(() => []);
-      for (const row of compliance as Array<{ _id: string; proposalId: string }>) {
-        // Only mark rows whose proposal belongs to this opportunity (verified via proposalProjects lookup)
-        await ctx.db.patch(row._id as never, { status: "gap" } as never);
-      }
+      for (const row of compliance as Array<{ _id: string }>) await ctx.db.patch(row._id as never, { status: "gap" } as never);
       const sections = await ctx.db.query("proposalSections").withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId)).collect().catch(() => []);
-      for (const sec of sections as Array<{ _id: string }>) {
-        await ctx.db.patch(sec._id as never, { state: "CHANGES_REQUESTED" } as never);
-      }
-      const assessments = await ctx.db.query("assessments").withIndex("by_organization", (q) => q.eq("organizationId", args.organizationId)).collect().catch(() => []);
-      void assessments;
+      for (const sec of sections as Array<{ _id: string }>) await ctx.db.patch(sec._id as never, { state: "CHANGES_REQUESTED" } as never);
     }
-    // Notify with exact clauses and next actions
     const dedupe = `amendment:${args.opportunityId}:${args.amendmentDocumentId}`;
     await ctx.db.insert("notificationEvents", {
-      organizationId: args.organizationId,
-      type: applied ? "amendment.applied" : "amendment.detected",
-      deduplicationKey: dedupe,
-      sourceEntityId: String(args.opportunityId),
-      urgency: applied ? "high" : "low",
+      organizationId: args.organizationId, type: applied ? "amendment.applied" : "amendment.detected", deduplicationKey: dedupe,
+      sourceEntityId: String(args.opportunityId), urgency: applied ? "high" : "low",
       payload: JSON.stringify({ oldClause: args.oldClause, newClause: args.newClause, applied, narrative, stale: applied ? staleTypes() : [], nextActions: applied ? ["Review assessments", "Update compliance matrix", "Reassign proposal sections"] : ["No action required"] }),
       createdAt: now,
     });

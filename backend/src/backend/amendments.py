@@ -82,11 +82,6 @@ def assess_versions(input: AssessmentInput) -> AmendmentImpact:
     if input.amendment_revision != input.base_revision + 1:
         raise ValueError("amendment revision must immediately follow base revision")
     diff_ids = deterministic_diff(input.base_requirements, input.amendment_requirements)
-    _ai_mapping = ai_propose_clause_mapping(
-        input.base_requirements, input.amendment_requirements, diff_ids
-    )
-    _ai_narrative = ai_summarize_changes(True, diff_ids)
-    _ = (_ai_mapping, _ai_narrative)
     validate_single_change(input.base_requirements, input.amendment_requirements, input.changed_rule_id)
     base_trusted = _trusted_version(input.base_extraction_state, input.base_review_state)
     amendment_trusted = _trusted_version(
@@ -97,6 +92,10 @@ def assess_versions(input: AssessmentInput) -> AmendmentImpact:
     if not amendment_trusted:
         raise ValueError("amendment review is stale or rejected")
     applied = amendment_trusted and _authority_applies(input)
+    # AI after deterministic diff and topology validation, using actual applied flag
+    _ai_mapping = ai_propose_clause_mapping(input.base_requirements, input.amendment_requirements, diff_ids)
+    _ai_narrative = ai_summarize_changes(applied, diff_ids)
+    _ = (_ai_mapping, _ai_narrative)
     effective_amendment = input.amendment_requirements if applied else input.base_requirements
     base = _assessment(input, input.base_requirements, input.base_document, base_trusted)
     amended = _assessment(input, effective_amendment, input.amendment_document, amendment_trusted)

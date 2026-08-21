@@ -127,7 +127,7 @@ export const confirmReviewTask = mutation({
     checkStale(task.createdAt, args.expectedRevision);
     await ctx.db.patch(args.taskId, { state: "approved", decision: "confirmed" });
     await ctx.db.insert("auditEvents", { organizationId: args.organizationId, actorId: args.actorId, action: "review.confirmed", targetType: "reviewTask", targetId: task._id, createdAt: Date.now() });
-    await ctx.db.insert("jobs", { organizationId: args.organizationId, kind: "ASSESSMENT", status: "QUEUED", idempotencyKey: `${args.organizationId}:${task._id}:${Date.now()}`, inputRevision: String(task.createdAt), inputHashes: [], attempt: 0, maxAttempts: 3, requestedBy: args.actorId, traceId: String(task._id), createdAt: Date.now() });
+    await ctx.db.insert("jobs", { organizationId: args.organizationId, kind: "ASSESSMENT", status: "QUEUED", idempotencyKey: `${args.organizationId}:${task._id}:confirm`, inputRevision: String(task.createdAt), inputHashes: [], attempt: 0, maxAttempts: 3, requestedBy: args.actorId, traceId: String(task._id), createdAt: Date.now() });
     return await ctx.db.get(args.taskId);
   },
 });
