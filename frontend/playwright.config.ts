@@ -23,7 +23,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "(pnpm exec convex dev --once || test -f .env.local) && pnpm exec convex env set BIDRADAR_E2E_MODE 1 && exec pnpm exec convex dev",
+      command: "(pnpm exec convex dev --once || test -f .env.local) && pnpm exec convex env set BIDRADAR_E2E_MODE 1 && pnpm exec convex env set CLERK_JWT_ISSUER_DOMAIN https://e2e.invalid && exec pnpm exec convex dev",
       url: "http://127.0.0.1:3210",
       reuseExistingServer: !process.env.CI,
       timeout: 90000,
