@@ -100,6 +100,7 @@ export const extractionTables = {
     state: v.union(v.literal("open"), v.literal("in_review"), v.literal("approved"), v.literal("rejected")),
     decision: v.optional(v.string()),
     createdAt: v.number(),
+    updatedAt: v.optional(v.number()),
   })
     .index("by_organization", ["organizationId"])
     .index("by_organization_and_id", ["organizationId", "targetId"])

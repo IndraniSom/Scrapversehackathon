@@ -57,6 +57,10 @@ export const createProposal = mutation({
   args: { opportunityId: v.id("opportunities"), companyId: v.id("companies") },
   handler: async (ctx, args) => {
     const auth = await requireOrganization(ctx);
+    const opportunity = await ctx.db.get(args.opportunityId);
+    const company = await ctx.db.get(args.companyId);
+    if (opportunity === null || opportunity.organizationId !== auth.organizationId) throwNotFound("Opportunity not found.");
+    if (company === null || company.organizationId !== auth.organizationId) throwNotFound("Company not found.");
     const now = Date.now();
     const id = await ctx.db.insert("proposalProjects", { organizationId: auth.organizationId, opportunityId: args.opportunityId, companyId: args.companyId, stage: "draft", ownerId: auth.clerkUserId, createdAt: now, updatedAt: now });
     await ctx.db.insert("auditEvents", { organizationId: auth.organizationId, actorId: auth.clerkUserId, action: "proposal.created", targetType: "proposalProjects", targetId: String(id), traceId: String(id), createdAt: now });

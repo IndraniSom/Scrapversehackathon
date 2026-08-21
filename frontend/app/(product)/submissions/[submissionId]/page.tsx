@@ -1,109 +1,29 @@
-/** Submission package detail with deterministic manifest. */
+/** Persistent assisted-submission package detail. */
+"use client";
+
+import { useQuery } from "convex/react";
 import Link from "next/link";
+import { use } from "react";
+import { api } from "../../../../convex/_generated/api";
+import type { Id } from "../../../../convex/_generated/dataModel";
 
-export const dynamic = "force-dynamic";
-
-type ManifestFile = {
-  path: string;
-  sha256: string;
-  byte_length: number;
-  mime: string;
-  origin: string;
-  revision: number;
-};
-
-type SubmissionView = {
-  submissionId: string;
-  proposalId: string;
-  proposalTitle: string;
-  proposalRevision: number;
-  validationState: "pending" | "valid" | "invalid";
-  approvalState: "draft" | "approved" | "rejected";
-  files: ManifestFile[];
-};
-
-/** Renders one manifest row with stable procurement vocabulary. */
-function ManifestRow({ file }: { file: ManifestFile }) {
-  return (
-    <tr>
-      <td><code>{file.path}</code></td>
-      <td><span className="hash">{file.sha256}</span></td>
-      <td>{file.byte_length.toLocaleString()}</td>
-      <td>{file.mime}</td>
-      <td>{file.origin}</td>
-      <td>{file.revision}</td>
-    </tr>
-  );
-}
-
-/** Fetches submission locally; falls back to seeded deterministic example. */
-async function loadSubmission(submissionId: string): Promise<SubmissionView> {
-  // Placeholder for Convex query: api.submissions.get in production.
-  const files: ManifestFile[] = [
-    { path: "assessment.pdf", sha256: "a".repeat(64), byte_length: 48211, mime: "application/pdf", origin: "assessment-v2", revision: 2 },
-    { path: "compliance.csv", sha256: "b".repeat(64), byte_length: 8214, mime: "text/csv", origin: "compliance-v2", revision: 2 },
-    { path: "proposal.docx", sha256: "c".repeat(64), byte_length: 124992, mime: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", origin: "proposal-v2", revision: 2 },
-  ].sort((a, b) => a.path.localeCompare(b.path));
-  return {
-    submissionId,
-    proposalId: "ocac-pond-monitoring-26001",
-    proposalTitle: "Pond Monitoring and Advisory System",
-    proposalRevision: 2,
-    validationState: "valid",
-    approvalState: "draft",
-    files,
-  };
-}
-
-/** Renders the submission package and content-addressed manifest. */
-export default async function SubmissionPage({ params }: PageProps<"/submissions/[submissionId]">) {
-  const { submissionId } = (await params) as { submissionId: string };
-  const submission = await loadSubmission(submissionId);
+/** Renders authorized package state, export IDs, and immutable receipts. */
+export default function SubmissionPage({ params }: { params: Promise<{ submissionId: string }> }) {
+  const { submissionId } = use(params);
+  const id = submissionId as Id<"submissionPackages">;
+  const submission = useQuery(api.submissions.get, { submissionId: id });
+  const status = useQuery(api.submissions.getStatus, { packageId: id });
+  if (submission === undefined || status === undefined) return <main className="page-shell" id="main-content"><p role="status">Loading submission package…</p></main>;
+  if (submission === null) return <main className="page-shell" id="main-content"><h1>Submission package not found</h1></main>;
   const canDownload = submission.validationState === "valid" && submission.approvalState === "approved";
   return (
-    <main className="page-shell detail-page" id="main-content">
-      <header className="page-intro">
-        <Link className="text-link back-link" href="/proposals">← Proposals</Link>
-        <p className="source-line">Submission package · Rev {submission.proposalRevision}</p>
-        <h1>{submission.proposalTitle}</h1>
-        <p>Package {submission.submissionId} for opportunity {submission.proposalId}. Files are content-addressed with SHA-256 and byte length.</p>
-      </header>
-
-      <section className="proof-panel" aria-labelledby="package-status">
-        <h2 id="package-status">Package status</h2>
-        <dl className="definition-grid">
-          <div><dt>Validation</dt><dd>{submission.validationState}</dd></div>
-          <div><dt>Approval</dt><dd>{submission.approvalState}</dd></div>
-          <div><dt>Proposal revision</dt><dd>{submission.proposalRevision}</dd></div>
-          <div><dt>Files</dt><dd>{submission.files.length} — deterministic order by path</dd></div>
-        </dl>
-        {!canDownload && <p className="subline">Download requires approved validation and amendment review. Final submission must be completed on the official portal.</p>}
-      </section>
-
-      <section aria-labelledby="manifest-title">
-        <div className="section-heading-row">
-          <h2 id="manifest-title">Content manifest</h2>
-          <p>Sorted by path. Each entry shows hash, length, MIME, origin, and revision.</p>
-        </div>
-        <div className="table-wrap" role="region" aria-label="Manifest files">
-          <table>
-            <thead>
-              <tr><th>Path</th><th>SHA-256</th><th>Bytes</th><th>MIME</th><th>Origin</th><th>Rev</th></tr>
-            </thead>
-            <tbody>
-              {submission.files.map((f) => <ManifestRow key={f.path} file={f} />)}
-            </tbody>
-          </table>
-        </div>
-      </section>
-
-      <div className="route-actions">
-        <button className="primary-action" type="button" disabled={!canDownload} aria-disabled={!canDownload}>
-          Download ZIP package
-        </button>
-        <Link className="text-link" href={`/opportunities/${encodeURIComponent(submission.proposalId)}`}>View opportunity</Link>
-      </div>
-      <p className="subline">ZIP entries use fixed timestamps and sorted order for reproducible verification. Paths with traversal are rejected.</p>
+    <main className="page-shell" id="main-content">
+      <header className="page-intro"><Link href="/proposals">Back to proposals</Link><h1>Submission package</h1><p>Package {submissionId}. Final submission remains on official portal.</p></header>
+      <dl className="definition-grid"><div><dt>Validation</dt><dd>{submission.validationState}</dd></div><div><dt>Approval</dt><dd>{submission.approvalState}</dd></div><div><dt>Exports</dt><dd>{submission.exportIds.length}</dd></div><div><dt>Receipts</dt><dd>{status.receipts.length}</dd></div></dl>
+      <section><h2>Export manifest</h2>{submission.exportIds.length === 0 ? <p className="empty-state">No exports attached.</p> : <ul>{submission.exportIds.map((exportId) => <li key={exportId}><code>{String(exportId)}</code></li>)}</ul>}</section>
+      <section><h2>Submission receipts</h2>{status.receipts.length === 0 ? <p className="empty-state">No portal receipt recorded.</p> : <ul>{status.receipts.map((receipt) => <li key={receipt.acknowledgement}>{receipt.portal} · {receipt.acknowledgement} · {new Date(receipt.submittedAt).toLocaleString()}</li>)}</ul>}</section>
+      <a href={`/api/submissions/${submissionId}`} aria-disabled={!canDownload} onClick={(event) => { if (!canDownload) event.preventDefault(); }}>Download approved ZIP package</a>
+      {!canDownload ? <p>Download requires valid package and bid-manager approval.</p> : null}
     </main>
   );
 }

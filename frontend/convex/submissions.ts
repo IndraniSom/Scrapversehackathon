@@ -6,7 +6,8 @@
  * approval, duplicate, and AI guards.
  */
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { action, internalQuery, mutation, query } from "./_generated/server";
+import { internal } from "./_generated/api";
 import { requireOrganization } from "./lib/authorization";
 import { throwConflict, throwForbidden, throwNotFound, throwValidation } from "./lib/errors";
 
@@ -145,5 +146,29 @@ export const getStatus = query({
     if (!pkg || pkg.organizationId !== auth.organizationId) throwNotFound("Submission package not found.");
     const receipts = await ctx.db.query("submissionReceipts").withIndex("by_organization_and_id", (q) => q.eq("organizationId", auth.organizationId).eq("packageId", args.packageId)).collect();
     return { packageId: args.packageId, receipts: receipts.map((r) => ({ acknowledgement: r.acknowledgement, submittedAt: r.submittedAt, portal: r.portal })) };
+  },
+});
+
+/** Returns approved ZIP bearer URL only to authenticated package tenant. */
+export const getDownloadUrl = action({
+  args: { packageId: v.id("submissionPackages") },
+  handler: async (ctx, args): Promise<string | null> => {
+    const storageId = await ctx.runQuery(internal.submissions.getApprovedZip, args);
+    return ctx.storage.getUrl(storageId);
+  },
+});
+
+/** Resolves caller-owned approved ZIP storage for download action. */
+export const getApprovedZip = internalQuery({
+  args: { packageId: v.id("submissionPackages") },
+  handler: async (ctx, args) => {
+    const auth = await requireOrganization(ctx);
+    const pkg = await ctx.db.get(args.packageId);
+    if (pkg === null || pkg.organizationId !== auth.organizationId || pkg.validationState !== "valid" || pkg.approvalState !== "approved") throwForbidden("Package download is not approved.");
+    for (const exportId of pkg.exportIds) {
+      const job = await ctx.db.get(exportId);
+      if (job !== null && job.organizationId === auth.organizationId && job.format === "zip" && job.storageId) return job.storageId;
+    }
+    throwNotFound("ZIP export not found.");
   },
 });
