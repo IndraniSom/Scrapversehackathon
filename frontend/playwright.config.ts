@@ -32,7 +32,7 @@ export default defineConfig({
       stderr: "pipe",
     },
     {
-      command: "pnpm exec convex run e2eSeed:seed && pnpm start --hostname 127.0.0.1 --port 3000",
+      command: "for attempt in $(seq 1 30); do pnpm exec convex run e2eSeed:seed && exec pnpm start --hostname 127.0.0.1 --port 3000; sleep 1; done; exit 1",
       url: "http://127.0.0.1:3000",
       reuseExistingServer: !process.env.CI,
       timeout: 90000,
